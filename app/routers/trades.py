@@ -4,8 +4,14 @@ from typing import List
 
 from app.database import get_db
 from app import models, schemas, auth
+from app.price_queue import updates as price_updates
 
 router = APIRouter(prefix="/trade", tags=["trade"])
+
+# Price impact per share traded: 0.01% of current beri, capped at 5% per trade
+IMPACT_PER_SHARE = 0.0001
+IMPACT_CAP = 0.05
+BERI_FLOOR = 100_000  # beri never drops below this
 
 
 def share_price(character: models.Character) -> int:
@@ -71,10 +77,24 @@ def execute_trade(
         price=price,
     ))
 
+    # Move the market: buys push beri up, sells push it down
+    impact = min(IMPACT_CAP, req.quantity * IMPACT_PER_SHARE)
+    if req.action == "buy":
+        character.beri = character.beri * (1 + impact)
+    else:
+        character.beri = max(BERI_FLOOR, character.beri * (1 - impact))
+
     db.commit()
     db.refresh(current_user)
+    db.refresh(character)
     if share:
         db.refresh(share)
+
+    # Enqueue price update for WebSocket broadcast
+    try:
+        price_updates.put_nowait({"id": character.id, "beri": character.beri})
+    except Exception:
+        pass
 
     shares_held = share.quantity if share else 0
 
