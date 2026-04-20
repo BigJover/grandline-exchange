@@ -105,9 +105,8 @@ body::after {
 
 .ticker-wrap { background:#0a0318; border-bottom:1px solid var(--punk-dim); border-top:1px solid rgba(224,64,251,0.15); padding:5px 0; overflow:hidden; white-space:nowrap; display:flex; align-items:center; }
 .ticker-label { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; color:var(--punk); letter-spacing:2.5px; padding:0 14px; white-space:nowrap; flex-shrink:0; border-right:1px solid var(--punk-dim); opacity:0.75; text-shadow:0 0 10px var(--punk-dim); }
-.ticker-push { flex:2; min-width:0; }
-.ticker-clip { flex:2; overflow:hidden; min-width:0; position:relative; }
-.ticker-inner { display:inline-flex; animation:ticker 80s linear infinite; width:max-content; }
+.ticker-clip { flex:1; overflow:hidden; min-width:0; position:relative; }
+.ticker-inner { display:inline-flex; animation:ticker 500s linear infinite; width:max-content; }
 .ticker-item { font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0 20px; border-right:1px solid var(--border); display:inline-flex; align-items:center; gap:5px; }
 .t-name { color:var(--punk); opacity:0.7; }
 .t-up { color:var(--green); font-size:0.72rem; } .t-down { color:var(--red); font-size:0.72rem; }
@@ -981,7 +980,7 @@ body::after {
       <button class="header-login-btn" id="header-login-btn">LOG IN</button>
     </div>
   </div>
-  <div class="ticker-wrap"><span class="ticker-label">◈ LIVE FEED</span><div class="ticker-push"></div><div class="ticker-clip"><div class="ticker-inner" id="ticker"></div></div></div>
+  <div class="ticker-wrap"><span class="ticker-label">◈ LIVE FEED</span><div class="ticker-clip"><div class="ticker-inner" id="ticker"></div></div></div>
 </div>
 
 <div class="update-panel">
@@ -1560,12 +1559,16 @@ function makeLabels(hist) {
 let activeFilter='all', searchQuery='', activeGroup='';
 
 function buildTicker() {
-  const volatile = CHARACTERS
-    .filter(c => c.beri && c.canon_bounty && c.canon_bounty > 0)
-    .map(c => ({ ...c, pct: (c.beri - c.canon_bounty) / c.canon_bounty }))
-    .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
-    .slice(0, 20);
-  const items = [...volatile, ...volatile].map(c => {
+  const all = CHARACTERS.map(c => ({
+    ...c,
+    pct: (c.beri && c.canon_bounty && c.canon_bounty > 0)
+      ? (c.beri - c.canon_bounty) / c.canon_bounty
+      : null
+  }));
+  const items = [...all, ...all].map(c => {
+    if (c.pct === null) {
+      return '<span class="ticker-item"><span class="t-name">' + c.name + '</span><span style="color:var(--text-dim);font-size:0.65rem"> —</span></span>';
+    }
     const up = c.pct > 0;
     const pctStr = (up ? '+' : '') + (c.pct * 100).toFixed(1) + '%';
     return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
