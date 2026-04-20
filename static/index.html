@@ -109,8 +109,8 @@ body::after {
 .ticker-clip { flex:2; overflow:hidden; min-width:0; position:relative; }
 .ticker-inner { display:inline-flex; animation:ticker 80s linear infinite; width:max-content; }
 .ticker-item { font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0 20px; border-right:1px solid var(--border); display:inline-flex; align-items:center; gap:5px; }
-.t-name { color:var(--punk); opacity:0.7; } .t-val { color:var(--gold); }
-.t-up { color:var(--green); font-size:0.65rem; } .t-down { color:var(--red); font-size:0.65rem; }
+.t-name { color:var(--punk); opacity:0.7; }
+.t-up { color:var(--green); font-size:0.72rem; } .t-down { color:var(--red); font-size:0.72rem; }
 @keyframes ticker { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
 
 .update-panel { margin:20px 24px; background:var(--surface); border:1px solid var(--punk-dim); border-radius:8px; padding:16px 20px; position:relative; overflow:hidden; box-shadow:0 0 40px rgba(224,64,251,0.07), inset 0 1px 0 rgba(224,64,251,0.09); }
@@ -1560,16 +1560,18 @@ function makeLabels(hist) {
 let activeFilter='all', searchQuery='', activeGroup='';
 
 function buildTicker() {
-  const top=CHARACTERS.slice(0,25);
-  const items=[...top,...top].map(c=>{
-    const up=c.beri&&c.canon_bounty&&c.beri>c.canon_bounty;
-    const dn=c.beri&&c.canon_bounty&&c.beri<c.canon_bounty;
-    return '<span class="ticker-item"><span class="t-name">'+c.name+'</span>'
-      +'<span class="t-val">'+fShort(c.beri)+'</span>'
-      +(up?'<span class="t-up">▲</span>':dn?'<span class="t-down">▼</span>':'')
-      +'</span>';
+  const volatile = CHARACTERS
+    .filter(c => c.beri && c.canon_bounty && c.canon_bounty > 0)
+    .map(c => ({ ...c, pct: (c.beri - c.canon_bounty) / c.canon_bounty }))
+    .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+    .slice(0, 20);
+  const items = [...volatile, ...volatile].map(c => {
+    const up = c.pct > 0;
+    const pctStr = (up ? '+' : '') + (c.pct * 100).toFixed(1) + '%';
+    return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
+      + '<span class="' + (up ? 't-up' : 't-down') + '">' + (up ? '▲' : '▼') + ' ' + pctStr + '</span></span>';
   }).join('');
-  document.getElementById('ticker').innerHTML=items;
+  document.getElementById('ticker').innerHTML = items;
 }
 
 function getFiltered() {
