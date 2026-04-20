@@ -746,8 +746,15 @@ body::after {
 .wallet-center {
   border-color: rgba(212,160,23,0.55) !important;
   box-shadow: 0 0 28px rgba(212,160,23,0.16), inset 0 1px 0 rgba(212,160,23,0.10) !important;
+  cursor:pointer;
 }
 .wallet-center-val { text-shadow: 0 0 22px rgba(212,160,23,0.60) !important; }
+.wallet-login-prompt {
+  font-family:'Share Tech Mono',monospace; font-size:0.6rem;
+  color:var(--punk); letter-spacing:1px; opacity:0.8;
+  animation:badge-pulse 3s ease-in-out infinite;
+}
+.drop-timer { color:var(--green) !important; text-shadow:0 0 14px rgba(0,208,132,0.5) !important; font-size:0.78rem !important; }
 
 /* ── MODAL POSITION BADGE ── */
 .modal-position-block {
@@ -950,9 +957,10 @@ body::after {
         <span class="logo-sub">Dr. Vegapunk's Beri Analytics Engine ◈ Punk Records Node</span>
       </div>
     </div>
-    <div class="wallet-center">
+    <div class="wallet-center" id="wallet-center-block">
       <span class="wallet-center-label">◈ Your Wallet</span>
-      <span class="wallet-center-val" id="header-wallet-val">15K ฿</span>
+      <span class="wallet-center-val" id="header-wallet-val">— ฿</span>
+      <span class="wallet-login-prompt" id="wallet-login-prompt" style="display:none;">Log in to earn ฿</span>
     </div>
     <div class="header-stats">
       <div class="stat-box">
@@ -962,6 +970,10 @@ body::after {
       <div class="stat-box">
         <div class="stat-label">Last Uplink</div>
         <div class="stat-value">Ch. 1179</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Next Beri Drop</div>
+        <div class="stat-value drop-timer" id="drop-timer">—</div>
       </div>
       <div class="week-badge">ELBAF NODE</div>
       <button class="header-login-btn" id="header-login-btn">LOG IN</button>
@@ -1362,10 +1374,51 @@ let tradeQty = 1;
 
 function updateHeaderWallet(){
   const el=document.getElementById('header-wallet-val');
+  const prompt=document.getElementById('wallet-login-prompt');
   if(!el) return;
-  if(currentUser) el.textContent=fBeri(currentUser.beri_balance);
-  else el.textContent=fBeri(getWallet());
+  if(currentUser){
+    el.textContent=fBeri(currentUser.beri_balance);
+    el.style.display='';
+    if(prompt) prompt.style.display='none';
+  } else {
+    el.textContent='0 ฿';
+    el.style.color='var(--text-dim)';
+    if(prompt) prompt.style.display='';
+  }
 }
+
+// Make wallet block open login modal when logged out
+document.getElementById('wallet-center-block').addEventListener('click', function(){
+  if(!currentUser) openAuthModal('login');
+});
+
+// ── BERI DROP TIMER ──────────────────────────────────────────────────────────
+// Drops every Sunday 9:00 AM JST (= Sunday 00:00 UTC)
+function getNextDropTime(){
+  const now = new Date();
+  const next = new Date(now);
+  // Find next Sunday 00:00 UTC
+  const daysUntilSunday = (7 - now.getUTCDay()) % 7 || 7;
+  next.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  next.setUTCHours(0, 0, 0, 0);
+  return next;
+}
+function updateDropTimer(){
+  const el = document.getElementById('drop-timer');
+  if(!el) return;
+  const now = new Date();
+  const diff = getNextDropTime() - now;
+  if(diff <= 0){ el.textContent = 'DROP NOW'; return; }
+  const h = Math.floor(diff/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  const s = Math.floor((diff%60000)/1000);
+  const pad = n => String(n).padStart(2,'0');
+  const days = Math.floor(h/24);
+  const hrs = h%24;
+  el.textContent = days > 0 ? `${days}d ${pad(hrs)}h ${pad(m)}m` : `${pad(hrs)}:${pad(m)}:${pad(s)}`;
+}
+updateDropTimer();
+setInterval(updateDropTimer, 1000);
 
 function updateShortDisplay(c){
   const wrap=document.getElementById('trade-short-wrap');
