@@ -1379,6 +1379,7 @@ function updateHeaderWallet(){
   if(!el) return;
   if(currentUser){
     el.textContent=fBeri(currentUser.beri_balance);
+    el.style.color='var(--gold)';
     el.style.display='';
     if(prompt) prompt.style.display='none';
   } else {
