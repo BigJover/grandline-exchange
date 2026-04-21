@@ -1559,21 +1559,54 @@ function makeLabels(hist) {
 
 let activeFilter='all', searchQuery='', activeGroup='';
 
+// ── Manual per-chapter % change overrides ──
+// Update these each chapter/mid-week. Characters not listed show "—".
+const RECENT_PCT = {
+  // Straw Hats — one-shotted by Imu at Elbaf
+  "Luffy":    { pct: "5.0", up: false },
+  "Zoro":     { pct: "7.8", up: false },
+  "Sanji":    { pct: "2.2", up: false },
+  "Nami":     { pct: "1.5", up: false },
+  "Usopp":    { pct: "1.8", up: false },
+  "Chopper":  { pct: "1.0", up: false },
+  "Robin":    { pct: "1.2", up: false },
+  "Franky":   { pct: "1.1", up: false },
+  "Brook":    { pct: "0.9", up: false },
+  "Jinbe":    { pct: "1.8", up: false },
+  // Elbaf antagonists / rising
+  "Imu":                     { pct: "6.5", up: true  },
+  "Loki":                    { pct: "3.2", up: true  },
+  "Harald":                  { pct: "9.4", up: true  },
+  "The Man Marked by Flames":{ pct: "5.5", up: true  },
+  "Joy Boy":                 { pct: "4.1", up: true  },
+  "Stussy":                  { pct: "2.8", up: true  },
+  // Red Hair / Elbaf connection
+  "Shanks":   { pct: "4.8", up: true  },
+  // Fallen / crashed
+  "Kidd":     { pct: "8.5", up: false },
+  "Killer":   { pct: "3.8", up: false },
+  "Saturn":   { pct: "5.2", up: false },
+  "Kaido":    { pct: "4.1", up: false },
+  // Community narrative
+  "Mihawk":        { pct: "2.4", up: false },
+  "Roger":         { pct: "3.5", up: false },
+  "Rayleigh":      { pct: "3.2", up: true  },
+  "Scopper Gaban": { pct: "4.5", up: true  },
+  "Buggy":         { pct: "2.1", up: true  },
+  "Bartolomeo":    { pct: "8.8", up: true  },
+  "Urouge":        { pct: "6.2", up: true  },
+};
+
 function buildTicker() {
-  const all = CHARACTERS.map(c => ({
-    ...c,
-    pct: (c.beri && c.canon_bounty && c.canon_bounty > 0)
-      ? (c.beri - c.canon_bounty) / c.canon_bounty
-      : null
-  }));
-  const items = [...all, ...all].map(c => {
-    if (c.pct === null) {
-      return '<span class="ticker-item"><span class="t-name">' + c.name + '</span><span style="color:var(--text-dim);font-size:0.65rem"> —</span></span>';
+  const items = [...CHARACTERS, ...CHARACTERS].map(c => {
+    const r = RECENT_PCT[c.name];
+    if (r) {
+      return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
+        + '<span class="' + (r.up ? 't-up' : 't-down') + '">'
+        + (r.up ? '▲ +' : '▼ ') + r.pct + '%</span></span>';
     }
-    const up = c.pct > 0;
-    const pctStr = (up ? '+' : '') + (c.pct * 100).toFixed(1) + '%';
     return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
-      + '<span class="' + (up ? 't-up' : 't-down') + '">' + (up ? '▲' : '▼') + ' ' + pctStr + '</span></span>';
+      + '<span style="color:var(--text-dim);font-size:0.65rem"> —</span></span>';
   }).join('');
   document.getElementById('ticker').innerHTML = items;
 }
@@ -1605,25 +1638,23 @@ function buildGroupDropdown() {
 function chartStats(c) {
   const hist = c.price_history;
   const beri = c.beri||0, canon = c.canon_bounty;
+  // Determine chart visibility + natural colour direction (unchanged)
+  let hasChart = false, chartUp = false;
   if (hist && hist.length >= 2) {
     const vals = hist.map(p => p.beri||0);
     const first = vals[0], last = vals[vals.length-1];
     const mn = Math.min(...vals), mx = Math.max(...vals);
-    const hasVariation = mn !== mx;
-    // direction for chart colour
-    let up = last > first;
-    if (first === last && hasVariation) up = mx > first; // peaked up then returned
-    // % change — only if we have a non-zero base and net movement
-    let pct = null;
-    if (first > 0 && first !== last) pct = Math.abs((last-first)/first*100).toFixed(1);
-    return { hasChart: true, up, pct };
+    chartUp = last > first;
+    if (first === last && mn !== mx) chartUp = mx > first;
+    hasChart = true;
+  } else if (beri && canon && beri !== canon) {
+    chartUp = beri > canon;
+    hasChart = true;
   }
-  if (beri && canon && beri !== canon) {
-    const up = beri > canon;
-    const pct = canon > 0 ? Math.abs((beri-canon)/canon*100).toFixed(1) : null;
-    return { hasChart: true, up, pct };
-  }
-  return { hasChart: false, up: false, pct: null };
+  // Arrow + % display: use RECENT_PCT override; if absent show — (no arrow)
+  const r = RECENT_PCT[c.name];
+  if (r) return { hasChart, up: r.up, pct: r.pct };
+  return { hasChart, up: chartUp, pct: null };
 }
 // Keep legacy helpers for modal (calls chartStats internally)
 function isUp(c) { return chartStats(c).up; }
