@@ -23,6 +23,7 @@
 ::-webkit-scrollbar-thumb { background:var(--punk-dim); border-radius:2px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--punk); }
 * { box-sizing:border-box; margin:0; padding:0; }
+html { overflow-x:hidden; }
 body {
   background:var(--bg);
   /* Egghead Island atmosphere — fixed so it stays in place as cards scroll over it */
@@ -902,6 +903,42 @@ body::after {
 .auth-dropdown-item:hover { background:rgba(255,68,85,0.08); color:var(--red); }
 .auth-dropdown-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
 
+/* ── Mobile responsive ── */
+@media(max-width:768px){
+  .cards-grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; padding:0 16px 40px; }
+  .header-main { padding:10px 16px; gap:10px; }
+  .controls { padding:10px 16px 12px; }
+  .update-panel { margin:14px 16px; }
+}
+@media(max-width:540px){
+  .cards-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:8px; padding:0 10px 32px; }
+  .stock-card { padding:12px 12px 0 12px; min-height:175px; }
+  .card-name { font-size:0.78rem; }
+  .card-value { font-size:1.15rem !important; }
+  .card-chart { min-height:65px; }
+  .card-chart svg { height:65px; }
+  .card-chart-empty { height:65px; }
+  .header-main { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; gap:8px; }
+  .header-stats { display:none; }
+  .logo-title { font-size:0.88rem; }
+  .logo-sub { display:none; }
+  .punk-records-logo { width:44px; height:34px; }
+  .controls { padding:8px 10px 10px; gap:6px; }
+  .filter-btn { font-size:0.52rem; padding:5px 8px; }
+  .update-panel { margin:10px 10px; padding:12px 12px; }
+}
+@media(max-width:380px){
+  .cards-grid { grid-template-columns:repeat(2,1fr); gap:6px; padding:0 8px 24px; }
+  .stock-card { padding:10px 10px 0 10px; min-height:155px; }
+  .card-name { font-size:0.68rem; }
+  .card-value { font-size:1.0rem !important; }
+  .card-share-row { display:none; }
+  .card-chart { min-height:55px; }
+  .card-chart svg { height:55px; }
+  .card-chart-empty { height:55px; }
+  .header-main { padding:6px 10px; }
+  .logo-title { font-size:0.78rem; letter-spacing:1px; }
+}
 
 </style>
 </head>
