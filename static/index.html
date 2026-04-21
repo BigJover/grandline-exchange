@@ -853,7 +853,7 @@ body::after {
       </div>
       <div class="stat-box">
         <div class="stat-label">Last Uplink</div>
-        <div class="stat-value">Ch. 1179</div>
+        <div class="stat-value">Ch. 1180</div>
       </div>
       <div class="week-badge">ELBAF NODE</div>
       <button class="header-login-btn" id="header-login-btn">LOG IN</button>
@@ -865,7 +865,7 @@ body::after {
 <div class="update-panel">
   <div class="update-header">
     <span class="update-badge">Vegapunk Transmission</span>
-    <span class="update-week">Uplink: Ch.1179 ◈ Elbaf Node Active</span>
+    <span class="update-week">Uplink: Ch.1180 ◈ Elbaf Node Active</span>
   </div>
   <div class="update-text">
     The Elbaf Arc continues to shake community valuations. Harald's debut as King of Elbaf saw immediate stock surges for Giant-affiliated characters,
@@ -1335,15 +1335,13 @@ function chartStats(c) {
   const beri = c.beri||0, canon = c.canon_bounty;
   if (hist && hist.length >= 2) {
     const vals = hist.map(p => p.beri||0);
-    const first = vals[0], last = vals[vals.length-1];
+    const last = vals[vals.length-1];
+    const prev = vals[vals.length-2]; // recent: compare last two entries only
     const mn = Math.min(...vals), mx = Math.max(...vals);
-    const hasVariation = mn !== mx;
-    // direction for chart colour
-    let up = last > first;
-    if (first === last && hasVariation) up = mx > first; // peaked up then returned
-    // % change — only if we have a non-zero base and net movement
+    // direction + % based on most recent chapter-to-chapter move
+    const up = last > prev;
     let pct = null;
-    if (first > 0 && first !== last) pct = Math.abs((last-first)/first*100).toFixed(1);
+    if (prev > 0 && prev !== last) pct = Math.abs((last-prev)/prev*100).toFixed(1);
     return { hasChart: true, up, pct };
   }
   if (beri && canon && beri !== canon) {
