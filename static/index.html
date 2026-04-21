@@ -926,6 +926,10 @@ body::after {
   .controls { padding:8px 10px 10px; gap:6px; }
   .filter-btn { font-size:0.52rem; padding:5px 8px; }
   .update-panel { margin:10px 10px; padding:12px 12px; }
+  /* Ticker: hide label, kill CSS animation (JS takes over) */
+  .ticker-label { display:none; }
+  .ticker-inner { animation:none !important; -webkit-animation:none !important; will-change:transform; }
+  .ticker-item { padding:0 14px; font-size:0.65rem; }
 }
 @media(max-width:380px){
   .cards-grid { grid-template-columns:repeat(2,1fr); gap:6px; padding:0 8px 24px; }
@@ -1634,8 +1638,32 @@ const RECENT_PCT = {
   "Urouge":        { pct: "6.2", up: true  },
 };
 
+let _tickerRAF = null;
+
+function startMobileTicker() {
+  if (_tickerRAF) { cancelAnimationFrame(_tickerRAF); _tickerRAF = null; }
+  const inner = document.getElementById('ticker');
+  if (!inner) return;
+  inner.style.transform = 'translateX(0)';
+  let pos = 0, halfWidth = 0;
+  function tick() {
+    if (!halfWidth) {
+      halfWidth = inner.scrollWidth / 2;
+      if (!halfWidth) { _tickerRAF = requestAnimationFrame(tick); return; }
+    }
+    pos += 0.6;
+    if (pos >= halfWidth) pos = 0;
+    inner.style.transform = 'translateX(-' + pos + 'px)';
+    _tickerRAF = requestAnimationFrame(tick);
+  }
+  _tickerRAF = requestAnimationFrame(tick);
+}
+
 function buildTicker() {
-  const items = [...CHARACTERS, ...CHARACTERS].map(c => {
+  const isMobile = window.innerWidth <= 600;
+  // Mobile: only chars with a % value — keeps element small, avoids iOS layer size limits
+  const source = isMobile ? CHARACTERS.filter(c => chartStats(c).pct !== null) : CHARACTERS;
+  const items = [...source, ...source].map(c => {
     const { up, pct } = chartStats(c);
     if (pct !== null) {
       return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
@@ -1646,6 +1674,7 @@ function buildTicker() {
       + '<span style="color:var(--text-dim);font-size:0.65rem"> —</span></span>';
   }).join('');
   document.getElementById('ticker').innerHTML = items;
+  if (isMobile) startMobileTicker();
 }
 
 function getFiltered() {
