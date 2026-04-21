@@ -227,7 +227,7 @@ body::after {
 .stock-card::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg, transparent 0%, rgba(41,182,246,0.028) 50%, transparent 100%); opacity:0; transition:opacity 0.4s; pointer-events:none; border-radius:8px; }
 .stock-card:hover::after { opacity:1; }
 .card-chart-empty { height:87px; margin:8px -20px 0 -20px; display:flex; align-items:center; }
-.chart-flat-line { flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--border),transparent); }
+.chart-flat-line { flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim),transparent); }
 
 /* ── MODAL ── */
 #modal-overlay {
@@ -1675,23 +1675,26 @@ function buildGroupDropdown() {
 function chartStats(c) {
   const hist = c.price_history;
   const beri = c.beri||0, canon = c.canon_bounty;
-  // Determine chart visibility + natural colour direction (unchanged)
-  let hasChart = false, chartUp = false;
+  let hasChart = false, chartUp = false, computedPct = null;
   if (hist && hist.length >= 2) {
     const vals = hist.map(p => p.beri||0);
     const first = vals[0], last = vals[vals.length-1];
     const mn = Math.min(...vals), mx = Math.max(...vals);
+    const hasVariation = mn !== mx;
     chartUp = last > first;
-    if (first === last && mn !== mx) chartUp = mx > first;
-    hasChart = true;
+    if (first === last && hasVariation) chartUp = mx > first;
+    hasChart = hasVariation; // truly flat history → gold line instead of SVG
+    if (hasVariation && first > 0 && first !== last)
+      computedPct = Math.abs((last-first)/first*100).toFixed(1);
   } else if (beri && canon && beri !== canon) {
     chartUp = beri > canon;
     hasChart = true;
+    computedPct = canon > 0 ? Math.abs((beri-canon)/canon*100).toFixed(1) : null;
   }
-  // Arrow + % display: use RECENT_PCT override; if absent show — (no arrow)
+  // RECENT_PCT override takes priority for arrow + % display
   const r = RECENT_PCT[c.name];
   if (r) return { hasChart, up: r.up, pct: r.pct };
-  return { hasChart, up: chartUp, pct: null };
+  return { hasChart, up: chartUp, pct: computedPct };
 }
 // Keep legacy helpers for modal (calls chartStats internally)
 function isUp(c) { return chartStats(c).up; }
@@ -1711,7 +1714,7 @@ function renderCards() {
     const changeHtml = pct!==null
       ?'<span class="card-change '+(up?'change-up':'change-down')+'">'+(up?'▲':'▼')+' '+pct+'%</span>'
       :(hasChart
-        ?'<span class="card-change '+(up?'change-up':'change-down')+'">'+(up?'▲ Peak':'▼ Arc')+'</span>'
+        ?'<span class="card-change '+(up?'change-up':'change-down')+'">'+(up?'▲':'▼')+'</span>'
         :'<span class="card-change change-flat">—</span>');
     const svgHtml = hasChart
       ?'<div class="card-chart">'+buildSVG(c,up,200,87,1.8)+(c.price_history?makeLabels(c.price_history):'')+'</div>'
