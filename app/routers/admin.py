@@ -10,8 +10,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def _check_secret(secret: str):
-    expected = os.getenv("ADMIN_SECRET", "")
-    if not expected or secret != expected:
+    expected = os.getenv("ADMIN_SECRET", "").strip()
+    if not expected or secret.strip() != expected:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
