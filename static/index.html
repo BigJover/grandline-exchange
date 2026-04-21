@@ -1636,11 +1636,11 @@ const RECENT_PCT = {
 
 function buildTicker() {
   const items = [...CHARACTERS, ...CHARACTERS].map(c => {
-    const r = RECENT_PCT[c.name];
-    if (r) {
+    const { up, pct } = chartStats(c);
+    if (pct !== null) {
       return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
-        + '<span class="' + (r.up ? 't-up' : 't-down') + '">'
-        + (r.up ? '▲ +' : '▼ ') + r.pct + '%</span></span>';
+        + '<span class="' + (up ? 't-up' : 't-down') + '">'
+        + (up ? '▲ +' : '▼ ') + pct + '%</span></span>';
     }
     return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
       + '<span style="color:var(--text-dim);font-size:0.65rem"> —</span></span>';
