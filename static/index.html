@@ -2596,7 +2596,14 @@ async function init() {
     const res = await fetch(API_BASE + '/characters/');
     if (!res.ok) throw new Error('API error ' + res.status);
     CHARACTERS = await res.json();
-    CHARACTERS.forEach((c, i) => c.live_rank = i + 1);
+    // Client-side beri display overrides (visual only, no DB change)
+    const BERI_OVERRIDES = {
+      "The Lord of the Coast": 2000000000,
+    };
+    CHARACTERS.forEach((c, i) => {
+      c.live_rank = i + 1;
+      if (BERI_OVERRIDES[c.name] !== undefined) c.beri = BERI_OVERRIDES[c.name];
+    });
   } catch(e) {
     console.error('Failed to load characters from API:', e);
     document.getElementById('cards-grid').innerHTML =
