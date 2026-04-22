@@ -28,15 +28,13 @@ def _marine_base_salary(beri_balance: float) -> int:
 def _pirate_plunder() -> int:
     roll = random.random()
     if roll < 0.60:
-        return random.randint(5_000, 100_000)
+        return random.randint(5_000, 100_000)          # 60% — small haul
     elif roll < 0.85:
-        return random.randint(100_000, 1_000_000)
+        return random.randint(100_000, 1_000_000)      # 25% — decent plunder
     elif roll < 0.97:
-        return random.randint(1_000_000, 10_000_000)
-    elif roll < 0.995:
-        return random.randint(10_000_000, 50_000_000)
+        return random.randint(1_000_000, 5_000_000)    # 12% — major raid
     else:
-        return random.randint(50_000_000, 100_000_000)
+        return random.randint(5_000_000, 10_000_000)   #  3% — legendary haul
 
 
 def run_beri_drop():
