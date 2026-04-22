@@ -257,7 +257,12 @@ body::after {
 #modal-close:hover { border-color:var(--punk-dim); color:var(--punk); }
 
 .modal-inner { display:grid; grid-template-columns:280px 1fr; gap:0; }
-@media(max-width:640px){ .modal-inner { grid-template-columns:1fr; } }
+@media(max-width:640px){
+  .modal-inner { grid-template-columns:1fr; }
+  .modal-left { border-right:none; border-bottom:1px solid var(--border); padding:20px 18px; }
+  .modal-right { padding:20px 18px; }
+  .modal-img-wrap { aspect-ratio:16/7; max-height:200px; }
+}
 
 /* Left column */
 .modal-left {
@@ -1043,6 +1048,20 @@ body::after {
   .ticker-label { display:none; }
   .ticker-inner { animation:none !important; -webkit-animation:none !important; will-change:transform; }
   .ticker-item { padding:0 14px; font-size:0.65rem; }
+  /* Modal on mobile */
+  .modal-stock-val { font-size:1.55rem; }
+  /* Overlay panels: tighten padding */
+  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel { padding:20px 14px 20px; }
+  /* Overlay titles: scale down */
+  .faction-page-title, .ledger-title { font-size:0.84rem; letter-spacing:1px; }
+  /* Ledger entries: stack badge+description row, then amount row */
+  .ledger-entry { grid-template-columns:auto 1fr; align-items:start; gap:8px; }
+  .ledger-amount { grid-column:1 / -1; text-align:left; font-size:0.78rem; border-top:1px solid var(--border); padding-top:5px; margin-top:2px; }
+  /* Warlord panel: allow text/button to shrink */
+  .warlord-status-text { min-width:0; }
+  .warlord-subscribe-btn { white-space:normal; line-height:1.4; }
+  /* Request form: stack 2-column rows */
+  .req-row { grid-template-columns:1fr; }
 }
 @media(max-width:380px){
   .cards-grid { grid-template-columns:repeat(2,1fr); gap:6px; padding:0 8px 24px; }
@@ -1055,6 +1074,11 @@ body::after {
   .card-chart-empty { height:55px; }
   .header-main { padding:6px 10px; }
   .logo-title { font-size:0.78rem; letter-spacing:1px; }
+  /* Overlay panels: squeeze further on tiny screens */
+  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel { padding:14px 10px 16px; }
+  .faction-page-title, .ledger-title { font-size:0.72rem; letter-spacing:0; }
+  .ledger-desc { font-size:0.65rem; }
+  .faction-page-sub, .ledger-sub { font-size:0.66rem; }
 }
 
 </style>
