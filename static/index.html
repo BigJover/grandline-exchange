@@ -178,9 +178,12 @@ body::after {
 .notif-dropdown:focus-within .notif-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
 .notif-menu .update-panel { margin:0 !important; border-radius:8px !important; }
 
-/* ── Request character button ── */
-.btn-request { background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:600; letter-spacing:1px; padding:6px 14px; text-transform:uppercase; transition:all 0.2s; white-space:nowrap; margin-left:auto; }
+/* ── Controls action buttons (Request + Price Update) ── */
+.controls-actions { display:flex; gap:7px; margin-left:auto; flex-shrink:0; }
+.btn-request { background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:600; letter-spacing:1px; padding:5px 11px; text-transform:uppercase; transition:all 0.2s; white-space:nowrap; }
 .btn-request:hover { border-color:var(--punk2); color:var(--punk2); box-shadow:0 0 8px rgba(41,182,246,0.15); }
+.btn-price-update { background:transparent; border:1px solid var(--gold-dim); border-radius:5px; color:var(--gold-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:600; letter-spacing:1px; padding:5px 11px; text-transform:uppercase; transition:all 0.2s; white-space:nowrap; }
+.btn-price-update:hover { border-color:var(--gold); color:var(--gold); box-shadow:0 0 8px var(--gold-glow); }
 /* ── Shared overlay / panel base (shared with stock modal) ── */
 .req-overlay { display:none; position:fixed; inset:0; background:rgba(5,5,12,0.88); backdrop-filter:blur(8px); z-index:300; align-items:center; justify-content:center; }
 .req-overlay.open { display:flex; }
@@ -1278,7 +1281,10 @@ body::after {
     <option value="">All Groups</option>
   </select>
   <span class="results-count" id="results-count"></span>
-  <button class="btn-request" id="btn-open-req">+ Request Character</button>
+  <div class="controls-actions">
+    <button class="btn-price-update" id="btn-open-price">⬡ Price Update</button>
+    <button class="btn-request" id="btn-open-req">+ Request Character</button>
+  </div>
 </div>
 
 <!-- CHARACTER REQUEST FORM -->
@@ -1331,6 +1337,33 @@ body::after {
       </div>
       <div class="req-feedback" id="req-feedback"></div>
       <button class="req-submit" id="req-submit">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRICE UPDATE FORM -->
+<div class="req-overlay" id="price-overlay">
+  <div class="req-panel" style="max-width:460px;">
+    <button class="req-close" id="price-close">✕ Close</button>
+    <div class="req-title" style="color:var(--gold);">⬡ Price Update</div>
+    <div class="req-sub">Adjust a character's current beri valuation. Admin authorization required.</div>
+    <div class="req-form">
+      <div class="req-field">
+        <label>Character Name *</label>
+        <input id="pf-name" type="text" placeholder="Exact name as listed (case-insensitive)" autocomplete="off">
+      </div>
+      <div class="req-row">
+        <div class="req-field">
+          <label>New Beri Value *</label>
+          <input id="pf-beri" type="number" placeholder="e.g. 2000000000" min="0">
+        </div>
+        <div class="req-field">
+          <label>Admin Key *</label>
+          <input id="pf-secret" type="password" placeholder="••••••••">
+        </div>
+      </div>
+      <div class="req-feedback" id="price-feedback"></div>
+      <button class="req-submit" id="price-submit" style="background:var(--gold);color:#07040f;">Update Price</button>
     </div>
   </div>
 </div>
@@ -2425,6 +2458,48 @@ document.getElementById('req-submit').addEventListener('click', function(){
   // Reset fields
   ['rf-name','rf-aliases','rf-faction','rf-beri','rf-bounty','rf-reason'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('rf-category').selectedIndex=0;
+});
+
+// ── Price update form ──
+document.getElementById('btn-open-price').addEventListener('click', function(){
+  document.getElementById('price-overlay').classList.add('open');
+  document.getElementById('price-feedback').style.display='none';
+});
+document.getElementById('price-close').addEventListener('click', function(){
+  document.getElementById('price-overlay').classList.remove('open');
+});
+document.getElementById('price-overlay').addEventListener('click', function(e){
+  if(e.target===this) this.classList.remove('open');
+});
+document.getElementById('price-submit').addEventListener('click', async function(){
+  const name   = document.getElementById('pf-name').value.trim();
+  const beri   = parseFloat(document.getElementById('pf-beri').value);
+  const secret = document.getElementById('pf-secret').value.trim();
+  const fb     = document.getElementById('price-feedback');
+
+  if(!name || isNaN(beri) || beri < 0 || !secret){
+    fb.className='req-feedback err'; fb.style.display='block';
+    fb.textContent='\u26A0 Fill in all fields with a valid beri value.';
+    return;
+  }
+
+  this.disabled=true; this.textContent='Updating\u2026';
+  try {
+    const params = new URLSearchParams({ secret, name, beri: beri.toString() });
+    const res = await fetch(API_BASE + '/admin/set-beri?' + params, { method:'POST' });
+    const data = await res.json().catch(function(){ return {}; });
+    if(!res.ok) throw new Error(data.detail || 'Server error');
+    fb.className='req-feedback ok'; fb.style.display='block';
+    fb.textContent='\u2713 ' + data.name + ': ' + Math.round(data.old_beri).toLocaleString() + '\u0e3f \u2192 ' + Math.round(data.new_beri).toLocaleString() + '\u0e3f';
+    document.getElementById('pf-name').value='';
+    document.getElementById('pf-beri').value='';
+    document.getElementById('pf-secret').value='';
+  } catch(e){
+    fb.className='req-feedback err'; fb.style.display='block';
+    fb.textContent='\u26A0 ' + e.message;
+  } finally {
+    this.disabled=false; this.textContent='Update Price';
+  }
 });
 
 // ── Admin panel ──
