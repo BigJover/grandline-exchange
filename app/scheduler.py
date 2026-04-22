@@ -1,7 +1,42 @@
+import random
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-WEEKLY_DROP = 10_000  # beri per real user per drop
+WEEKLY_DROP = 10_000        # fallback for users with no faction
+ROYALTY_LOGIN_PASSIVE = 75_000
+CITIZEN_BASE = 30_000
+CREATURE_TIDAL = 150_000
+REV_BASE = 50_000
+REV_PER_WG_USER = 5_000
+ROYALTY_TAX_RATE = 0.15     # Marines pay 15% to Royalty
+CITIZEN_TAX_RATE = 0.10     # Marines pay 10% to Citizens
+
+
+def _marine_base_salary(beri_balance: float) -> int:
+    if beri_balance < 1_000_000:
+        return 50_000
+    elif beri_balance < 10_000_000:
+        return 100_000
+    elif beri_balance < 100_000_000:
+        return 200_000
+    elif beri_balance < 500_000_000:
+        return 350_000
+    else:
+        return 500_000
+
+
+def _pirate_plunder() -> int:
+    roll = random.random()
+    if roll < 0.60:
+        return random.randint(5_000, 100_000)
+    elif roll < 0.85:
+        return random.randint(100_000, 1_000_000)
+    elif roll < 0.97:
+        return random.randint(1_000_000, 10_000_000)
+    elif roll < 0.995:
+        return random.randint(10_000_000, 50_000_000)
+    else:
+        return random.randint(50_000_000, 100_000_000)
 
 
 def run_beri_drop():
@@ -11,10 +46,118 @@ def run_beri_drop():
     db = SessionLocal()
     try:
         users = db.query(models.User).filter(models.User.is_bot == False).all()
-        for user in users:
-            user.beri_balance += WEEKLY_DROP
+
+        # Bucket users by faction
+        buckets: dict[str, list] = {}
+        for u in users:
+            key = u.user_faction or "none"
+            buckets.setdefault(key, []).append(u)
+
+        marines       = buckets.get("marine", [])
+        royalty_users = buckets.get("royalty", [])
+        citizens      = buckets.get("citizen", [])
+        revolutionaries = buckets.get("revolutionary", [])
+        pirates       = buckets.get("pirate", [])
+        creatures     = buckets.get("creature", [])
+        unfactioned   = buckets.get("none", [])
+
+        events = []
+
+        # ── MARINE: salary with tax deductions ──────────────────────────────
+        royalty_pool = 0
+        citizen_pool = 0
+        for u in marines:
+            base = _marine_base_salary(u.beri_balance)
+            to_royalty = int(base * ROYALTY_TAX_RATE)
+            to_citizens = int(base * CITIZEN_TAX_RATE)
+            net = base - to_royalty - to_citizens
+            u.beri_balance += net
+            royalty_pool += to_royalty
+            citizen_pool += to_citizens
+            events.append(models.BeriEvent(
+                user_id=u.id,
+                event_type="salary",
+                amount=net,
+                description=f"Marine salary \u2014 {net:,}\u0e3f kept, {to_royalty + to_citizens:,}\u0e3f tribute paid",
+            ))
+
+        # ── ROYALTY: passive + Marine tribute (proportional by balance) ─────
+        if royalty_users:
+            total_royalty_bal = sum(u.beri_balance for u in royalty_users) or 1
+            for u in royalty_users:
+                tribute_share = int(royalty_pool * (u.beri_balance / total_royalty_bal)) if royalty_pool else 0
+                total = ROYALTY_LOGIN_PASSIVE + tribute_share
+                u.beri_balance += total
+                events.append(models.BeriEvent(
+                    user_id=u.id,
+                    event_type="royalty_income",
+                    amount=total,
+                    description=f"Noble income \u2014 {ROYALTY_LOGIN_PASSIVE:,}\u0e3f passive + {tribute_share:,}\u0e3f Marine tribute",
+                ))
+
+        # ── CITIZEN: base bonus + equal split of citizen tax pool ───────────
+        if citizens:
+            per_citizen = int(citizen_pool / len(citizens)) if citizen_pool else 0
+            for u in citizens:
+                total = CITIZEN_BASE + per_citizen
+                u.beri_balance += total
+                events.append(models.BeriEvent(
+                    user_id=u.id,
+                    event_type="citizen_income",
+                    amount=total,
+                    description=f"Weekly dividend \u2014 {CITIZEN_BASE:,}\u0e3f base + {per_citizen:,}\u0e3f protection fund",
+                ))
+
+        # ── REVOLUTIONARY: scales with WG activity ──────────────────────────
+        if revolutionaries:
+            wg_count = len(marines) + len(royalty_users)
+            rev_income = REV_BASE + wg_count * REV_PER_WG_USER
+            for u in revolutionaries:
+                u.beri_balance += rev_income
+                events.append(models.BeriEvent(
+                    user_id=u.id,
+                    event_type="revolutionary_income",
+                    amount=rev_income,
+                    description=f"Revolutionary fund \u2014 {REV_BASE:,}\u0e3f base + {wg_count * REV_PER_WG_USER:,}\u0e3f from {wg_count} WG targets",
+                ))
+
+        # ── PIRATE: random plunder ───────────────────────────────────────────
+        for u in pirates:
+            loot = _pirate_plunder()
+            u.beri_balance += loot
+            events.append(models.BeriEvent(
+                user_id=u.id,
+                event_type="plunder",
+                amount=loot,
+                description=f"Plunder \u2014 {loot:,}\u0e3f seized",
+            ))
+
+        # ── CREATURE: flat tidal income ──────────────────────────────────────
+        for u in creatures:
+            u.beri_balance += CREATURE_TIDAL
+            events.append(models.BeriEvent(
+                user_id=u.id,
+                event_type="tidal_income",
+                amount=CREATURE_TIDAL,
+                description=f"Tidal income \u2014 {CREATURE_TIDAL:,}\u0e3f",
+            ))
+
+        # ── UNFACTIONED: flat base drop ──────────────────────────────────────
+        for u in unfactioned:
+            u.beri_balance += WEEKLY_DROP
+            events.append(models.BeriEvent(
+                user_id=u.id,
+                event_type="base_drop",
+                amount=WEEKLY_DROP,
+                description=f"Weekly beri drop \u2014 {WEEKLY_DROP:,}\u0e3f (choose a faction to unlock better income)",
+            ))
+
+        db.bulk_save_objects(events)
         db.commit()
-        print(f"[Beri Drop] +{WEEKLY_DROP:,}฿ distributed to {len(users)} users")
+        print(f"[Beri Drop] {len(users)} users | marines:{len(marines)} royalty:{len(royalty_users)} "
+              f"citizens:{len(citizens)} revs:{len(revolutionaries)} "
+              f"pirates:{len(pirates)} creatures:{len(creatures)} none:{len(unfactioned)}")
+
     except Exception as e:
         db.rollback()
         print(f"[Beri Drop] Error: {e}")

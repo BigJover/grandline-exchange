@@ -37,9 +37,11 @@ class User(Base):
     faction_history = Column(JSON, default=list)
     badges = Column(JSON, default=list)
     creature_unlocked = Column(Boolean, default=False)
+    last_faction_change = Column(DateTime(timezone=True), nullable=True)
 
     shares = relationship("Share", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
+    beri_events = relationship("BeriEvent", back_populates="user")
 
 
 class Share(Base):
@@ -52,6 +54,19 @@ class Share(Base):
 
     user = relationship("User", back_populates="shares")
     character = relationship("Character")
+
+
+class BeriEvent(Base):
+    __tablename__ = "beri_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    event_type = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    description = Column(String, default="")
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="beri_events")
 
 
 class Transaction(Base):

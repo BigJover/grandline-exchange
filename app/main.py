@@ -19,10 +19,11 @@ def run_column_migrations():
     from sqlalchemy import text
     is_postgres = str(engine.url).startswith("postgres")
     migrations = [
-        ("user_faction",    "TEXT"),
-        ("faction_history", "TEXT DEFAULT '[]'"),
-        ("badges",          "TEXT DEFAULT '[]'"),
-        ("creature_unlocked", "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+        ("user_faction",       "TEXT"),
+        ("faction_history",    "TEXT DEFAULT '[]'"),
+        ("badges",             "TEXT DEFAULT '[]'"),
+        ("creature_unlocked",  "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+        ("last_faction_change","TIMESTAMPTZ" if is_postgres else "DATETIME"),
     ]
     with engine.connect() as conn:
         for col, col_type in migrations:

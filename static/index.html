@@ -956,6 +956,43 @@ body::after {
 .faction-lock-note { font-family:'Share Tech Mono',monospace; font-size:0.64rem; color:var(--text-dim); text-align:center; padding:8px 0 2px; letter-spacing:0.5px; margin-top:auto; }
 @media(max-width:720px){ .faction-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:460px){ .faction-grid { grid-template-columns:1fr; } }
+.faction-cooldown-bar { font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:var(--text-dim); background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:8px 14px; margin-bottom:20px; display:none; }
+.faction-cooldown-bar.visible { display:block; }
+.faction-confirm-wrap { display:flex; flex-direction:column; gap:6px; }
+.faction-confirm-msg { font-family:'Share Tech Mono',monospace; font-size:0.66rem; color:var(--text-dim); padding:4px 0; }
+.faction-confirm-btns { display:flex; gap:6px; }
+.faction-confirm-yes { background:transparent; border:1px solid var(--fc-color,var(--punk)); border-radius:5px; color:var(--fc-color,var(--punk)); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.54rem; font-weight:700; letter-spacing:1.5px; padding:7px 10px; text-transform:uppercase; transition:all 0.18s; flex:1; }
+.faction-confirm-yes:hover { box-shadow:0 0 10px var(--fc-glow,transparent); opacity:0.85; }
+.faction-confirm-no { background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.54rem; font-weight:700; letter-spacing:1.5px; padding:7px 10px; text-transform:uppercase; transition:all 0.18s; flex:1; }
+.faction-confirm-no:hover { border-color:var(--red); color:var(--red); }
+
+/* ── LEDGER PAGE ── */
+.ledger-panel {
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  width:min(720px,96vw); max-height:90vh; overflow-y:auto; position:relative;
+  padding:32px 28px 28px;
+}
+.ledger-title { font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900; color:var(--punk); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
+.ledger-sub { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); margin-bottom:22px; }
+.ledger-list { display:flex; flex-direction:column; gap:6px; }
+.ledger-entry {
+  display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px;
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+  padding:11px 14px; transition:border-color 0.15s;
+}
+.ledger-entry:hover { border-color:var(--punk-dim); }
+.ledger-badge {
+  font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:700;
+  letter-spacing:1px; text-transform:uppercase; border-radius:3px;
+  padding:3px 6px; white-space:nowrap;
+}
+.ledger-center { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ledger-desc { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ledger-time { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); }
+.ledger-amount { font-family:'Share Tech Mono',monospace; font-size:0.85rem; font-weight:600; white-space:nowrap; text-align:right; }
+.ledger-amount.pos { color:var(--green); }
+.ledger-amount.neg { color:var(--red); }
+.ledger-empty { font-family:'Share Tech Mono',monospace; font-size:0.76rem; color:var(--text-dim); text-align:center; padding:40px 0; }
 
 /* ── Mobile responsive ── */
 @media(max-width:768px){
@@ -1266,7 +1303,18 @@ body::after {
     <button class="req-close" id="faction-close">✕ Close</button>
     <div class="faction-page-title">◈ Choose Your Allegiance</div>
     <div class="faction-page-sub" id="faction-page-sub">Your path defines your power. Choose wisely — some doors close forever.</div>
+    <div class="faction-cooldown-bar" id="faction-cooldown-bar"></div>
     <div class="faction-grid" id="faction-grid"></div>
+  </div>
+</div>
+
+<!-- LEDGER PAGE -->
+<div class="req-overlay" id="ledger-overlay">
+  <div class="ledger-panel">
+    <button class="req-close" id="ledger-close">✕ Close</button>
+    <div class="ledger-title">◈ Beri Ledger</div>
+    <div class="ledger-sub">All income, faction payments, and trades — most recent first.</div>
+    <div class="ledger-list" id="ledger-list"><div class="ledger-empty">Loading…</div></div>
   </div>
 </div>
 
@@ -2426,6 +2474,7 @@ function updateAuthUI(){
           '<div class="auth-dropdown-menu-inner">' +
             '<button class="auth-dropdown-item" id="header-portfolio-btn">◈ Portfolio</button>' +
             '<button class="auth-dropdown-item" id="header-faction-btn">⚑ Faction</button>' +
+            '<button class="auth-dropdown-item" id="header-ledger-btn">⊟ Ledger</button>' +
             '<hr class="auth-dropdown-divider">' +
             '<button class="auth-dropdown-item" id="header-logout-btn">⏻ Log Out</button>' +
           '</div>' +
@@ -2434,6 +2483,7 @@ function updateAuthUI(){
       document.getElementById('header-logout-btn').addEventListener('click', handleLogout);
       document.getElementById('header-portfolio-btn').addEventListener('click', openPortfolio);
       document.getElementById('header-faction-btn').addEventListener('click', openFactionPage);
+      document.getElementById('header-ledger-btn').addEventListener('click', openLedger);
     }
     updateFactionHeaderDisplay();
     block.style.display = 'flex';
@@ -2652,7 +2702,7 @@ function updateModalPosition(c){
   block.style.display = 'flex';
 }
 
-// ── FACTION PAGE ─────────────────────────────────────────────────────────────
+// ── FACTION PAGE + LEDGER ────────────────────────────────────────────────────
 
 const FACTION_DATA = [
   {
@@ -2855,12 +2905,254 @@ function updateFactionHeaderDisplay(){
   trigger.textContent = (f ? f.icon + ' ' : '\u25C8 ') + currentUser.username + ' \u25BE';
 }
 
+// ── FACTION COOLDOWN HELPERS ─────────────────────────────────────────────────
+
+function factionCooldownRemaining() {
+  if(!currentUser || !currentUser.last_faction_change) return null;
+  const changed = new Date(currentUser.last_faction_change);
+  const expiry  = new Date(changed.getTime() + 24 * 60 * 60 * 1000);
+  const now     = new Date();
+  if(now >= expiry) return null;
+  const ms = expiry - now;
+  const h  = Math.floor(ms / 3600000);
+  const m  = Math.floor((ms % 3600000) / 60000);
+  return { h, m, label: h + 'h ' + m + 'm' };
+}
+
+// Rewrite renderFactionPage to add cooldown bar + in-card confirmation
+function renderFactionPage(){
+  const currentFactionId = currentUser ? currentUser.user_faction : null;
+  const creatureUnlocked = currentUser ? (currentUser.creature_unlocked || false) : false;
+  const isCreature       = currentFactionId === 'creature';
+  const cooldown         = factionCooldownRemaining();
+
+  const sub = document.getElementById('faction-page-sub');
+  if(currentFactionId){
+    const f = FACTION_DATA.find(function(x){ return x.id === currentFactionId; }) || CREATURE_DATA;
+    sub.innerHTML = 'Currently aligned with <strong style="color:' + f.color + '">' + f.name + '</strong>. Some doors remain open. Others are sealed by your history.';
+  } else {
+    sub.textContent = 'You have not yet chosen a side. Your path defines your power \u2014 some doors close forever.';
+  }
+
+  const cooldownBar = document.getElementById('faction-cooldown-bar');
+  if(cooldown){
+    cooldownBar.textContent = '\u23f3 Faction cooldown active \u2014 you can switch again in ' + cooldown.label;
+    cooldownBar.classList.add('visible');
+  } else {
+    cooldownBar.classList.remove('visible');
+  }
+
+  let html = '';
+
+  for(const f of FACTION_DATA){
+    const isCurrent = currentFactionId === f.id;
+    const blockedBy = factionBlockedBy(f.id);
+    const isBlocked = !!blockedBy && !isCurrent;
+    const onCooldown = !!cooldown && !isCurrent && !isCreature;
+
+    let cardClass = 'faction-card';
+    if(isCurrent) cardClass += ' fc-current';
+    else if(isBlocked) cardClass += ' fc-blocked';
+
+    let actionHtml = '';
+    if(isCurrent){
+      actionHtml = '';
+    } else if(isCreature){
+      actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>You have lost your humanity</button></div>';
+    } else if(isBlocked){
+      actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>\uD83D\uDD12 ' + BLOCK_REASONS[blockedBy] + '</button></div>';
+    } else if(onCooldown){
+      actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>\u23f3 Cooldown: ' + cooldown.label + '</button></div>';
+    } else {
+      actionHtml = '<div class="faction-action" id="action-' + f.id + '">' +
+        '<button class="faction-join-btn" data-faction="' + f.id + '" onclick="showFactionConfirm(\'' + f.id + '\')">Align with ' + f.name + '</button>' +
+        '</div>';
+    }
+
+    html += '<div class="faction-card ' + cardClass + '" style="--fc-color:' + f.color + ';--fc-glow:' + f.color + '22;">' +
+      (isCurrent ? '<div class="faction-current-tag">\u25C8 Current</div>' : '') +
+      '<div class="faction-card-top">' +
+        '<div class="faction-icon">' + f.icon + '</div>' +
+        '<div><div class="faction-name">' + f.name + '</div><div class="faction-tagline">' + f.tagline + '</div></div>' +
+      '</div>' +
+      '<div class="faction-desc">' + f.desc + '</div>' +
+      '<div class="faction-meta">' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Ally</span><span class="faction-meta-val">' + f.ally + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Beats</span><span class="faction-meta-val">' + f.beats + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Weak to</span><span class="faction-meta-val">' + f.weak + '</span></div>' +
+      '</div>' +
+      actionHtml +
+    '</div>';
+  }
+
+  // Creature slot
+  if(isCreature || creatureUnlocked){
+    const isCurrent = isCreature;
+    const onCooldown = !!cooldown && !isCurrent;
+    let creatureAction = '';
+    if(isCurrent){
+      creatureAction = '';
+    } else if(onCooldown){
+      creatureAction = '<div class="faction-action"><button class="faction-join-btn" disabled style="color:#00cc88;border-color:#00cc88">\u23f3 Cooldown: ' + cooldown.label + '</button></div>';
+    } else {
+      creatureAction = '<div class="faction-action" id="action-creature">' +
+        '<button class="faction-join-btn" style="color:#00cc88;border-color:#00cc88" onclick="showFactionConfirm(\'creature\')">Answer the Call</button>' +
+        '</div>';
+    }
+    html += '<div class="faction-card ' + (isCurrent ? 'fc-current' : '') + '" style="--fc-color:#00cc88;--fc-glow:#00cc8822;">' +
+      (isCurrent ? '<div class="faction-current-tag">\u25C8 Current</div>' : '') +
+      '<div class="faction-card-top"><div class="faction-icon">' + CREATURE_DATA.icon + '</div>' +
+        '<div><div class="faction-name">' + CREATURE_DATA.name + '</div><div class="faction-tagline">' + CREATURE_DATA.tagline + '</div></div>' +
+      '</div>' +
+      '<div class="faction-desc">' + CREATURE_DATA.desc + '</div>' +
+      '<div class="faction-meta">' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Ally</span><span class="faction-meta-val">' + CREATURE_DATA.ally + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Beats</span><span class="faction-meta-val">' + CREATURE_DATA.beats + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Weak to</span><span class="faction-meta-val">' + CREATURE_DATA.weak + '</span></div>' +
+      '</div>' +
+      creatureAction +
+    '</div>';
+  } else {
+    html += '<div class="faction-card locked">' +
+      '<div class="faction-card-top"><div class="faction-icon" style="font-size:1.4rem">\uD83D\uDD12</div>' +
+        '<div><div class="faction-name" style="color:var(--text-dim)">???</div><div class="faction-tagline">Something stirs in the deep</div></div>' +
+      '</div>' +
+      '<div class="faction-desc" style="color:var(--text-dim)">Not all paths are charted on any map.</div>' +
+      '<div class="faction-lock-note">A hidden achievement unlocks this path.</div>' +
+    '</div>';
+  }
+
+  document.getElementById('faction-grid').innerHTML = html;
+}
+
+function showFactionConfirm(factionId){
+  const f = factionId === 'creature' ? CREATURE_DATA : FACTION_DATA.find(function(x){ return x.id === factionId; });
+  const actionDiv = document.getElementById('action-' + factionId);
+  if(!actionDiv) return;
+
+  const isCreatureJoin = factionId === 'creature';
+  const warningText = isCreatureJoin
+    ? 'This is permanent. You will never switch factions again. Your humanity fades.'
+    : 'This starts a 24-hour cooldown. Your history is permanent.';
+
+  actionDiv.innerHTML =
+    '<div class="faction-confirm-wrap" style="--fc-color:' + f.color + ';--fc-glow:' + f.color + '22;">' +
+      '<div class="faction-confirm-msg">' + warningText + '</div>' +
+      '<div class="faction-confirm-btns">' +
+        '<button class="faction-confirm-yes" onclick="confirmFactionJoin(\'' + factionId + '\', this)">\u2713 Confirm</button>' +
+        '<button class="faction-confirm-no" onclick="renderFactionPage()">\u2715 Cancel</button>' +
+      '</div>' +
+    '</div>';
+}
+
+async function confirmFactionJoin(factionId, btn){
+  btn.disabled = true;
+  btn.textContent = 'Aligning\u2026';
+  try {
+    const res = await fetch(API_BASE + '/users/me/faction', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
+      body: JSON.stringify({ faction: factionId }),
+    });
+    if(!res.ok){
+      const err = await res.json().catch(function(){ return {}; });
+      throw new Error(err.detail || 'Failed to align');
+    }
+    currentUser = await res.json();
+    updateFactionHeaderDisplay();
+    renderFactionPage();
+  } catch(e){
+    btn.disabled = false;
+    btn.textContent = '\u2713 Confirm';
+    const wrap = btn.closest('.faction-confirm-wrap');
+    if(wrap){
+      const msg = wrap.querySelector('.faction-confirm-msg');
+      if(msg){ msg.style.color = 'var(--red)'; msg.textContent = '\u26A0 ' + e.message; }
+    }
+  }
+}
+
+// ── LEDGER PAGE ───────────────────────────────────────────────────────────────
+
+const LEDGER_BADGE_CONFIG = {
+  salary:              { label: 'Salary',      color: '#3a8fff' },
+  royalty_income:      { label: 'Noble',        color: '#c084fc' },
+  citizen_income:      { label: 'Dividend',     color: '#aa88ff' },
+  revolutionary_income:{ label: 'Rev Fund',     color: '#e53935' },
+  plunder:             { label: 'Plunder',      color: '#ff8c00' },
+  tidal_income:        { label: 'Tidal',        color: '#00cc88' },
+  base_drop:           { label: 'Drop',         color: '#e040fb' },
+  trade_buy:           { label: 'Buy',          color: '#ff4455' },
+  trade_sell:          { label: 'Sell',         color: '#00d084' },
+};
+
+function openLedger(){
+  document.getElementById('ledger-overlay').classList.add('open');
+  loadLedger();
+}
+
+function closeLedger(){
+  document.getElementById('ledger-overlay').classList.remove('open');
+}
+
+async function loadLedger(){
+  const list = document.getElementById('ledger-list');
+  list.innerHTML = '<div class="ledger-empty">Loading\u2026</div>';
+  try {
+    const res = await fetch(API_BASE + '/users/me/ledger?limit=60', {
+      headers: { 'Authorization': 'Bearer ' + getAuthToken() },
+    });
+    if(!res.ok) throw new Error('API error ' + res.status);
+    const entries = await res.json();
+    renderLedger(entries);
+  } catch(e){
+    list.innerHTML = '<div class="ledger-empty" style="color:var(--red)">\u26A0 Could not load ledger: ' + e.message + '</div>';
+  }
+}
+
+function renderLedger(entries){
+  const list = document.getElementById('ledger-list');
+  if(!entries.length){
+    list.innerHTML = '<div class="ledger-empty">No transactions yet. Earn beri to see your history here.</div>';
+    return;
+  }
+
+  function fmtDate(ts){
+    const d = new Date(ts);
+    return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) + ' \u00b7 ' +
+           d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function fmtBeri(n){
+    const abs = Math.abs(n);
+    let s;
+    if(abs >= 1_000_000) s = (abs/1_000_000).toFixed(2) + 'M';
+    else if(abs >= 1_000) s = (abs/1_000).toFixed(1) + 'K';
+    else s = abs.toFixed(0);
+    return (n >= 0 ? '+' : '-') + s + '\u0e3f';
+  }
+
+  list.innerHTML = entries.map(function(e){
+    const cfg   = LEDGER_BADGE_CONFIG[e.entry_type] || { label: e.entry_type, color: '#888' };
+    const isPos = e.amount >= 0;
+    return '<div class="ledger-entry">' +
+      '<span class="ledger-badge" style="background:' + cfg.color + '22;color:' + cfg.color + ';border:1px solid ' + cfg.color + '44">' + cfg.label + '</span>' +
+      '<div class="ledger-center">' +
+        '<div class="ledger-desc">' + e.description + '</div>' +
+        '<div class="ledger-time">' + fmtDate(e.timestamp) + '</div>' +
+      '</div>' +
+      '<div class="ledger-amount ' + (isPos ? 'pos' : 'neg') + '">' + fmtBeri(e.amount) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
 async function init() {
   // Restore session if token exists
   currentUser = await fetchCurrentUser();
   if(currentUser) await fetchPortfolio();
   updateAuthUI();
   document.getElementById('faction-close').addEventListener('click', closeFactionPage);
+  document.getElementById('ledger-close').addEventListener('click', closeLedger);
 
   try {
     const res = await fetch(API_BASE + '/characters/');

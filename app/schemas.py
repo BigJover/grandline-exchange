@@ -48,6 +48,7 @@ class UserOut(BaseModel):
     faction_history: List[str] = []
     badges: List[str] = []
     creature_unlocked: bool = False
+    last_faction_change: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -73,6 +74,16 @@ class UserOut(BaseModel):
 
 class FactionUpdate(BaseModel):
     faction: str
+
+
+# ── Ledger ───────────────────────────────────────────────────────────────────
+
+class LedgerEntry(BaseModel):
+    uid: str
+    entry_type: str
+    amount: float
+    description: str
+    timestamp: datetime
 
 
 class Token(BaseModel):
