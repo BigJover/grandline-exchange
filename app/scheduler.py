@@ -195,10 +195,40 @@ def run_beri_drop():
         db.close()
 
 
+def run_comment_purge():
+    """Delete comments from previous weeks with fewer than 2 likes."""
+    from app.database import SessionLocal
+    from app import models
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        iso = now.isocalendar()
+        current = f"{iso[0]}-W{iso[1]:02d}"
+        deleted = (
+            db.query(models.Comment)
+            .filter(models.Comment.week != current, models.Comment.likes < 2)
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        print(f"[Comment Purge] Deleted {deleted} low-engagement comments")
+    except Exception as e:
+        db.rollback()
+        print(f"[Comment Purge] Error: {e}")
+    finally:
+        db.close()
+
+
 scheduler = AsyncIOScheduler(timezone="UTC")
 scheduler.add_job(
     run_beri_drop,
     CronTrigger(day_of_week="sun", hour=0, minute=0, second=0),
     id="weekly_beri_drop",
+    replace_existing=True,
+)
+scheduler.add_job(
+    run_comment_purge,
+    CronTrigger(day_of_week="sun", hour=0, minute=5, second=0),
+    id="weekly_comment_purge",
     replace_existing=True,
 )

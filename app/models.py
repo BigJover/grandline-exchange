@@ -101,6 +101,27 @@ class PriceRequest(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    character_id = Column(Integer, ForeignKey("characters.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    username = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    likes = Column(Integer, default=0)
+    week = Column(String, nullable=False)  # "2026-W17"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CommentLike(Base):
+    __tablename__ = "comment_likes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False)
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
 

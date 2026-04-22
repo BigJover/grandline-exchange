@@ -289,39 +289,112 @@ body::after {
 }
 #modal-close:hover { border-color:var(--punk-dim); color:var(--punk); }
 
-.modal-inner { display:grid; grid-template-columns:280px 1fr; gap:0; }
-@media(max-width:640px){
-  .modal-inner { grid-template-columns:1fr; }
-  .modal-left { border-right:none; border-bottom:1px solid var(--border); padding:20px 18px; }
-  .modal-right { padding:20px 18px; }
-  .modal-img-wrap { aspect-ratio:16/7; max-height:200px; }
+/* ── Modal header + tabs ── */
+.modal-header {
+  padding:20px 24px 0; border-bottom:1px solid var(--border); flex-shrink:0;
 }
+.modal-header-top {
+  display:flex; align-items:center; gap:14px; margin-bottom:14px;
+}
+.modal-avatar-wrap {
+  width:52px; height:52px; border-radius:50%; overflow:hidden; flex-shrink:0;
+  cursor:pointer; border:2px solid var(--punk-dim); background:var(--surface2);
+  display:flex; align-items:center; justify-content:center; transition:border-color 0.2s;
+}
+.modal-avatar-wrap:hover { border-color:var(--punk); }
+.modal-avatar-wrap img { width:100%; height:100%; object-fit:cover; object-position:top; }
+.modal-avatar-ph {
+  font-family:'Orbitron',sans-serif; font-size:1.3rem; font-weight:900; opacity:0.45;
+}
+.modal-header-info { flex:1; min-width:0; }
+.modal-tab-bar { display:flex; }
+.modal-tab {
+  flex:1; padding:10px; background:none; border:none;
+  border-bottom:2px solid transparent; color:var(--text-dim); cursor:pointer;
+  font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:700;
+  letter-spacing:1.5px; text-transform:uppercase; transition:all 0.15s;
+}
+.modal-tab:hover { color:var(--text); }
+.modal-tab.active { color:var(--punk); border-bottom-color:var(--punk); }
 
-/* Left column */
-.modal-left {
-  border-right:1px solid var(--border); padding:28px 24px;
-  display:flex; flex-direction:column; gap:14px;
+/* ── Modal panes ── */
+.modal-pane { padding:22px 24px; display:flex; flex-direction:column; gap:18px; }
+
+/* ── Lightbox ── */
+#img-lightbox {
+  position:fixed; inset:0; background:rgba(0,0,0,0.93); z-index:2000;
+  display:none; align-items:center; justify-content:center;
 }
-.modal-img-wrap {
-  width:100%; aspect-ratio:3/4; border-radius:8px; overflow:hidden;
-  background:var(--surface2); border:1px solid var(--border); position:relative;
-  display:flex; align-items:center; justify-content:center;
+#img-lightbox.open { display:flex; }
+#lightbox-img {
+  max-width:88vw; max-height:88vh; object-fit:contain;
+  border-radius:8px; box-shadow:0 0 80px rgba(0,0,0,0.8);
 }
-.modal-img-wrap img {
-  width:100%; height:100%; object-fit:cover; object-position:top center;
+#lightbox-close {
+  position:absolute; top:16px; right:16px; background:var(--surface2);
+  border:1px solid var(--border); color:var(--text-dim); cursor:pointer;
+  width:32px; height:32px; border-radius:6px; font-size:1rem;
+  display:flex; align-items:center; justify-content:center; transition:all 0.15s;
 }
-.modal-placeholder {
-  width:100%; height:100%; display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(145deg,var(--surface2),var(--bg));
-  flex-direction:column; gap:8px;
+#lightbox-close:hover { border-color:var(--punk-dim); color:var(--punk); }
+
+/* ── Comments ── */
+.modal-comments-wrap { display:flex; flex-direction:column; gap:10px; }
+.comments-week-label {
+  font-family:'Share Tech Mono',monospace; font-size:0.6rem;
+  color:var(--text-dim); letter-spacing:0; text-transform:none; margin-left:6px; font-weight:400;
 }
-.modal-placeholder-initial {
-  font-family:'Orbitron',sans-serif; font-weight:900; font-size:4rem; opacity:0.35; line-height:1; letter-spacing:4px;
+.comment-card {
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:12px 14px; display:flex; flex-direction:column; gap:6px;
 }
-.modal-placeholder-name {
-  font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim);
-  letter-spacing:2px; text-transform:uppercase; text-align:center; padding:0 10px;
+.comment-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.comment-username {
+  font-family:'Orbitron',sans-serif; font-size:0.57rem; font-weight:700;
+  letter-spacing:1px; color:var(--punk2);
 }
+.comment-time { font-family:'Share Tech Mono',monospace; font-size:0.62rem; color:var(--text-dim); }
+.comment-body { font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:var(--text); line-height:1.6; }
+.comment-like-btn {
+  display:flex; align-items:center; gap:5px; background:none;
+  border:1px solid var(--border); border-radius:20px; color:var(--text-dim);
+  cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.68rem;
+  padding:4px 10px; transition:all 0.15s; white-space:nowrap; flex-shrink:0;
+  min-height:32px;
+}
+.comment-like-btn:hover { border-color:var(--punk); color:var(--punk); }
+.comment-like-btn.liked { border-color:var(--punk); color:var(--punk); background:var(--punk-glow); }
+.comment-empty {
+  font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:var(--text-dim);
+  text-align:center; padding:20px 0;
+}
+.comment-input-wrap { display:flex; flex-direction:column; gap:8px; }
+#comment-body {
+  background:var(--bg); border:1px solid var(--border); border-radius:6px;
+  color:var(--text); font-family:'Share Tech Mono',monospace; font-size:0.78rem;
+  padding:10px 12px; resize:vertical; min-height:70px; outline:none;
+  width:100%; box-sizing:border-box; transition:border-color 0.2s;
+}
+#comment-body:focus { border-color:var(--punk2); }
+.comment-form-footer { display:flex; align-items:center; justify-content:space-between; }
+.comment-chars { font-family:'Share Tech Mono',monospace; font-size:0.65rem; color:var(--text-dim); }
+.comment-chars.warn { color:var(--gold); }
+.comment-chars.over { color:var(--red); }
+#comment-submit {
+  background:var(--punk2); border:none; border-radius:5px; color:#07040f; cursor:pointer;
+  font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:700;
+  letter-spacing:1px; padding:8px 18px; text-transform:uppercase; transition:opacity 0.2s;
+}
+#comment-submit:hover { opacity:0.85; }
+.comment-login-prompt {
+  font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:var(--text-dim);
+  text-align:center; padding:14px; border:1px dashed var(--border); border-radius:6px;
+  cursor:pointer; transition:all 0.15s;
+}
+.comment-login-prompt:hover { border-color:var(--punk); color:var(--punk); }
+.comment-feedback { font-family:'Share Tech Mono',monospace; font-size:0.72rem; display:none; }
+.comment-feedback.ok { color:var(--green); }
+.comment-feedback.err { color:var(--red); }
 .modal-name {
   font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:700; color:var(--text); line-height:1.25;
 }
@@ -1131,6 +1204,9 @@ body::after {
   .ticker-item { padding:0 14px; font-size:0.65rem; }
   /* Modal on mobile */
   .modal-stock-val { font-size:1.55rem; }
+  .modal-header { padding:14px 16px 0; }
+  .modal-header-top { gap:10px; margin-bottom:12px; }
+  .modal-pane { padding:16px; gap:14px; }
   /* Overlay panels: tighten padding */
   .faction-panel, .ledger-panel, .portfolio-panel, .req-panel, .leaderboard-panel { padding:20px 14px 20px; }
   /* Overlay titles: scale down */
@@ -1496,127 +1572,156 @@ body::after {
 <div id="modal-overlay">
   <div id="modal-panel">
     <button id="modal-close">✕</button>
-    <div class="modal-inner">
-      <div class="modal-left">
-        <div class="modal-img-wrap" id="modal-img-wrap">
-          <img id="modal-img" src="" alt="" style="display:none;">
-          <div class="modal-placeholder" id="modal-placeholder">
-            <span class="modal-placeholder-initial" id="modal-initial" style="color:var(--punk);">?</span>
-            <span class="modal-placeholder-name" id="modal-ph-name"></span>
+
+    <!-- ── Shared header: avatar · name · tabs ── -->
+    <div class="modal-header">
+      <div class="modal-header-top">
+        <div class="modal-avatar-wrap" id="modal-avatar-wrap" title="View full image">
+          <img id="modal-avatar-img" src="" alt="" style="display:none;">
+          <div class="modal-avatar-ph" id="modal-avatar-ph"><span id="modal-initial">?</span></div>
+        </div>
+        <div class="modal-header-info">
+          <div class="modal-name" id="modal-name"></div>
+          <div class="modal-meta">
+            <span class="modal-rank-badge" id="modal-rank"></span>
+            <span class="modal-cat-badge" id="modal-cat"></span>
           </div>
         </div>
-        <div class="modal-name" id="modal-name"></div>
-        <div class="modal-meta">
-          <span class="modal-rank-badge" id="modal-rank"></span>
-          <span class="modal-cat-badge" id="modal-cat"></span>
-        </div>
-        <div class="modal-bounty-block" id="modal-bounty-block" style="display:none;">
-          <div class="modal-bounty-label" id="modal-bounty-label">Canon Bounty</div>
-          <div class="modal-bounty-val" id="modal-bounty-val"></div>
-          <div class="modal-bounty-rating" id="modal-bounty-rating"></div>
-          <div class="modal-bounty-source" id="modal-bounty-src"></div>
-        </div>
-        <div class="modal-designation" id="modal-designation" style="display:none;">
-          <div class="modal-title-line" id="modal-title-line"></div>
-          <div class="modal-full-name" id="modal-full-name"></div>
-        </div>
-        <div class="modal-bio" id="modal-bio"></div>
       </div>
-      <div class="modal-right">
-        <div>
-          <div class="modal-section-label">◈ Vegapunk Cognitive Analysis</div>
-          <div class="modal-events-text" id="modal-events"></div>
+      <div class="modal-tab-bar">
+        <button class="modal-tab active" id="tab-stock" onclick="switchModalTab('stock')">◈ Stock</button>
+        <button class="modal-tab" id="tab-info" onclick="switchModalTab('info')">◈ Info</button>
+      </div>
+    </div>
+
+    <!-- ── Stock pane ── -->
+    <div class="modal-pane" id="pane-stock">
+      <div class="modal-share-block">
+        <div class="modal-share-inner">
+          <div class="modal-share-label">Share Price</div>
+          <div class="modal-share-val" id="modal-share-price">— ฿</div>
         </div>
-        <div class="modal-share-block">
-          <div class="modal-share-inner">
-            <div class="modal-share-label">Share Price</div>
-            <div class="modal-share-val" id="modal-share-price">— ฿</div>
+        <div class="modal-share-badge">◈ LIVE MARKET</div>
+      </div>
+      <div class="modal-position-block" id="modal-position-block" style="display:none;">
+        <span class="modal-position-label">◈ Your Position</span>
+        <span class="modal-position-qty" id="modal-position-qty"></span>
+        <span class="modal-position-val" id="modal-position-val"></span>
+      </div>
+      <div class="modal-stock-header">
+        <div class="modal-stock-val" id="modal-stock-val"></div>
+        <div class="modal-stock-change" id="modal-stock-chg"></div>
+      </div>
+      <div class="modal-graph-wrap">
+        <div class="modal-graph-title">◈ Punk Records — Beri Valuation Feed</div>
+        <div id="modal-graph"></div>
+      </div>
+      <div class="chart-dot-tip" id="chart-dot-tip"><div class="tip-label" id="tip-label"></div><div class="tip-val" id="tip-val"></div></div>
+      <div class="trade-block" id="trade-block">
+        <div class="trade-header">◈ Trading Terminal</div>
+        <div class="trade-terminal">
+          <div class="trade-info-row">
+            <div class="trade-info-cell">
+              <div class="trade-info-label">Share Price</div>
+              <div class="trade-info-val" id="trade-share-price">— ฿</div>
+            </div>
+            <div class="trade-info-cell">
+              <div class="trade-info-label">Your Holdings</div>
+              <div class="trade-info-val trade-holdings-val" id="trade-holdings">0 shares</div>
+            </div>
           </div>
-          <div class="modal-share-badge">◈ LIVE MARKET</div>
-        </div>
-        <div class="modal-position-block" id="modal-position-block" style="display:none;">
-          <span class="modal-position-label">◈ Your Position</span>
-          <span class="modal-position-qty" id="modal-position-qty"></span>
-          <span class="modal-position-val" id="modal-position-val"></span>
-        </div>
-        <div>
-          <div class="modal-stock-header">
-            <div class="modal-stock-val" id="modal-stock-val"></div>
-            <div class="modal-stock-change" id="modal-stock-chg"></div>
+          <div class="trade-info-row">
+            <div class="trade-info-cell">
+              <div class="trade-info-label">Wallet Balance</div>
+              <div class="trade-info-val" id="trade-wallet-bal">— ฿</div>
+            </div>
+            <div class="trade-info-cell">
+              <div class="trade-info-label">Total Cost</div>
+              <div class="trade-info-val" id="trade-total-cost">— ฿</div>
+            </div>
           </div>
-        </div>
-        <div class="modal-graph-wrap">
-          <div class="modal-graph-title">◈ Punk Records — Beri Valuation Feed</div>
-          <div id="modal-graph"></div>
-        </div>
-        <div class="chart-dot-tip" id="chart-dot-tip"><div class="tip-label" id="tip-label"></div><div class="tip-val" id="tip-val"></div></div>
-        <div class="trade-block" id="trade-block">
-          <div class="trade-header">◈ Trading Terminal</div>
-          <div class="trade-terminal">
-            <div class="trade-info-row">
-              <div class="trade-info-cell">
-                <div class="trade-info-label">Share Price</div>
-                <div class="trade-info-val" id="trade-share-price">— ฿</div>
-              </div>
-              <div class="trade-info-cell">
-                <div class="trade-info-label">Your Holdings</div>
-                <div class="trade-info-val trade-holdings-val" id="trade-holdings">0 shares</div>
-              </div>
+          <div class="trade-qty-row">
+            <span class="trade-qty-label">QTY</span>
+            <div class="trade-qty-controls">
+              <button class="trade-qty-btn" id="trade-qty-minus">−</button>
+              <span class="trade-qty-display" id="trade-qty-val">1</span>
+              <button class="trade-qty-btn" id="trade-qty-plus">+</button>
             </div>
-            <div class="trade-info-row">
-              <div class="trade-info-cell">
-                <div class="trade-info-label">Wallet Balance</div>
-                <div class="trade-info-val" id="trade-wallet-bal">— ฿</div>
-              </div>
-              <div class="trade-info-cell">
-                <div class="trade-info-label">Total Cost</div>
-                <div class="trade-info-val" id="trade-total-cost">— ฿</div>
-              </div>
-            </div>
-            <div class="trade-qty-row">
-              <span class="trade-qty-label">QTY</span>
-              <div class="trade-qty-controls">
-                <button class="trade-qty-btn" id="trade-qty-minus">−</button>
-                <span class="trade-qty-display" id="trade-qty-val">1</span>
-                <button class="trade-qty-btn" id="trade-qty-plus">+</button>
-              </div>
-              <div class="trade-cost-row">Total: <span class="trade-cost-val" id="trade-cost-display">— ฿</span></div>
-            </div>
-            <div class="trade-action-row">
-              <button class="trade-buy-btn" id="trade-buy-btn">◈ BUY SHARES</button>
-              <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Purchase shares in this character. If their value rises over time, you can sell them later for a profit.</div></div>
-            </div>
-            <div class="trade-action-row">
-              <button class="trade-sell-btn" id="trade-sell-btn" disabled>SELL SHARES</button>
-              <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Sell shares you own back to the market at the current live price.</div></div>
-            </div>
-            <div class="trade-section-divider">or bet against</div>
-            <div class="trade-action-row">
-              <button class="trade-slander-btn" id="trade-slander-btn">⚔ SLANDER</button>
-              <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Think this character is overrated? Lock in a beri stake — if their value drops, you profit. If it rises, you lose your stake.</div></div>
-            </div>
-            <div class="trade-short-wrap" id="trade-short-wrap" style="display:none;">
-              <div class="trade-short-header">⚔ Active Slander Position</div>
-              <div class="trade-short-detail" id="trade-short-detail"></div>
-              <div class="trade-action-row">
-                <button class="trade-close-slander-btn" id="trade-close-slander-btn">CASH OUT SLANDER</button>
-                <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Close your slander and collect your winnings. If the price went up against you, you will take a loss on your stake.</div></div>
-              </div>
-            </div>
-            <div class="trade-feedback" id="trade-feedback"></div>
+            <div class="trade-cost-row">Total: <span class="trade-cost-val" id="trade-cost-display">— ฿</span></div>
           </div>
-        </div>
-        <div id="modal-sbs-wrap" style="display:none;">
-          <div class="modal-section-label">◈ SBS Intelligence Feed</div>
-          <div class="modal-sbs-block" id="modal-sbs-entries"></div>
-        </div>
-        <div id="modal-related-wrap" style="display:none;">
-          <div class="modal-section-label">◈ Related Nodes</div>
-          <div class="modal-related-grid" id="modal-related-grid"></div>
+          <div class="trade-action-row">
+            <button class="trade-buy-btn" id="trade-buy-btn">◈ BUY SHARES</button>
+            <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Purchase shares in this character. If their value rises over time, you can sell them later for a profit.</div></div>
+          </div>
+          <div class="trade-action-row">
+            <button class="trade-sell-btn" id="trade-sell-btn" disabled>SELL SHARES</button>
+            <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Sell shares you own back to the market at the current live price.</div></div>
+          </div>
+          <div class="trade-section-divider">or bet against</div>
+          <div class="trade-action-row">
+            <button class="trade-slander-btn" id="trade-slander-btn">⚔ SLANDER</button>
+            <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Think this character is overrated? Lock in a beri stake — if their value drops, you profit. If it rises, you lose your stake.</div></div>
+          </div>
+          <div class="trade-short-wrap" id="trade-short-wrap" style="display:none;">
+            <div class="trade-short-header">⚔ Active Slander Position</div>
+            <div class="trade-short-detail" id="trade-short-detail"></div>
+            <div class="trade-action-row">
+              <button class="trade-close-slander-btn" id="trade-close-slander-btn">CASH OUT SLANDER</button>
+              <div class="info-tip"><div class="info-tip-icon">i</div><div class="info-tip-box">Close your slander and collect your winnings. If the price went up against you, you will take a loss on your stake.</div></div>
+            </div>
+          </div>
+          <div class="trade-feedback" id="trade-feedback"></div>
         </div>
       </div>
     </div>
+
+    <!-- ── Info pane ── -->
+    <div class="modal-pane" id="pane-info" style="display:none;">
+      <div class="modal-bio" id="modal-bio"></div>
+      <div class="modal-bounty-block" id="modal-bounty-block" style="display:none;">
+        <div class="modal-bounty-label" id="modal-bounty-label">Canon Bounty</div>
+        <div class="modal-bounty-val" id="modal-bounty-val"></div>
+        <div class="modal-bounty-rating" id="modal-bounty-rating"></div>
+        <div class="modal-bounty-source" id="modal-bounty-src"></div>
+      </div>
+      <div class="modal-designation" id="modal-designation" style="display:none;">
+        <div class="modal-title-line" id="modal-title-line"></div>
+        <div class="modal-full-name" id="modal-full-name"></div>
+      </div>
+      <div>
+        <div class="modal-section-label">◈ Vegapunk Cognitive Analysis</div>
+        <div class="modal-events-text" id="modal-events"></div>
+      </div>
+      <div id="modal-sbs-wrap" style="display:none;">
+        <div class="modal-section-label">◈ SBS Intelligence Feed</div>
+        <div class="modal-sbs-block" id="modal-sbs-entries"></div>
+      </div>
+      <div id="modal-related-wrap" style="display:none;">
+        <div class="modal-section-label">◈ Related Nodes</div>
+        <div class="modal-related-grid" id="modal-related-grid"></div>
+      </div>
+      <!-- Comments -->
+      <div class="modal-comments-wrap">
+        <div class="modal-section-label">◈ Community Analysis <span class="comments-week-label" id="comments-week-label"></span></div>
+        <div id="modal-comments-list"></div>
+        <div class="comment-input-wrap" id="comment-input-wrap" style="display:none;">
+          <textarea id="comment-body" maxlength="280" placeholder="Bull or bear? Make your case… (280 chars max)"></textarea>
+          <div class="comment-form-footer">
+            <span class="comment-chars" id="comment-chars-left">280</span>
+            <button id="comment-submit">Post</button>
+          </div>
+          <div class="comment-feedback" id="comment-feedback"></div>
+        </div>
+        <div class="comment-login-prompt" id="comment-login-prompt" style="display:none;">Log in to join the discussion</div>
+      </div>
+    </div>
   </div>
+</div>
+
+<!-- Image lightbox -->
+<div id="img-lightbox">
+  <button id="lightbox-close">✕</button>
+  <img id="lightbox-img" src="" alt="">
 </div>
 
 <script>
@@ -2072,34 +2177,35 @@ const BOUNTY_SOURCES = {
   royalty:'World Government Bounty',
 };
 
+let currentModalChar = null;
+let commentsLoaded   = false;
+
 function openModal(id) {
   const c = CHARACTERS.find(x=>x.id===id);
   if(!c) return;
+  currentModalChar = c;
+  commentsLoaded   = false;
 
-  // Image
-  const img=document.getElementById('modal-img');
-  const ph=document.getElementById('modal-placeholder');
-  const initialEl=document.getElementById('modal-initial');
-  const phName=document.getElementById('modal-ph-name');
-
+  // Avatar
+  const avatarImg = document.getElementById('modal-avatar-img');
+  const avatarPh  = document.getElementById('modal-avatar-ph');
+  const initialEl = document.getElementById('modal-initial');
   const color = CAT_COLORS[c.category] || 'var(--gold)';
   initialEl.style.color = color;
   initialEl.textContent = c.name.charAt(0).toUpperCase();
-  phName.textContent = c.name;
-
   if(c.img){
-    img.onerror=function(){
-      img.style.display='none';
-      ph.style.display='flex';
-    };
-    img.src = c.img + '?_=1';
-    img.alt = c.name;
-    img.style.display='block';
-    ph.style.display='none';
+    avatarImg.onerror = function(){ avatarImg.style.display='none'; avatarPh.style.display='flex'; };
+    avatarImg.src = c.img + '?_=1';
+    avatarImg.alt = c.name;
+    avatarImg.style.display = 'block';
+    avatarPh.style.display  = 'none';
   } else {
-    img.style.display='none';
-    ph.style.display='flex';
+    avatarImg.style.display = 'none';
+    avatarPh.style.display  = 'flex';
   }
+
+  // Reset to Stock tab
+  switchModalTab('stock');
 
   // Name / meta
   document.getElementById('modal-name').textContent = c.name;
@@ -2232,6 +2338,129 @@ function closeModal() {
   document.body.style.overflow='';
   document.getElementById('chart-dot-tip').style.display='none';
 }
+
+// ── Modal tabs ──
+function switchModalTab(tab) {
+  document.getElementById('pane-stock').style.display = tab==='stock' ? '' : 'none';
+  document.getElementById('pane-info').style.display  = tab==='info'  ? '' : 'none';
+  document.getElementById('tab-stock').classList.toggle('active', tab==='stock');
+  document.getElementById('tab-info').classList.toggle('active',  tab==='info');
+  if(tab==='info' && !commentsLoaded && currentModalChar) loadComments(currentModalChar.id);
+}
+
+// ── Lightbox ──
+document.getElementById('modal-avatar-wrap').addEventListener('click', function(){
+  const img = document.getElementById('modal-avatar-img');
+  if(img.style.display==='none') return;
+  document.getElementById('lightbox-img').src = img.src;
+  document.getElementById('img-lightbox').classList.add('open');
+});
+document.getElementById('lightbox-close').addEventListener('click', function(){
+  document.getElementById('img-lightbox').classList.remove('open');
+});
+document.getElementById('img-lightbox').addEventListener('click', function(e){
+  if(e.target===this) this.classList.remove('open');
+});
+
+// ── Comments ──
+function _escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _timeAgo(iso){
+  const d=Math.floor((Date.now()-new Date(iso))/1000);
+  if(d<60) return d+'s ago';
+  if(d<3600) return Math.floor(d/60)+'m ago';
+  if(d<86400) return Math.floor(d/3600)+'h ago';
+  return Math.floor(d/86400)+'d ago';
+}
+
+async function loadComments(charId){
+  commentsLoaded = true;
+  const list = document.getElementById('modal-comments-list');
+  list.innerHTML = '<div class="comment-empty">Loading\u2026</div>';
+
+  // Show/hide comment input based on auth
+  const inputWrap  = document.getElementById('comment-input-wrap');
+  const loginPrompt= document.getElementById('comment-login-prompt');
+  if(currentUser){ inputWrap.style.display=''; loginPrompt.style.display='none'; }
+  else           { inputWrap.style.display='none'; loginPrompt.style.display=''; }
+
+  // Week label
+  const now = new Date();
+  const iso = now.toISOString().slice(0,10);
+  document.getElementById('comments-week-label').textContent = '— week of '+iso.slice(5).replace('-','/');
+
+  try {
+    const res = await fetch(API_BASE+'/characters/'+charId+'/comments', {headers:authHeaders()});
+    if(!res.ok) throw new Error('Failed');
+    const comments = await res.json();
+    if(!comments.length){
+      list.innerHTML='<div class="comment-empty">No analysis this week \u2014 be the first.</div>';
+      return;
+    }
+    list.innerHTML = comments.map(function(c){
+      return '<div class="comment-card">'
+        +'<div class="comment-header">'
+        +'<span class="comment-username">'+_escHtml(c.username)+'</span>'
+        +'<button class="comment-like-btn'+(c.liked?' liked':'')+'" onclick="toggleCommentLike('+c.id+',this)">'
+        +'\u2665 <span class="like-count">'+c.likes+'</span>'
+        +'</button>'
+        +'</div>'
+        +'<div class="comment-body">'+_escHtml(c.body)+'</div>'
+        +'<div class="comment-time">'+_timeAgo(c.created_at)+'</div>'
+        +'</div>';
+    }).join('');
+  } catch(e){
+    list.innerHTML='<div class="comment-empty" style="color:var(--red);">\u26A0 Could not load comments.</div>';
+  }
+}
+
+async function toggleCommentLike(id, btn){
+  if(!currentUser){ openAuthModal('login'); return; }
+  try {
+    const res = await fetch(API_BASE+'/comments/'+id+'/like', {method:'POST', headers:authHeaders()});
+    if(!res.ok) throw new Error();
+    const data = await res.json();
+    btn.classList.toggle('liked', data.liked);
+    btn.querySelector('.like-count').textContent = data.likes;
+  } catch(e){ /* silent */ }
+}
+
+document.getElementById('comment-body').addEventListener('input', function(){
+  const left = 280 - this.value.length;
+  const el = document.getElementById('comment-chars-left');
+  el.textContent = left;
+  el.className = 'comment-chars' + (left<50?' warn':'') + (left<0?' over':'');
+});
+
+document.getElementById('comment-submit').addEventListener('click', async function(){
+  if(!currentUser){ openAuthModal('login'); return; }
+  const body = document.getElementById('comment-body').value.trim();
+  const fb   = document.getElementById('comment-feedback');
+  if(!body){ fb.className='comment-feedback err'; fb.style.display='block'; fb.textContent='\u26A0 Comment cannot be empty.'; return; }
+  this.disabled=true; this.textContent='Posting\u2026';
+  try {
+    const res = await fetch(API_BASE+'/characters/'+currentModalChar.id+'/comments', {
+      method:'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+      body: JSON.stringify({body}),
+    });
+    const data = await res.json().catch(function(){return {};});
+    if(!res.ok) throw new Error(data.detail||'Server error');
+    document.getElementById('comment-body').value='';
+    document.getElementById('comment-chars-left').textContent='280';
+    fb.className='comment-feedback ok'; fb.style.display='block'; fb.textContent='\u2713 Posted!';
+    commentsLoaded=false;
+    loadComments(currentModalChar.id);
+    setTimeout(function(){ fb.style.display='none'; }, 2500);
+  } catch(e){
+    fb.className='comment-feedback err'; fb.style.display='block'; fb.textContent='\u26A0 '+e.message;
+  } finally {
+    this.disabled=false; this.textContent='Post';
+  }
+});
+
+document.getElementById('comment-login-prompt').addEventListener('click', function(){
+  openAuthModal('login');
+});
 
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', function(e){
