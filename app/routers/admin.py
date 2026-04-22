@@ -16,6 +16,24 @@ def _check_secret(secret: str):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
+@router.post("/rename-user")
+def rename_user(secret: str, old_username: str, new_username: str, db: Session = Depends(get_db)):
+    """Rename a user. Protected by ADMIN_SECRET."""
+    _check_secret(secret)
+    new_username = new_username.strip()
+    if not new_username:
+        raise HTTPException(status_code=400, detail="New username cannot be empty")
+    user = db.query(models.User).filter(models.User.username == old_username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{old_username}' not found")
+    taken = db.query(models.User).filter(models.User.username == new_username).first()
+    if taken:
+        raise HTTPException(status_code=409, detail=f"Username '{new_username}' is already taken")
+    user.username = new_username
+    db.commit()
+    return {"status": "ok", "old_username": old_username, "new_username": new_username}
+
+
 @router.post("/set-beri")
 def set_character_beri(secret: str, name: str, beri: float, db: Session = Depends(get_db)):
     """Set a character's beri value by name. Protected by ADMIN_SECRET."""
