@@ -44,13 +44,18 @@ Base.metadata.create_all(bind=engine)
 
 
 async def price_broadcaster():
-    """Every second: drain trade-triggered updates and broadcast.
-       Every 10 seconds: send a full price snapshot to sync new clients."""
-    snapshot_every = 10
+    """Every 5 s: drain trade-triggered updates and broadcast.
+       Every 30 s: send a full price snapshot — only when clients are connected."""
+    snapshot_every = 6   # 6 × 5 s = 30 s between snapshots
     tick = 0
     while True:
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
         tick += 1
+
+        # Skip all work when nobody is listening
+        if not manager.active:
+            tick = 0
+            continue
 
         batch = {}
 
@@ -62,7 +67,7 @@ async def price_broadcaster():
             except Exception:
                 break
 
-        # Full snapshot every 10 s (keeps newly connected clients in sync)
+        # Full snapshot every 30 s to sync newly connected clients
         if tick >= snapshot_every:
             tick = 0
             db = SessionLocal()
@@ -72,7 +77,7 @@ async def price_broadcaster():
             finally:
                 db.close()
 
-        if batch and manager.active:
+        if batch:
             await manager.broadcast({"type": "prices", "data": batch})
 
 

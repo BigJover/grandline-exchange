@@ -10,7 +10,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./grandline.db")
 # SQLite needs this flag; ignored by Postgres
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+pool_kwargs = {}
+if not DATABASE_URL.startswith("sqlite"):
+    pool_kwargs = {"pool_size": 2, "max_overflow": 3, "pool_pre_ping": True}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args, **pool_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
