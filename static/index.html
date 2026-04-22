@@ -203,6 +203,10 @@ body::after {
 .req-submit { background:var(--punk2); border:none; border-radius:6px; color:#07040f; cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.68rem; font-weight:700; letter-spacing:1px; padding:10px 20px; text-transform:uppercase; transition:opacity 0.2s; align-self:flex-end; }
 .req-submit:hover { opacity:0.85; }
 .req-feedback { font-family:'Share Tech Mono',monospace; font-size:0.75rem; padding:10px 12px; border-radius:5px; display:none; }
+.ac-item { font-family:'Share Tech Mono',monospace; font-size:0.78rem; padding:8px 10px; cursor:pointer; color:var(--text); border-bottom:1px solid var(--border); }
+.ac-item:last-child { border-bottom:none; }
+.ac-item:hover, .ac-item.active { background:rgba(41,182,246,0.12); color:var(--punk2); }
+#pf-name.ac-open { border-radius:5px 5px 0 0; border-bottom-color:var(--punk2); }
 .req-feedback.ok  { background:rgba(0,208,132,0.08); border:1px solid rgba(0,208,132,0.25); color:var(--green); }
 .req-feedback.err { background:rgba(255,68,85,0.08);  border:1px solid rgba(255,68,85,0.25);  color:var(--red); }
 /* ── Admin panel ── */
@@ -1351,9 +1355,10 @@ body::after {
     <div class="req-title" style="color:var(--gold);">⬡ Price Update Request</div>
     <div class="req-sub">Think a valuation is off? Submit a request — the admin reviews and applies it.</div>
     <div class="req-form">
-      <div class="req-field">
+      <div class="req-field" style="position:relative;">
         <label>Character Name *</label>
-        <input id="pf-name" type="text" placeholder="Start typing a name…" list="char-names-list" autocomplete="off">
+        <input id="pf-name" type="text" placeholder="Start typing a name…" autocomplete="off">
+        <div id="pf-name-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg);border:1px solid var(--punk2);border-top:none;border-radius:0 0 5px 5px;max-height:200px;overflow-y:auto;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.5);"></div>
         <span id="pf-current-hint" style="display:none;font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--text-dim);margin-top:3px;"></span>
       </div>
       <div class="req-field">
@@ -2459,18 +2464,96 @@ document.getElementById('price-overlay').addEventListener('click', function(e){
   if(e.target===this) this.classList.remove('open');
 });
 
-// Autofill proposed beri below the name field when a known character is selected
-document.getElementById('pf-name').addEventListener('input', function(){
-  const val = this.value.trim().toLowerCase();
-  const match = CHARACTERS.find(function(c){ return c.name.toLowerCase() === val; });
-  const hint = document.getElementById('pf-current-hint');
-  if(match){
-    hint.textContent = 'Current: ' + Math.round(match.beri).toLocaleString() + '\u0e3f';
-    hint.style.display = 'block';
-  } else {
-    hint.style.display = 'none';
+// ── Price form: custom character autocomplete ──
+(function(){
+  const input    = document.getElementById('pf-name');
+  const dropdown = document.getElementById('pf-name-dropdown');
+  const hint     = document.getElementById('pf-current-hint');
+  let activeIdx  = -1;
+
+  function closeDropdown(){
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    input.classList.remove('ac-open');
+    activeIdx = -1;
   }
-});
+
+  function setHint(name){
+    const match = CHARACTERS.find(function(c){ return c.name.toLowerCase() === name.toLowerCase(); });
+    if(match){
+      hint.textContent = 'Current: ' + Math.round(match.beri).toLocaleString() + '\u0e3f';
+      hint.style.display = 'block';
+    } else {
+      hint.style.display = 'none';
+    }
+  }
+
+  function selectItem(name){
+    input.value = name;
+    setHint(name);
+    closeDropdown();
+  }
+
+  function renderDropdown(matches){
+    if(!matches.length){ closeDropdown(); return; }
+    dropdown.innerHTML = '';
+    activeIdx = -1;
+    matches.forEach(function(name){
+      const item = document.createElement('div');
+      item.className = 'ac-item';
+      item.textContent = name;
+      item.addEventListener('mousedown', function(e){
+        e.preventDefault(); // prevent blur firing before click
+        selectItem(name);
+      });
+      dropdown.appendChild(item);
+    });
+    dropdown.style.display = 'block';
+    input.classList.add('ac-open');
+  }
+
+  input.addEventListener('input', function(){
+    const val = this.value.trim();
+    setHint(val);
+    if(!val){ closeDropdown(); return; }
+    const lower = val.toLowerCase();
+    const matches = CHARACTERS
+      .map(function(c){ return c.name; })
+      .filter(function(n){ return n.toLowerCase().includes(lower); })
+      .slice(0, 12);
+    renderDropdown(matches);
+  });
+
+  input.addEventListener('keydown', function(e){
+    const items = dropdown.querySelectorAll('.ac-item');
+    if(!items.length) return;
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+    } else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, -1);
+    } else if(e.key === 'Enter' && activeIdx >= 0){
+      e.preventDefault();
+      selectItem(items[activeIdx].textContent);
+      return;
+    } else if(e.key === 'Escape'){
+      closeDropdown(); return;
+    } else { return; }
+    items.forEach(function(el, i){ el.classList.toggle('active', i === activeIdx); });
+    if(activeIdx >= 0) items[activeIdx].scrollIntoView({ block:'nearest' });
+  });
+
+  input.addEventListener('blur', function(){
+    // small delay so mousedown on item fires first
+    setTimeout(closeDropdown, 150);
+  });
+
+  // Close if clicking outside
+  document.addEventListener('click', function(e){
+    if(!input.contains(e.target) && !dropdown.contains(e.target)) closeDropdown();
+  });
+})();
 
 document.getElementById('price-submit').addEventListener('click', async function(){
   const name   = document.getElementById('pf-name').value.trim();
