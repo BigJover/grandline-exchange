@@ -152,6 +152,32 @@ body::after {
 .group-select { background:var(--surface); border:1px solid var(--border); border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:6px 10px; outline:none; transition:border-color 0.2s; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:24px; max-width:220px; }
 .group-select:focus { border-color:var(--punk-dim); box-shadow:0 0 0 2px var(--punk-glow); }
 .group-select option { background:var(--bg); color:var(--text); }
+/* ── Notification / Transmission dropdown ── */
+.notif-dropdown { position:relative; display:flex; align-items:center; }
+.notif-trigger {
+  cursor:pointer; appearance:none; -webkit-appearance:none;
+  /* Inherits week-badge visual — override button resets */
+  background:rgba(41,182,246,0.10) !important;
+  border:1px solid rgba(41,182,246,0.7) !important;
+  border-radius:4px; padding:6px 14px;
+  font-family:'Orbitron',sans-serif; font-weight:600; font-size:0.62rem;
+  color:var(--punk2) !important; letter-spacing:2px; text-transform:uppercase;
+  text-shadow:0 0 12px rgba(41,182,246,0.6) !important;
+  white-space:nowrap;
+  animation:badge-pulse 3.5s ease-in-out infinite;
+}
+.notif-trigger::before { content:'●'; margin-right:7px; font-size:0.45rem; vertical-align:middle; animation:dot-blink 1.8s ease-in-out infinite; }
+.notif-trigger:hover { box-shadow:0 0 22px rgba(41,182,246,0.42); }
+.notif-menu {
+  position:absolute; top:calc(100% + 10px); right:0;
+  opacity:0; pointer-events:none; transform:translateY(-6px);
+  transition:opacity 0.18s, transform 0.18s; z-index:200;
+  width:min(520px,94vw);
+}
+.notif-dropdown:hover .notif-menu,
+.notif-dropdown:focus-within .notif-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+.notif-menu .update-panel { margin:0 !important; border-radius:8px !important; }
+
 /* ── Request character button ── */
 .btn-request { background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:600; letter-spacing:1px; padding:6px 14px; text-transform:uppercase; transition:all 0.2s; white-space:nowrap; margin-left:auto; }
 .btn-request:hover { border-color:var(--punk2); color:var(--punk2); box-shadow:0 0 8px rgba(41,182,246,0.15); }
@@ -1076,7 +1102,6 @@ body::after {
   .cards-grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; padding:0 16px 40px; }
   .header-main { padding:10px 16px; gap:10px; }
   .controls { padding:10px 16px 12px; }
-  .update-panel { margin:14px 16px; }
 }
 @media(max-width:540px){
   .cards-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:8px; padding:0 10px 32px; }
@@ -1093,7 +1118,6 @@ body::after {
   .punk-records-logo { width:44px; height:34px; }
   .controls { padding:8px 10px 10px; gap:6px; }
   .filter-btn { font-size:0.52rem; padding:5px 8px; }
-  .update-panel { margin:10px 10px; padding:12px 12px; }
   /* Ticker: hide label, kill CSS animation (JS takes over) */
   .ticker-label { display:none; }
   .ticker-inner { animation:none !important; -webkit-animation:none !important; will-change:transform; }
@@ -1204,34 +1228,37 @@ body::after {
         <div class="stat-label">Next Beri Drop</div>
         <div class="stat-value drop-timer" id="drop-timer">—</div>
       </div>
-      <div class="week-badge">ELBAF NODE</div>
+      <div class="notif-dropdown">
+        <button class="notif-trigger">TRANSMISSION</button>
+        <div class="notif-menu">
+          <div class="update-panel">
+            <div class="update-header">
+              <span class="update-badge">Vegapunk Transmission</span>
+              <span class="update-week">Uplink: Ch.1180 ◈ Elbaf Node Active</span>
+            </div>
+            <div class="update-text">
+              The Elbaf Arc continues to shake community valuations. Harald's debut as King of Elbaf saw immediate stock surges for Giant-affiliated characters,
+              while Shanks' Shamrock connection to the Gorosei keeps Red Hair Pirates at historic highs.
+              Luffy's Emperor trajectory and continued Void Century revelations push legacy characters like Joy Boy and Roger ever upward.
+              Click any card to open the full character profile.
+            </div>
+            <div class="update-movers">
+              <span class="mover-chip up">▲ Harald</span>
+              <span class="mover-chip up">▲ Shanks</span>
+              <span class="mover-chip up">▲ Joy Boy</span>
+              <span class="mover-chip up">▲ Stussy</span>
+              <span class="mover-chip down">▼ Eustass Kidd</span>
+              <span class="mover-chip down">▼ Saturn</span>
+              <span class="mover-chip down">▼ Kaido</span>
+              <span class="mover-chip new">★ Man Marked by Flames</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <button class="header-login-btn" id="header-login-btn">LOG IN</button>
     </div>
   </div>
   <div class="ticker-wrap"><span class="ticker-label">◈ LIVE FEED</span><div class="ticker-clip"><div class="ticker-inner" id="ticker"></div></div></div>
-</div>
-
-<div class="update-panel">
-  <div class="update-header">
-    <span class="update-badge">Vegapunk Transmission</span>
-    <span class="update-week">Uplink: Ch.1180 ◈ Elbaf Node Active</span>
-  </div>
-  <div class="update-text">
-    The Elbaf Arc continues to shake community valuations. Harald's debut as King of Elbaf saw immediate stock surges for Giant-affiliated characters,
-    while Shanks' Shamrock connection to the Gorosei keeps Red Hair Pirates at historic highs.
-    Luffy's Emperor trajectory and continued Void Century revelations push legacy characters like Joy Boy and Roger ever upward.
-    Click any card to open the full character profile.
-  </div>
-  <div class="update-movers">
-    <span class="mover-chip up">▲ Harald</span>
-    <span class="mover-chip up">▲ Shanks</span>
-    <span class="mover-chip up">▲ Joy Boy</span>
-    <span class="mover-chip up">▲ Stussy</span>
-    <span class="mover-chip down">▼ Eustass Kidd</span>
-    <span class="mover-chip down">▼ Saturn</span>
-    <span class="mover-chip down">▼ Kaido</span>
-    <span class="mover-chip new">★ Man Marked by Flames</span>
-  </div>
 </div>
 
 <div class="controls">
