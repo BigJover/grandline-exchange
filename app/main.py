@@ -8,7 +8,7 @@ import os
 
 from app.database import Base, engine, SessionLocal
 from app import models
-from app.routers import auth, characters, trades, admin, users
+from app.routers import auth, characters, trades, admin, users, requests as requests_router
 from app.scheduler import scheduler
 from app.websocket_manager import manager
 from app.price_queue import updates as price_updates
@@ -25,6 +25,7 @@ def run_column_migrations():
         ("creature_unlocked",  "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
         ("last_faction_change", "TIMESTAMPTZ" if is_postgres else "DATETIME"),
         ("warlord_until",       "TIMESTAMPTZ" if is_postgres else "DATETIME"),
+        ("is_admin",           "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for col, col_type in migrations:
@@ -107,6 +108,7 @@ app.include_router(characters.router)
 app.include_router(trades.router)
 app.include_router(admin.router)
 app.include_router(users.router)
+app.include_router(requests_router.router)
 
 
 @app.websocket("/ws")

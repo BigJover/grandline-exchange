@@ -32,6 +32,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     beri_balance = Column(Float, default=100_000)
     is_bot = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user_faction = Column(String, nullable=True)
     faction_history = Column(JSON, default=list)
@@ -68,6 +69,36 @@ class BeriEvent(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="beri_events")
+
+
+class CharacterRequest(Base):
+    __tablename__ = "character_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    username = Column(String, default="")
+    name = Column(String, nullable=False)
+    aliases = Column(String, default="")
+    faction = Column(String, default="")
+    category = Column(String, default="")
+    proposed_beri = Column(Float, default=0)
+    canon_bounty = Column(Float, default=0)
+    reason = Column(String, nullable=False)
+    status = Column(String, default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PriceRequest(Base):
+    __tablename__ = "price_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    username = Column(String, default="")
+    character_name = Column(String, nullable=False)
+    proposed_beri = Column(Float, nullable=False)
+    reason = Column(String, nullable=False)
+    status = Column(String, default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Transaction(Base):

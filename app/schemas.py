@@ -43,6 +43,7 @@ class UserOut(BaseModel):
     username: str
     email: str
     beri_balance: float
+    is_admin: bool = False
     created_at: datetime
     user_faction: Optional[str] = None
     faction_history: List[str] = []

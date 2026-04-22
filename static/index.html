@@ -1300,7 +1300,7 @@ body::after {
       <div class="req-row">
         <div class="req-field">
           <label>Character Name *</label>
-          <input id="rf-name" type="text" placeholder="e.g. Shanks" list="char-names-list" autocomplete="off">
+          <input id="rf-name" type="text" placeholder="e.g. Shanks" autocomplete="off">
         </div>
         <div class="req-field">
           <label>Also Known As</label>
@@ -1354,6 +1354,7 @@ body::after {
       <div class="req-field">
         <label>Character Name *</label>
         <input id="pf-name" type="text" placeholder="Start typing a name…" list="char-names-list" autocomplete="off">
+        <span id="pf-current-hint" style="display:none;font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--text-dim);margin-top:3px;"></span>
       </div>
       <div class="req-field">
         <label>Proposed Beri Value *</label>
@@ -1375,14 +1376,8 @@ body::after {
     <button class="req-close" id="admin-close">✕ Close</button>
     <div class="admin-header">
       <div class="admin-title">◈ Admin Panel</div>
-      <button class="btn-dismiss" id="admin-clear-all" style="font-size:0.55rem;">Clear All</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--text-dim);margin-bottom:14px;">
-      <span id="admin-key-status"></span>
-      <button id="admin-key-set" style="background:none;border:none;color:var(--punk);cursor:pointer;font-family:inherit;font-size:inherit;padding:0;text-decoration:underline;"></button>
     </div>
     <div id="admin-list"></div>
-    <div class="req-threshold-note">Auto-flag threshold: <span id="threshold-val">5</span> requests for the same character · Shift+A to open this panel</div>
   </div>
 </div>
 
@@ -2404,23 +2399,6 @@ document.getElementById('trade-close-slander-btn').addEventListener('click', fun
 });
 
 // ── CHARACTER REQUEST SYSTEM ──────────────────────────────────────────────────
-const REQ_KEY       = 'glse_char_requests';
-const APPROVED_KEY  = 'glse_approved_chars';
-const AUTO_THRESHOLD = 5;  // Phase 1: swap for server-side threshold
-
-function getRequests()  { try { return JSON.parse(localStorage.getItem(REQ_KEY)||'[]'); } catch(e){ return []; } }
-function saveRequests(r){ localStorage.setItem(REQ_KEY, JSON.stringify(r)); }
-function getApproved()  { try { return JSON.parse(localStorage.getItem(APPROVED_KEY)||'[]'); } catch(e){ return []; } }
-function saveApproved(a){ localStorage.setItem(APPROVED_KEY, JSON.stringify(a)); }
-
-// Merge approved pending characters into CHARACTERS at load
-function mergePending(){
-  const approved = getApproved();
-  approved.forEach(function(a){
-    if(!CHARACTERS.find(x=>x.id===a.id)) CHARACTERS.push(a);
-  });
-}
-
 // ── Request form ──
 document.getElementById('btn-open-req').addEventListener('click', function(){
   document.getElementById('req-overlay').classList.add('open');
@@ -2433,43 +2411,43 @@ document.getElementById('req-overlay').addEventListener('click', function(e){
   if(e.target===this) this.classList.remove('open');
 });
 
-document.getElementById('req-submit').addEventListener('click', function(){
+document.getElementById('req-submit').addEventListener('click', async function(){
   const name    = document.getElementById('rf-name').value.trim();
   const reason  = document.getElementById('rf-reason').value.trim();
   const fb      = document.getElementById('req-feedback');
-  if(!name){ fb.className='req-feedback err'; fb.style.display='block'; fb.textContent='⚠ Character name is required.'; return; }
-  if(!reason){ fb.className='req-feedback err'; fb.style.display='block'; fb.textContent='⚠ Please include a reason for the request.'; return; }
+  if(!name){ fb.className='req-feedback err'; fb.style.display='block'; fb.textContent='\u26A0 Character name is required.'; return; }
+  if(!reason){ fb.className='req-feedback err'; fb.style.display='block'; fb.textContent='\u26A0 Please include a reason for the request.'; return; }
 
-  const reqs = getRequests();
-  reqs.push({
-    name:      name,
-    aliases:   document.getElementById('rf-aliases').value.trim(),
-    faction:   document.getElementById('rf-faction').value.trim(),
-    category:  document.getElementById('rf-category').value,
-    beri:      parseInt(document.getElementById('rf-beri').value)||0,
-    bounty:    parseInt(document.getElementById('rf-bounty').value)||0,
-    reason:    reason,
-    ts:        Date.now()
-  });
-  saveRequests(reqs);
-
-  // Count requests for this character name
-  const count = reqs.filter(function(r){ return r.name.toLowerCase()===name.toLowerCase(); }).length;
-  const hotMsg = count>=AUTO_THRESHOLD ? ' — AUTO-FLAG: '+count+' requests, ready for instant approval!' : '';
-
-  fb.className='req-feedback ok';
-  fb.style.display='block';
-  fb.textContent='✓ Request submitted for "'+name+'" ('+count+' total request'+(count!==1?'s':'')+')'+hotMsg;
-  // Reset fields
-  ['rf-name','rf-aliases','rf-faction','rf-beri','rf-bounty','rf-reason'].forEach(function(id){ document.getElementById(id).value=''; });
-  document.getElementById('rf-category').selectedIndex=0;
+  this.disabled=true; this.textContent='Submitting\u2026';
+  try {
+    const res = await fetch(API_BASE + '/requests/character', {
+      method: 'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+      body: JSON.stringify({
+        name,
+        aliases:   document.getElementById('rf-aliases').value.trim(),
+        faction:   document.getElementById('rf-faction').value.trim(),
+        category:  document.getElementById('rf-category').value,
+        proposed_beri: parseInt(document.getElementById('rf-beri').value)||0,
+        canon_bounty:  parseInt(document.getElementById('rf-bounty').value)||0,
+        reason,
+      }),
+    });
+    const data = await res.json().catch(function(){ return {}; });
+    if(!res.ok) throw new Error(data.detail || 'Server error');
+    fb.className='req-feedback ok'; fb.style.display='block';
+    fb.textContent='\u2713 Request submitted for "'+name+'" ('+data.total_requests+' total request'+(data.total_requests!==1?'s':'')+')';
+    ['rf-name','rf-aliases','rf-faction','rf-beri','rf-bounty','rf-reason'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('rf-category').selectedIndex=0;
+  } catch(e){
+    fb.className='req-feedback err'; fb.style.display='block';
+    fb.textContent='\u26A0 ' + e.message;
+  } finally {
+    this.disabled=false; this.textContent='Submit Request';
+  }
 });
 
-// ── Price Update: request form (saves to localStorage, admin approves) ──
-const PRICE_REQ_KEY = 'glse_price_requests';
-function getPriceRequests()  { try { return JSON.parse(localStorage.getItem(PRICE_REQ_KEY)||'[]'); } catch(e){ return []; } }
-function savePriceRequests(r){ localStorage.setItem(PRICE_REQ_KEY, JSON.stringify(r)); }
-
+// ── Price Update: request form (submits to API, admin approves) ──
 document.getElementById('btn-open-price').addEventListener('click', function(){
   document.getElementById('price-overlay').classList.add('open');
   document.getElementById('price-feedback').style.display='none';
@@ -2481,14 +2459,20 @@ document.getElementById('price-overlay').addEventListener('click', function(e){
   if(e.target===this) this.classList.remove('open');
 });
 
-// Autofill proposed beri from current value when a known character is selected
+// Autofill proposed beri below the name field when a known character is selected
 document.getElementById('pf-name').addEventListener('input', function(){
   const val = this.value.trim().toLowerCase();
   const match = CHARACTERS.find(function(c){ return c.name.toLowerCase() === val; });
-  if(match) document.getElementById('pf-beri').value = match.beri;
+  const hint = document.getElementById('pf-current-hint');
+  if(match){
+    hint.textContent = 'Current: ' + Math.round(match.beri).toLocaleString() + '\u0e3f';
+    hint.style.display = 'block';
+  } else {
+    hint.style.display = 'none';
+  }
 });
 
-document.getElementById('price-submit').addEventListener('click', function(){
+document.getElementById('price-submit').addEventListener('click', async function(){
   const name   = document.getElementById('pf-name').value.trim();
   const beri   = parseFloat(document.getElementById('pf-beri').value);
   const reason = document.getElementById('pf-reason').value.trim();
@@ -2498,36 +2482,32 @@ document.getElementById('price-submit').addEventListener('click', function(){
   if(isNaN(beri) || beri < 0){ fb.className='req-feedback err'; fb.style.display='block'; fb.textContent='\u26A0 Enter a valid beri value.'; return; }
   if(!reason){ fb.className='req-feedback err'; fb.style.display='block'; fb.textContent='\u26A0 Please include a reason for the price change.'; return; }
 
-  const reqs = getPriceRequests();
-  reqs.push({ name, beri, reason, ts: Date.now() });
-  savePriceRequests(reqs);
-
-  fb.className='req-feedback ok'; fb.style.display='block';
-  fb.textContent='\u2713 Price request submitted for "'+name+'" \u2014 pending admin review.';
-  document.getElementById('pf-name').value='';
-  document.getElementById('pf-beri').value='';
-  document.getElementById('pf-reason').value='';
-});
-
-// ── Admin panel ──
-function adminKeyRefreshUI(){
-  const key = localStorage.getItem('adminKey');
-  const status = document.getElementById('admin-key-status');
-  const btn    = document.getElementById('admin-key-set');
-  if(key){ status.textContent='Admin key: set'; btn.textContent='change'; }
-  else   { status.textContent='Admin key: not set'; btn.textContent='set key'; }
-}
-document.getElementById('admin-key-set').addEventListener('click', function(){
-  const k = prompt('Enter admin key (stored locally in your browser):');
-  if(k !== null){
-    if(k.trim()) localStorage.setItem('adminKey', k.trim());
-    else localStorage.removeItem('adminKey');
-    adminKeyRefreshUI();
+  this.disabled=true; this.textContent='Submitting\u2026';
+  try {
+    const res = await fetch(API_BASE + '/requests/price', {
+      method: 'POST',
+      headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+      body: JSON.stringify({ character_name: name, proposed_beri: beri, reason }),
+    });
+    const data = await res.json().catch(function(){ return {}; });
+    if(!res.ok) throw new Error(data.detail || 'Server error');
+    fb.className='req-feedback ok'; fb.style.display='block';
+    fb.textContent='\u2713 Price request submitted for "'+name+'" \u2014 pending admin review.';
+    document.getElementById('pf-name').value='';
+    document.getElementById('pf-beri').value='';
+    document.getElementById('pf-reason').value='';
+    document.getElementById('pf-current-hint').style.display='none';
+  } catch(e){
+    fb.className='req-feedback err'; fb.style.display='block';
+    fb.textContent='\u26A0 ' + e.message;
+  } finally {
+    this.disabled=false; this.textContent='Submit Request';
   }
 });
 
-function openAdmin(){
-  adminKeyRefreshUI();
+// ── Admin panel ──
+async function openAdmin(){
+  if(!currentUser || !currentUser.is_admin) return;
   renderAdminList();
   document.getElementById('admin-overlay').classList.add('open');
 }
@@ -2537,171 +2517,111 @@ document.getElementById('admin-close').addEventListener('click', function(){
 document.getElementById('admin-overlay').addEventListener('click', function(e){
   if(e.target===this) this.classList.remove('open');
 });
-document.getElementById('admin-clear-all').addEventListener('click', function(){
-  if(confirm('Clear all pending requests?')){ saveRequests([]); savePriceRequests([]); renderAdminList(); }
-});
 
-function groupRequests(reqs){
-  const map={};
-  reqs.forEach(function(r){
-    const key=r.name.toLowerCase();
-    if(!map[key]) map[key]={name:r.name, count:0, latest:r};
-    map[key].count++;
-    if(r.ts>map[key].latest.ts) map[key].latest=r;
-  });
-  return Object.values(map).sort(function(a,b){ return b.count-a.count; });
-}
-
-function renderAdminList(){
-  const charReqs  = getRequests();
-  const priceReqs = getPriceRequests();
+async function renderAdminList(){
   const list = document.getElementById('admin-list');
-  let html = '';
-
-  // ── Price change requests ──
-  if(priceReqs.length){
-    html += '<div style="font-family:Share Tech Mono,monospace;font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">Price Change Requests</div>';
-    html += priceReqs.map(function(r, i){
-      const char = CHARACTERS.find(function(c){ return c.name.toLowerCase()===r.name.toLowerCase(); });
-      const currentBeri = char ? Math.round(char.beri).toLocaleString()+'\u0e3f' : 'unknown';
-      const proposedBeri = Math.round(r.beri).toLocaleString()+'\u0e3f';
-      const safeIdx = i;
-      return '<div class="req-card">'
-        +'<div class="req-card-header">'
-        +'<span class="req-card-name">'+r.name+'</span>'
-        +'<span class="req-count-badge">'+currentBeri+' \u2192 '+proposedBeri+'</span>'
-        +'</div>'
-        +'<div class="req-card-reason">'+r.reason+'</div>'
-        +'<div class="req-card-actions">'
-        +'<button class="btn-approve" onclick="approvePriceRequest('+safeIdx+')">✓ Approve</button>'
-        +'<button class="btn-dismiss" onclick="dismissPriceRequest('+safeIdx+')">✕ Dismiss</button>'
-        +'</div>'
-        +'</div>';
-    }).join('');
-  }
-
-  // ── Character requests ──
-  if(charReqs.length){
-    html += '<div style="font-family:Share Tech Mono,monospace;font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--punk);margin:14px 0 8px;">Character Requests</div>';
-    const groups=groupRequests(charReqs);
-    html += groups.map(function(g){
-      const hot=g.count>=AUTO_THRESHOLD;
-      const already=!!(CHARACTERS.find(function(c){ return c.name.toLowerCase()===g.name.toLowerCase(); }));
-      const latestReason=g.latest.reason||'No reason provided.';
-      const meta=[g.latest.faction,g.latest.category].filter(Boolean).join(' · ');
-      return '<div class="req-card">'
-        +'<div class="req-card-header">'
-        +'<span class="req-card-name">'+g.name+(already?' ✓':'')+'</span>'
-        +'<span class="req-count-badge'+(hot?' hot':'')+'">'+g.count+' request'+(g.count!==1?'s':'')+(hot?' 🔥':'')+'</span>'
-        +'</div>'
-        +(meta?'<div class="req-card-meta">'+meta+'</div>':'')
-        +'<div class="req-card-reason">'+latestReason+'</div>'
-        +'<div class="req-card-actions">'
-        +(already
-          ?'<span style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--green);">Already listed</span>'
-          :'<button class="btn-approve" onclick="approveRequest(\''+g.name.replace(/'/g,"\\'")+'\')" >✓ Approve</button>'
-        )
-        +'<button class="btn-dismiss" onclick="dismissRequest(\''+g.name.replace(/'/g,"\\'")+'\')" >✕ Dismiss</button>'
-        +'</div>'
-        +'</div>';
-    }).join('');
-  }
-
-  if(!html){ list.innerHTML='<div class="admin-empty">No pending requests.</div>'; return; }
-  list.innerHTML = html;
-}
-
-function approveRequest(name){
-  const reqs=getRequests();
-  const match=reqs.find(function(r){ return r.name.toLowerCase()===name.toLowerCase(); });
-  if(!match) return;
-  // Build a minimal placeholder character
-  const newId=Math.max.apply(null,CHARACTERS.map(function(c){return c.id||0;}))+1;
-  const newChar={
-    id:         newId,
-    name:       match.name,
-    aliases:    match.aliases ? match.aliases.split(',').map(function(s){return s.trim();}) : [],
-    faction:    match.faction||'Unknown',
-    category:   match.category||'pirate',
-    beri:       match.beri||0,
-    canon_bounty: match.bounty||0,
-    status:     'active',
-    notes:      'Community requested · Pending full data entry',
-    price_history:[],
-    pending:    true,
-    img:        ''
-  };
-  const approved=getApproved();
-  approved.push(newChar);
-  saveApproved(approved);
-  CHARACTERS.push(newChar);
-  // Remove all requests for this name
-  saveRequests(reqs.filter(function(r){ return r.name.toLowerCase()!==name.toLowerCase(); }));
-  renderAdminList();
-  renderCards();
-  alert('✓ "'+name+'" approved and added to the exchange. Add full data to characters.json to complete the entry.');
-}
-
-function dismissRequest(name){
-  const reqs=getRequests();
-  saveRequests(reqs.filter(function(r){ return r.name.toLowerCase()!==name.toLowerCase(); }));
-  renderAdminList();
-}
-
-async function approvePriceRequest(idx){
-  const reqs = getPriceRequests();
-  const r = reqs[idx];
-  if(!r) return;
-  const secret = localStorage.getItem('adminKey') || '';
-  if(!secret){
-    alert('\u26A0 No admin key set \u2014 open the admin panel and click \u201cset key\u201d first.');
-    return;
-  }
+  list.innerHTML = '<div class="admin-empty">Loading\u2026</div>';
   try {
-    const params = new URLSearchParams({ secret, name: r.name, beri: r.beri.toString() });
-    const res = await fetch(API_BASE + '/admin/set-beri?' + params, { method:'POST' });
+    const res = await fetch(API_BASE + '/admin/requests', { headers: authHeaders() });
+    if(!res.ok) throw new Error('Failed to load requests');
+    const data = await res.json();
+    const priceReqs = data.price_requests || [];
+    const charReqs  = data.character_requests || [];
+    let html = '';
+
+    // ── Price change requests ──
+    if(priceReqs.length){
+      html += '<div style="font-family:Share Tech Mono,monospace;font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">Price Change Requests</div>';
+      html += priceReqs.map(function(r){
+        const char = CHARACTERS.find(function(c){ return c.name.toLowerCase()===r.character_name.toLowerCase(); });
+        const currentBeri = char ? Math.round(char.beri).toLocaleString()+'\u0e3f' : '?';
+        const proposedBeri = Math.round(r.proposed_beri).toLocaleString()+'\u0e3f';
+        return '<div class="req-card">'
+          +'<div class="req-card-header">'
+          +'<span class="req-card-name">'+r.character_name+'</span>'
+          +'<span class="req-count-badge">'+currentBeri+' \u2192 '+proposedBeri+'</span>'
+          +'</div>'
+          +'<div class="req-card-meta">by '+r.username+'</div>'
+          +'<div class="req-card-reason">'+r.reason+'</div>'
+          +'<div class="req-card-actions">'
+          +'<button class="btn-approve" onclick="approvePriceRequest('+r.id+')">✓ Approve</button>'
+          +'<button class="btn-dismiss" onclick="dismissPriceRequest('+r.id+')">✕ Dismiss</button>'
+          +'</div>'
+          +'</div>';
+      }).join('');
+    }
+
+    // ── Character requests ──
+    if(charReqs.length){
+      html += '<div style="font-family:Share Tech Mono,monospace;font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--punk);margin:14px 0 8px;">Character Requests</div>';
+      html += charReqs.map(function(r){
+        const already = !!(CHARACTERS.find(function(c){ return c.name.toLowerCase()===r.name.toLowerCase(); }));
+        const meta = [r.faction, r.category].filter(Boolean).join(' · ');
+        return '<div class="req-card">'
+          +'<div class="req-card-header">'
+          +'<span class="req-card-name">'+r.name+(already?' ✓':'')+'</span>'
+          +'</div>'
+          +(meta?'<div class="req-card-meta">'+meta+' · by '+r.username+'</div>':'<div class="req-card-meta">by '+r.username+'</div>')
+          +'<div class="req-card-reason">'+r.reason+'</div>'
+          +'<div class="req-card-actions">'
+          +(already
+            ?'<span style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--green);">Already listed</span>'
+            :'<button class="btn-approve" onclick="approveCharRequest('+r.id+',\''+r.name.replace(/'/g,"\\'")+'\')" >✓ Approve</button>'
+          )
+          +'<button class="btn-dismiss" onclick="dismissCharRequest('+r.id+')">✕ Dismiss</button>'
+          +'</div>'
+          +'</div>';
+      }).join('');
+    }
+
+    if(!html){ list.innerHTML='<div class="admin-empty">No pending requests.</div>'; return; }
+    list.innerHTML = html;
+  } catch(e){
+    list.innerHTML = '<div class="admin-empty" style="color:var(--red);">\u26A0 ' + e.message + '</div>';
+  }
+}
+
+async function approvePriceRequest(id){
+  try {
+    const res = await fetch(API_BASE + '/admin/requests/price/'+id+'/approve', { method:'POST', headers: authHeaders() });
     const data = await res.json().catch(function(){ return {}; });
     if(!res.ok) throw new Error(data.detail || 'Server error');
-    // Update local CHARACTERS so the card reflects new beri immediately
-    const char = CHARACTERS.find(function(c){ return c.name.toLowerCase()===r.name.toLowerCase(); });
-    if(char) char.beri = r.beri;
-    reqs.splice(idx, 1);
-    savePriceRequests(reqs);
+    const char = CHARACTERS.find(function(c){ return c.name.toLowerCase()===data.name.toLowerCase(); });
+    if(char){ char.beri = data.new_beri; updateCardSharePrice(char); }
     renderAdminList();
-    renderCards();
     alert('\u2713 '+data.name+': '+Math.round(data.old_beri).toLocaleString()+'\u0e3f \u2192 '+Math.round(data.new_beri).toLocaleString()+'\u0e3f');
-  } catch(e){
-    alert('\u26A0 ' + e.message);
-  }
+  } catch(e){ alert('\u26A0 ' + e.message); }
 }
 
-function dismissPriceRequest(idx){
-  const reqs = getPriceRequests();
-  reqs.splice(idx, 1);
-  savePriceRequests(reqs);
-  renderAdminList();
+async function dismissPriceRequest(id){
+  try {
+    const res = await fetch(API_BASE + '/admin/requests/price/'+id+'/dismiss', { method:'POST', headers: authHeaders() });
+    if(!res.ok) throw new Error('Dismiss failed');
+    renderAdminList();
+  } catch(e){ alert('\u26A0 ' + e.message); }
 }
 
-// Shift+A = open admin panel
+async function approveCharRequest(id, name){
+  try {
+    const res = await fetch(API_BASE + '/admin/requests/character/'+id+'/approve', { method:'POST', headers: authHeaders() });
+    if(!res.ok) throw new Error('Approve failed');
+    renderAdminList();
+    alert('\u2713 "'+name+'" approved. Add full data to the DB to complete the entry.');
+  } catch(e){ alert('\u26A0 ' + e.message); }
+}
+
+async function dismissCharRequest(id){
+  try {
+    const res = await fetch(API_BASE + '/admin/requests/character/'+id+'/dismiss', { method:'POST', headers: authHeaders() });
+    if(!res.ok) throw new Error('Dismiss failed');
+    renderAdminList();
+  } catch(e){ alert('\u26A0 ' + e.message); }
+}
+
+// Shift+A = open admin panel (admin only)
 document.addEventListener('keydown',function(e){
-  if(e.shiftKey && e.key==='A') openAdmin();
+  if(e.shiftKey && e.key==='A' && currentUser && currentUser.is_admin) openAdmin();
 });
-
-// Patch renderCards to show pending badge on approved-pending cards
-const _renderCards=renderCards;
-renderCards=function(){
-  _renderCards();
-  getApproved().forEach(function(a){
-    const el=document.querySelector('[data-id="'+a.id+'"]');
-    if(el && !el.querySelector('.pending-badge')){
-      const badge=document.createElement('div');
-      badge.className='pending-badge';
-      badge.textContent='Pending';
-      el.style.position='relative';
-      el.insertBefore(badge,el.firstChild);
-    }
-  });
-};
 
 const API_BASE = '';
 
@@ -3650,7 +3570,6 @@ async function init() {
       '<p style="color:var(--red);padding:40px;text-align:center">Could not connect to the Grand Line Exchange API.<br>Make sure the backend is running on port 8000.</p>';
     return;
   }
-  mergePending();
   initMarketPressure();
   buildGroupDropdown();
   buildTicker();
