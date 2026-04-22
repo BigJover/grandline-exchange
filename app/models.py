@@ -33,6 +33,10 @@ class User(Base):
     beri_balance = Column(Float, default=100_000)
     is_bot = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    user_faction = Column(String, nullable=True)
+    faction_history = Column(JSON, default=list)
+    badges = Column(JSON, default=list)
+    creature_unlocked = Column(Boolean, default=False)
 
     shares = relationship("Share", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")

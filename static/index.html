@@ -16,7 +16,7 @@
   --green:#00d084; --red:#ff4455;
   --text:#cdd0ec; --text-dim:#5a4a78;
   --pirate:#ff8c00; --marine:#3a8fff; --civilian:#aa88ff;
-  --creature:#00cc88; --royalty:#c084fc;
+  --creature:#00cc88; --royalty:#c084fc; --revolutionary:#e53935;
 }
 ::-webkit-scrollbar { width:4px; height:4px; }
 ::-webkit-scrollbar-track { background:var(--bg); }
@@ -903,6 +903,60 @@ body::after {
 .auth-dropdown-item:hover { background:rgba(255,68,85,0.08); color:var(--red); }
 .auth-dropdown-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
 
+/* ── FACTION PAGE ── */
+.faction-panel {
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  width:min(940px,96vw); max-height:90vh; overflow-y:auto; position:relative;
+  padding:32px 28px 28px;
+}
+.faction-page-title { font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900; color:var(--punk); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+.faction-page-sub { font-family:'Share Tech Mono',monospace; font-size:0.74rem; color:var(--text-dim); margin-bottom:24px; line-height:1.5; }
+.faction-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.faction-card {
+  background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+  padding:18px 16px 14px; position:relative; transition:border-color 0.2s, box-shadow 0.2s;
+  display:flex; flex-direction:column; gap:8px;
+}
+.faction-card:not(.locked):not(.fc-blocked):hover {
+  border-color:var(--fc-color, var(--punk-dim));
+  box-shadow:0 0 16px var(--fc-glow, transparent);
+}
+.faction-card.fc-current {
+  border-color:var(--fc-color, var(--punk-dim));
+  box-shadow:0 0 22px var(--fc-glow, transparent);
+  background:var(--surface);
+}
+.faction-card.fc-blocked { opacity:0.45; }
+.faction-card.locked { opacity:0.38; filter:grayscale(0.85); pointer-events:none; }
+.faction-card-top { display:flex; align-items:center; gap:10px; margin-bottom:2px; }
+.faction-icon { font-size:1.55rem; line-height:1; flex-shrink:0; }
+.faction-name { font-family:'Orbitron',sans-serif; font-size:0.84rem; font-weight:700; color:var(--fc-color,var(--text)); letter-spacing:1.5px; text-transform:uppercase; }
+.faction-tagline { font-family:'Share Tech Mono',monospace; font-size:0.62rem; color:var(--text-dim); font-style:italic; }
+.faction-desc { font-family:'Share Tech Mono',monospace; font-size:0.71rem; color:var(--text); line-height:1.55; flex:1; }
+.faction-meta { display:flex; flex-direction:column; gap:3px; margin-top:4px; border-top:1px solid var(--border); padding-top:8px; }
+.faction-meta-row { display:flex; gap:8px; font-family:'Share Tech Mono',monospace; font-size:0.62rem; }
+.faction-meta-label { color:var(--text-dim); min-width:50px; }
+.faction-meta-val { color:var(--text); }
+.faction-action { margin-top:8px; }
+.faction-join-btn {
+  background:transparent; border:1px solid var(--fc-color,var(--border));
+  border-radius:5px; color:var(--fc-color,var(--text-dim));
+  cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700;
+  letter-spacing:1.5px; padding:8px 12px; text-transform:uppercase;
+  transition:all 0.18s; width:100%;
+}
+.faction-join-btn:hover:not(:disabled) { box-shadow:0 0 12px var(--fc-glow,transparent); opacity:0.85; }
+.faction-join-btn:disabled { border-color:var(--border); color:var(--text-dim); cursor:not-allowed; opacity:0.45; font-size:0.52rem; letter-spacing:0.5px; }
+.faction-current-tag {
+  position:absolute; top:10px; right:10px;
+  font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700;
+  letter-spacing:1px; text-transform:uppercase; color:#000;
+  background:var(--fc-color,var(--punk)); border-radius:3px; padding:3px 7px;
+}
+.faction-lock-note { font-family:'Share Tech Mono',monospace; font-size:0.64rem; color:var(--text-dim); text-align:center; padding:8px 0 2px; letter-spacing:0.5px; margin-top:auto; }
+@media(max-width:720px){ .faction-grid { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:460px){ .faction-grid { grid-template-columns:1fr; } }
+
 /* ── Mobile responsive ── */
 @media(max-width:768px){
   .cards-grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; padding:0 16px 40px; }
@@ -1203,6 +1257,16 @@ body::after {
       <div class="auth-feedback" id="signup-feedback"></div>
       <button class="auth-submit" id="signup-submit">Create Account</button>
     </div>
+  </div>
+</div>
+
+<!-- FACTION PAGE -->
+<div class="req-overlay" id="faction-overlay">
+  <div class="faction-panel">
+    <button class="req-close" id="faction-close">✕ Close</button>
+    <div class="faction-page-title">◈ Choose Your Allegiance</div>
+    <div class="faction-page-sub" id="faction-page-sub">Your path defines your power. Choose wisely — some doors close forever.</div>
+    <div class="faction-grid" id="faction-grid"></div>
   </div>
 </div>
 
@@ -2361,6 +2425,7 @@ function updateAuthUI(){
         '<div class="auth-dropdown-menu">' +
           '<div class="auth-dropdown-menu-inner">' +
             '<button class="auth-dropdown-item" id="header-portfolio-btn">◈ Portfolio</button>' +
+            '<button class="auth-dropdown-item" id="header-faction-btn">⚑ Faction</button>' +
             '<hr class="auth-dropdown-divider">' +
             '<button class="auth-dropdown-item" id="header-logout-btn">⏻ Log Out</button>' +
           '</div>' +
@@ -2368,8 +2433,9 @@ function updateAuthUI(){
       loginBtn.parentNode.insertBefore(block, loginBtn.nextSibling);
       document.getElementById('header-logout-btn').addEventListener('click', handleLogout);
       document.getElementById('header-portfolio-btn').addEventListener('click', openPortfolio);
+      document.getElementById('header-faction-btn').addEventListener('click', openFactionPage);
     }
-    document.getElementById('header-username').textContent = '◈ ' + currentUser.username + ' ▾';
+    updateFactionHeaderDisplay();
     block.style.display = 'flex';
   } else {
     loginBtn.style.display = '';
@@ -2586,11 +2652,215 @@ function updateModalPosition(c){
   block.style.display = 'flex';
 }
 
+// ── FACTION PAGE ─────────────────────────────────────────────────────────────
+
+const FACTION_DATA = [
+  {
+    id: 'marine', name: 'Marine', icon: '⚓', color: '#3a8fff',
+    tagline: 'Absolute Justice',
+    desc: 'Stable dividends, WG-funded. Protected by the Royalty alliance — share bonuses during government events. High floor, low ceiling. The safe path.',
+    ally: 'Royalty', beats: 'Pirates, Creatures', weak: 'Revolutionary Army',
+  },
+  {
+    id: 'royalty', name: 'Royalty', icon: '♛', color: '#c084fc',
+    tagline: 'By Divine Right',
+    desc: 'Passive beri on every login — nobles collect taxes without lifting a finger. Marine alliance grants raid immunity during faction events.',
+    ally: 'Marine', beats: 'Citizens', weak: 'Revolutionary Army',
+  },
+  {
+    id: 'pirate', name: 'Pirate', icon: '☠', color: '#ff8c00',
+    tagline: 'Freedom Above All',
+    desc: 'Bonus beri on volatile stock trades. The sea rewards the bold. Creature alliance boosts payouts on sea and island events.',
+    ally: 'Creature', beats: 'Citizens, Revolutionary', weak: 'Marine',
+  },
+  {
+    id: 'citizen', name: 'Citizen', icon: '◉', color: '#aa88ff',
+    tagline: 'The World Moves On',
+    desc: "Steady chapter bonuses every chapter drop. The most flexible switching paths. No door closes to you that you didn't open yourself.",
+    ally: 'Revolutionary Army', beats: 'Marine', weak: 'Pirates, Creatures',
+  },
+  {
+    id: 'revolutionary', name: 'Revolutionary', icon: '✊', color: '#e53935',
+    tagline: 'Liberate the World',
+    desc: 'Earns beri when WG-aligned characters fall in value. Counter-meta — most powerful when the establishment is winning.',
+    ally: 'Citizen', beats: 'Marine, Royalty', weak: 'Pirate (chaos neutral)',
+  },
+];
+
+const CREATURE_DATA = {
+  id: 'creature', name: 'Creature', icon: '🌊', color: '#00cc88',
+  tagline: 'The Deep Calls Back',
+  desc: 'Bonus beri when new characters and islands emerge. Allied with Pirates — the sea recognizes the Jolly Roger. <strong style="color:#00cc88">No way back. Once you answer the call, your humanity fades.</strong>',
+  ally: 'Pirate', beats: 'Citizens', weak: 'Marine',
+};
+
+const FACTION_BLOCKS = {
+  pirate:        ['marine'],
+  revolutionary: ['marine', 'royalty'],
+  marine:        ['pirate', 'revolutionary'],
+};
+
+const BLOCK_REASONS = {
+  pirate:        'Your wanted poster never disappears.',
+  revolutionary: 'You burned the throne. No going back.',
+  marine:        'The oath of the Navy follows you.',
+};
+
+function factionBlockedBy(targetId) {
+  const history = currentUser ? (currentUser.faction_history || []) : [];
+  for(const [past, blocked] of Object.entries(FACTION_BLOCKS)){
+    if(history.includes(past) && blocked.includes(targetId)) return past;
+  }
+  return null;
+}
+
+function openFactionPage(){
+  renderFactionPage();
+  document.getElementById('faction-overlay').classList.add('open');
+}
+
+function closeFactionPage(){
+  document.getElementById('faction-overlay').classList.remove('open');
+}
+
+function renderFactionPage(){
+  const currentFactionId = currentUser ? currentUser.user_faction : null;
+  const creatureUnlocked = currentUser ? (currentUser.creature_unlocked || false) : false;
+  const isCreature = currentFactionId === 'creature';
+
+  const sub = document.getElementById('faction-page-sub');
+  if(currentFactionId){
+    const f = FACTION_DATA.find(x => x.id === currentFactionId) || CREATURE_DATA;
+    sub.innerHTML = 'Currently aligned with <strong style="color:' + f.color + '">' + f.name + '</strong>. Some doors remain open. Others are sealed by your history.';
+  } else {
+    sub.textContent = 'You have not yet chosen a side. Your path defines your power — some doors close forever.';
+  }
+
+  let html = '';
+
+  for(const f of FACTION_DATA){
+    const isCurrent = currentFactionId === f.id;
+    const blockedBy = factionBlockedBy(f.id);
+    const isBlocked = !!blockedBy && !isCurrent;
+
+    let cardClass = 'faction-card';
+    if(isCurrent) cardClass += ' fc-current';
+    else if(isBlocked) cardClass += ' fc-blocked';
+
+    let actionHtml = '';
+    if(isCurrent){
+      actionHtml = '';
+    } else if(isCreature){
+      actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>You have lost your humanity</button></div>';
+    } else if(isBlocked){
+      actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>\uD83D\uDD12 ' + BLOCK_REASONS[blockedBy] + '</button></div>';
+    } else {
+      actionHtml = '<div class="faction-action"><button class="faction-join-btn" data-faction="' + f.id + '">Align with ' + f.name + '</button></div>';
+    }
+
+    html += '<div class="' + cardClass + '" style="--fc-color:' + f.color + ';--fc-glow:' + f.color + '22;">' +
+      (isCurrent ? '<div class="faction-current-tag">\u25C8 Current</div>' : '') +
+      '<div class="faction-card-top">' +
+        '<div class="faction-icon">' + f.icon + '</div>' +
+        '<div><div class="faction-name">' + f.name + '</div><div class="faction-tagline">' + f.tagline + '</div></div>' +
+      '</div>' +
+      '<div class="faction-desc">' + f.desc + '</div>' +
+      '<div class="faction-meta">' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Ally</span><span class="faction-meta-val">' + f.ally + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Beats</span><span class="faction-meta-val">' + f.beats + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Weak to</span><span class="faction-meta-val">' + f.weak + '</span></div>' +
+      '</div>' +
+      actionHtml +
+    '</div>';
+  }
+
+  // Creature card — always last slot
+  if(isCreature || creatureUnlocked){
+    const isCurrent = isCreature;
+    const actionHtml = isCurrent ? '' :
+      '<div class="faction-action"><button class="faction-join-btn" data-faction="creature" style="color:' + CREATURE_DATA.color + ';border-color:' + CREATURE_DATA.color + '">Answer the Call</button></div>';
+    html += '<div class="faction-card ' + (isCurrent ? 'fc-current' : '') + '" style="--fc-color:' + CREATURE_DATA.color + ';--fc-glow:' + CREATURE_DATA.color + '22;">' +
+      (isCurrent ? '<div class="faction-current-tag">\u25C8 Current</div>' : '') +
+      '<div class="faction-card-top">' +
+        '<div class="faction-icon">' + CREATURE_DATA.icon + '</div>' +
+        '<div><div class="faction-name">' + CREATURE_DATA.name + '</div><div class="faction-tagline">' + CREATURE_DATA.tagline + '</div></div>' +
+      '</div>' +
+      '<div class="faction-desc">' + CREATURE_DATA.desc + '</div>' +
+      '<div class="faction-meta">' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Ally</span><span class="faction-meta-val">' + CREATURE_DATA.ally + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Beats</span><span class="faction-meta-val">' + CREATURE_DATA.beats + '</span></div>' +
+        '<div class="faction-meta-row"><span class="faction-meta-label">Weak to</span><span class="faction-meta-val">' + CREATURE_DATA.weak + '</span></div>' +
+      '</div>' +
+      actionHtml +
+    '</div>';
+  } else {
+    html += '<div class="faction-card locked">' +
+      '<div class="faction-card-top">' +
+        '<div class="faction-icon" style="font-size:1.4rem">\uD83D\uDD12</div>' +
+        '<div><div class="faction-name" style="color:var(--text-dim)">???</div><div class="faction-tagline">Something stirs in the deep</div></div>' +
+      '</div>' +
+      '<div class="faction-desc" style="color:var(--text-dim)">Not all paths are charted on any map.</div>' +
+      '<div class="faction-lock-note">A hidden achievement unlocks this path.</div>' +
+    '</div>';
+  }
+
+  document.getElementById('faction-grid').innerHTML = html;
+
+  document.getElementById('faction-grid').querySelectorAll('.faction-join-btn[data-faction]').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      const factionId = this.dataset.faction;
+      if(factionId === 'creature'){
+        if(!confirm('You are about to answer the call of the deep.\n\nThis is permanent \u2014 you will never be able to switch factions again.\n\nAre you certain?')) return;
+      }
+      await handleFactionJoin(factionId, this);
+    });
+  });
+}
+
+async function handleFactionJoin(factionId, btn){
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Aligning\u2026';
+  try {
+    const res = await fetch(API_BASE + '/users/me/faction', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getAuthToken(),
+      },
+      body: JSON.stringify({ faction: factionId }),
+    });
+    if(!res.ok){
+      const err = await res.json().catch(function(){ return {}; });
+      throw new Error(err.detail || 'Failed to align');
+    }
+    currentUser = await res.json();
+    updateFactionHeaderDisplay();
+    renderFactionPage();
+  } catch(e){
+    btn.disabled = false;
+    btn.textContent = label;
+    alert('\u26A0 ' + e.message);
+  }
+}
+
+function updateFactionHeaderDisplay(){
+  const trigger = document.getElementById('header-username');
+  if(!trigger || !currentUser) return;
+  if(currentUser.user_faction === 'creature'){
+    trigger.textContent = '\uD83C\uDF0A ' + currentUser.username + ' \u25BE';
+    return;
+  }
+  const f = FACTION_DATA.find(function(x){ return x.id === currentUser.user_faction; });
+  trigger.textContent = (f ? f.icon + ' ' : '\u25C8 ') + currentUser.username + ' \u25BE';
+}
+
 async function init() {
   // Restore session if token exists
   currentUser = await fetchCurrentUser();
   if(currentUser) await fetchPortfolio();
   updateAuthUI();
+  document.getElementById('faction-close').addEventListener('click', closeFactionPage);
 
   try {
     const res = await fetch(API_BASE + '/characters/');

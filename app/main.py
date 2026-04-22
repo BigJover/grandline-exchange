@@ -8,11 +8,38 @@ import os
 
 from app.database import Base, engine, SessionLocal
 from app import models
-from app.routers import auth, characters, trades, admin
+from app.routers import auth, characters, trades, admin, users
 from app.scheduler import scheduler
 from app.websocket_manager import manager
 from app.price_queue import updates as price_updates
 
+
+def run_column_migrations():
+    """Add new columns to existing tables without Alembic. Safe to run on every startup."""
+    from sqlalchemy import text
+    is_postgres = str(engine.url).startswith("postgres")
+    migrations = [
+        ("user_faction",    "TEXT"),
+        ("faction_history", "TEXT DEFAULT '[]'"),
+        ("badges",          "TEXT DEFAULT '[]'"),
+        ("creature_unlocked", "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+    ]
+    with engine.connect() as conn:
+        for col, col_type in migrations:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+
+run_column_migrations()
 Base.metadata.create_all(bind=engine)
 
 
@@ -72,6 +99,7 @@ app.include_router(auth.router)
 app.include_router(characters.router)
 app.include_router(trades.router)
 app.include_router(admin.router)
+app.include_router(users.router)
 
 
 @app.websocket("/ws")

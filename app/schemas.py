@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List, Any
 from datetime import datetime
+import json as _json
 
 
 # ── Characters ──────────────────────────────────────────────────────────────
@@ -43,8 +44,35 @@ class UserOut(BaseModel):
     email: str
     beri_balance: float
     created_at: datetime
+    user_faction: Optional[str] = None
+    faction_history: List[str] = []
+    badges: List[str] = []
+    creature_unlocked: bool = False
 
     model_config = {"from_attributes": True}
+
+    @field_validator("faction_history", "badges", mode="before")
+    @classmethod
+    def coerce_to_list(cls, v: Any) -> List[str]:
+        if v is None:
+            return []
+        if isinstance(v, str):
+            try:
+                return _json.loads(v)
+            except Exception:
+                return []
+        return list(v)
+
+    @field_validator("creature_unlocked", mode="before")
+    @classmethod
+    def coerce_to_bool(cls, v: Any) -> bool:
+        if v is None:
+            return False
+        return bool(v)
+
+
+class FactionUpdate(BaseModel):
+    faction: str
 
 
 class Token(BaseModel):
