@@ -1728,6 +1728,24 @@ body::after {
 
 let CHARACTERS = [];
 
+// ── Username display filter ──
+const _BLOCKED = [
+  'nigga','nigger','faggot','fag','retard','chink','spic','kike',
+  'tranny','cunt','gook','wetback','beaner','cracker','dyke',
+];
+const _ANON_NAMES = [
+  'Drifting Soul','Sea Phantom','The Nameless','Fog Walker',
+  'Cursed Sailor','Ocean Ghost','Storm Rider','Mystery Pirate',
+  'The Wanderer','Davy\'s Crew','Silent Mariner','Void Traveler',
+];
+function filterUsername(name){
+  if(!name) return name;
+  const low = name.toLowerCase();
+  if(!_BLOCKED.some(function(t){ return low.includes(t); })) return name;
+  const sum = name.split('').reduce(function(a,c){ return a + c.charCodeAt(0); }, 0);
+  return _ANON_NAMES[sum % _ANON_NAMES.length];
+}
+
 function fBeri(v) {
   if(!v) return '0 ฿';
   if(v>=1e9) return (v/1e9).toFixed(2).replace(/\.?0+$/,'')+'B ฿';
@@ -2399,7 +2417,7 @@ async function loadComments(charId){
     list.innerHTML = comments.map(function(c){
       return '<div class="comment-card">'
         +'<div class="comment-header">'
-        +'<span class="comment-username">'+_escHtml(c.username)+'</span>'
+        +'<span class="comment-username">'+_escHtml(filterUsername(c.username))+'</span>'
         +'<button class="comment-like-btn'+(c.liked?' liked':'')+'" onclick="toggleCommentLike('+c.id+',this)">'
         +'\u2665 <span class="like-count">'+c.likes+'</span>'
         +'</button>'
@@ -3430,11 +3448,11 @@ function updateFactionHeaderDisplay(){
   const trigger = document.getElementById('header-username');
   if(!trigger || !currentUser) return;
   if(currentUser.user_faction === 'creature'){
-    trigger.textContent = '\uD83C\uDF0A ' + currentUser.username + ' \u25BE';
+    trigger.textContent = '\uD83C\uDF0A ' + filterUsername(currentUser.username) + ' \u25BE';
     return;
   }
   const f = FACTION_DATA.find(function(x){ return x.id === currentUser.user_faction; });
-  trigger.textContent = (f ? f.icon + ' ' : '\u25C8 ') + currentUser.username + ' \u25BE';
+  trigger.textContent = (f ? f.icon + ' ' : '\u25C8 ') + filterUsername(currentUser.username) + ' \u25BE';
 }
 
 // ── FACTION COOLDOWN HELPERS ─────────────────────────────────────────────────
@@ -3749,7 +3767,7 @@ function renderLeaderboard(entries){
       '<div class="leaderboard-rank ' + rankClass + '">' + rankLabel + '</div>' +
       '<div class="leaderboard-faction-icon">' + factionIcon + '</div>' +
       '<div class="leaderboard-name-col">' +
-        '<div class="leaderboard-username">' + escHtml(e.username) + (e.is_current ? ' \u25C4 you' : '') + warlordPip + '</div>' +
+        '<div class="leaderboard-username">' + escHtml(filterUsername(e.username)) + (e.is_current ? ' \u25C4 you' : '') + warlordPip + '</div>' +
         '<div class="leaderboard-faction-label">' + factionLabel + '</div>' +
       '</div>' +
       '<div class="leaderboard-beri">' + beriStr + '\u0e3f</div>' +
