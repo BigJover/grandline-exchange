@@ -1,4 +1,5 @@
 import random
+from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -23,6 +24,22 @@ def _marine_base_salary(beri_balance: float) -> int:
         return 350_000
     else:
         return 500_000
+
+
+def _bounty_heat(beri_balance: float):
+    """Returns (hit: bool, loss_fraction: float).
+    Higher balance = bigger target = higher chance of getting hunted."""
+    if beri_balance < 1_000_000:
+        chance, lo, hi = 0.05, 0.10, 0.30
+    elif beri_balance < 50_000_000:
+        chance, lo, hi = 0.10, 0.15, 0.35
+    elif beri_balance < 500_000_000:
+        chance, lo, hi = 0.20, 0.20, 0.40
+    else:
+        chance, lo, hi = 0.30, 0.25, 0.50
+    if random.random() < chance:
+        return True, random.uniform(lo, hi)
+    return False, 0.0
 
 
 def _pirate_plunder() -> int:
@@ -119,7 +136,8 @@ def run_beri_drop():
                     description=f"Revolutionary fund \u2014 {REV_BASE:,}\u0e3f base + {wg_count * REV_PER_WG_USER:,}\u0e3f from {wg_count} WG targets",
                 ))
 
-        # ── PIRATE: random plunder ───────────────────────────────────────────
+        # ── PIRATE: plunder then bounty hunter heat check ────────────────────
+        now = datetime.now(timezone.utc)
         for u in pirates:
             loot = _pirate_plunder()
             u.beri_balance += loot
@@ -129,6 +147,20 @@ def run_beri_drop():
                 amount=loot,
                 description=f"Plunder \u2014 {loot:,}\u0e3f seized",
             ))
+
+            # Warlords are immune to heat checks
+            is_warlord = u.warlord_until and u.warlord_until > now
+            if not is_warlord:
+                hit, loss_frac = _bounty_heat(u.beri_balance)
+                if hit:
+                    loss = int(u.beri_balance * loss_frac)
+                    u.beri_balance = max(0, u.beri_balance - loss)
+                    events.append(models.BeriEvent(
+                        user_id=u.id,
+                        event_type="bounty_hunter",
+                        amount=-loss,
+                        description=f"Bounty hunter raid \u2014 {loss:,}\u0e3f seized ({loss_frac*100:.0f}% of wallet)",
+                    ))
 
         # ── CREATURE: flat tidal income ──────────────────────────────────────
         for u in creatures:

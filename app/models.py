@@ -38,6 +38,7 @@ class User(Base):
     badges = Column(JSON, default=list)
     creature_unlocked = Column(Boolean, default=False)
     last_faction_change = Column(DateTime(timezone=True), nullable=True)
+    warlord_until = Column(DateTime(timezone=True), nullable=True)
 
     shares = relationship("Share", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")

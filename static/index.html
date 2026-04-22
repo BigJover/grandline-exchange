@@ -994,6 +994,28 @@ body::after {
 .ledger-amount.neg { color:var(--red); }
 .ledger-empty { font-family:'Share Tech Mono',monospace; font-size:0.76rem; color:var(--text-dim); text-align:center; padding:40px 0; }
 
+/* ── WARLORD PANEL ── */
+.warlord-panel {
+  display:none; margin-top:24px; border:1px solid #ff8c0055;
+  border-radius:10px; padding:18px 20px; background:rgba(255,140,0,0.04);
+}
+.warlord-panel.visible { display:block; }
+.warlord-panel-title { font-family:'Orbitron',sans-serif; font-size:0.72rem; font-weight:700; color:#ff8c00; letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+.warlord-status-row { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.warlord-status-text { font-family:'Share Tech Mono',monospace; font-size:0.74rem; color:var(--text-dim); line-height:1.5; flex:1; min-width:200px; }
+.warlord-status-text strong { color:var(--text); }
+.warlord-active-badge { font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; background:#ff8c0022; border:1px solid #ff8c0066; border-radius:3px; color:#ff8c00; padding:3px 8px; white-space:nowrap; }
+.warlord-inactive-badge { font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; background:rgba(255,68,85,0.08); border:1px solid rgba(255,68,85,0.3); border-radius:3px; color:var(--red); padding:3px 8px; white-space:nowrap; }
+.warlord-subscribe-btn {
+  background:transparent; border:1px solid #ff8c00; border-radius:5px; color:#ff8c00;
+  cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.56rem; font-weight:700;
+  letter-spacing:1.5px; padding:9px 16px; text-transform:uppercase; transition:all 0.18s;
+  white-space:nowrap;
+}
+.warlord-subscribe-btn:hover:not(:disabled) { box-shadow:0 0 12px rgba(255,140,0,0.25); }
+.warlord-subscribe-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.warlord-desc { font-family:'Share Tech Mono',monospace; font-size:0.66rem; color:var(--text-dim); margin-top:10px; border-top:1px solid var(--border); padding-top:10px; line-height:1.5; }
+
 /* ── Mobile responsive ── */
 @media(max-width:768px){
   .cards-grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; padding:0 16px 40px; }
@@ -1305,6 +1327,7 @@ body::after {
     <div class="faction-page-sub" id="faction-page-sub">Your path defines your power. Choose wisely — some doors close forever.</div>
     <div class="faction-cooldown-bar" id="faction-cooldown-bar"></div>
     <div class="faction-grid" id="faction-grid"></div>
+    <div class="warlord-panel" id="warlord-panel"></div>
   </div>
 </div>
 
@@ -3023,6 +3046,7 @@ function renderFactionPage(){
   }
 
   document.getElementById('faction-grid').innerHTML = html;
+  renderWarlordPanel();
 }
 
 function showFactionConfirm(factionId){
@@ -3072,18 +3096,101 @@ async function confirmFactionJoin(factionId, btn){
   }
 }
 
+// ── WARLORD PANEL ────────────────────────────────────────────────────────────
+
+function warlordExpiryLabel(until){
+  if(!until) return null;
+  const exp = new Date(until);
+  const now = new Date();
+  if(exp <= now) return null;
+  const ms   = exp - now;
+  const days = Math.floor(ms / 86400000);
+  const hrs  = Math.floor((ms % 86400000) / 3600000);
+  if(days > 0) return days + 'd ' + hrs + 'h remaining';
+  const mins = Math.floor((ms % 3600000) / 60000);
+  return hrs + 'h ' + mins + 'm remaining';
+}
+
+async function subscribeWarlord(btn){
+  btn.disabled = true;
+  btn.textContent = 'Processing\u2026';
+  try {
+    const res = await fetch(API_BASE + '/users/me/warlord', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getAuthToken() },
+    });
+    if(!res.ok){
+      const err = await res.json().catch(function(){ return {}; });
+      throw new Error(err.detail || 'Subscription failed');
+    }
+    currentUser = await res.json();
+    renderWarlordPanel();
+  } catch(e){
+    btn.disabled = false;
+    btn.textContent = '+ Subscribe \u2014 1,000,000\u0e3f / 7 days';
+    const panel = document.getElementById('warlord-panel');
+    if(panel){
+      let errDiv = panel.querySelector('.warlord-error');
+      if(!errDiv){ errDiv = document.createElement('div'); errDiv.className = 'warlord-error'; errDiv.style.cssText = 'color:var(--red);font-size:0.68rem;margin-top:8px;'; panel.appendChild(errDiv); }
+      errDiv.textContent = '\u26A0 ' + e.message;
+    }
+  }
+}
+
+function renderWarlordPanel(){
+  const panel = document.getElementById('warlord-panel');
+  if(!panel) return;
+
+  if(!currentUser || currentUser.user_faction !== 'pirate'){
+    panel.classList.remove('visible');
+    return;
+  }
+
+  const expLabel  = warlordExpiryLabel(currentUser.warlord_until);
+  const isActive  = !!expLabel;
+  const canAfford = (currentUser.beri_balance || 0) >= 1000000;
+
+  const statusBadge = isActive
+    ? '<span class="warlord-active-badge">\u2714 Warlord Active</span>'
+    : '<span class="warlord-inactive-badge">\u2715 Unprotected</span>';
+
+  const statusText = isActive
+    ? '<strong>Immunity active</strong> — ' + expLabel + '. Bounty hunters and Buster Calls cannot touch you. Stackable: subscribe again to extend.'
+    : 'You have <strong>no Warlord protection</strong>. Bounty hunter raids and Buster Calls can seize your beri at any time.';
+
+  const btnLabel = isActive ? '+ Extend \u2014 1,000,000\u0e3f / 7 days' : '+ Subscribe \u2014 1,000,000\u0e3f / 7 days';
+
+  panel.innerHTML =
+    '<div class="warlord-panel-title">\u2694 Warlord of the Sea</div>' +
+    '<div class="warlord-status-row">' +
+      '<div class="warlord-status-text">' + statusText + '</div>' +
+      statusBadge +
+    '</div>' +
+    '<div class="warlord-status-row" style="margin-top:14px;">' +
+      '<button class="warlord-subscribe-btn" id="warlord-sub-btn"' + (!canAfford ? ' disabled title="Insufficient beri"' : '') + ' onclick="subscribeWarlord(this)">' + btnLabel + '</button>' +
+      (!canAfford ? '<span style="font-size:0.62rem;color:var(--red)">Need 1,000,000\u0e3f</span>' : '') +
+    '</div>' +
+    '<div class="warlord-desc">Warlord status is a treaty with the World Government. For 1,000,000\u0e3f per week you gain immunity from bounty hunter raids and Buster Calls. Subscriptions stack \u2014 paying again extends your current expiry by 7 days. Only Pirates may hold this status.</div>';
+
+  panel.classList.add('visible');
+}
+
 // ── LEDGER PAGE ───────────────────────────────────────────────────────────────
 
 const LEDGER_BADGE_CONFIG = {
-  salary:              { label: 'Salary',      color: '#3a8fff' },
-  royalty_income:      { label: 'Noble',        color: '#c084fc' },
-  citizen_income:      { label: 'Dividend',     color: '#aa88ff' },
-  revolutionary_income:{ label: 'Rev Fund',     color: '#e53935' },
-  plunder:             { label: 'Plunder',      color: '#ff8c00' },
-  tidal_income:        { label: 'Tidal',        color: '#00cc88' },
-  base_drop:           { label: 'Drop',         color: '#e040fb' },
-  trade_buy:           { label: 'Buy',          color: '#ff4455' },
-  trade_sell:          { label: 'Sell',         color: '#00d084' },
+  salary:              { label: 'Salary',       color: '#3a8fff' },
+  royalty_income:      { label: 'Noble',         color: '#c084fc' },
+  citizen_income:      { label: 'Dividend',      color: '#aa88ff' },
+  revolutionary_income:{ label: 'Rev Fund',      color: '#e53935' },
+  plunder:             { label: 'Plunder',       color: '#ff8c00' },
+  tidal_income:        { label: 'Tidal',         color: '#00cc88' },
+  base_drop:           { label: 'Drop',          color: '#e040fb' },
+  trade_buy:           { label: 'Buy',           color: '#ff4455' },
+  trade_sell:          { label: 'Sell',          color: '#00d084' },
+  bounty_hunter:       { label: 'Hunted',        color: '#ff4455' },
+  buster_call:         { label: 'Buster Call',   color: '#ff4455' },
+  enforcement_bonus:   { label: 'Enforcement',   color: '#3a8fff' },
+  warlord_subscribe:   { label: 'Warlord',       color: '#ff8c00' },
 };
 
 function openLedger(){

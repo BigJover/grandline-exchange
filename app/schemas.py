@@ -49,6 +49,7 @@ class UserOut(BaseModel):
     badges: List[str] = []
     creature_unlocked: bool = False
     last_faction_change: Optional[datetime] = None
+    warlord_until: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

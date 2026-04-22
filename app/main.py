@@ -23,7 +23,8 @@ def run_column_migrations():
         ("faction_history",    "TEXT DEFAULT '[]'"),
         ("badges",             "TEXT DEFAULT '[]'"),
         ("creature_unlocked",  "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
-        ("last_faction_change","TIMESTAMPTZ" if is_postgres else "DATETIME"),
+        ("last_faction_change", "TIMESTAMPTZ" if is_postgres else "DATETIME"),
+        ("warlord_until",       "TIMESTAMPTZ" if is_postgres else "DATETIME"),
     ]
     with engine.connect() as conn:
         for col, col_type in migrations:

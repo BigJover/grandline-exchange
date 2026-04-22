@@ -1,4 +1,6 @@
 from datetime import datetime, timezone, timedelta
+
+WARLORD_WEEKLY_COST = 1_000_000  # 1M beri per week
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -77,6 +79,44 @@ def set_faction(
         history.append(target)
     current_user.faction_history = history
     current_user.last_faction_change = datetime.now(timezone.utc)
+
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.post("/me/warlord", response_model=schemas.UserOut)
+def subscribe_warlord(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Pay 1M beri for 7 days of Warlord protection. Stackable on active subscription."""
+    if current_user.user_faction != "pirate":
+        raise HTTPException(status_code=400, detail="Warlord status is only available to Pirates")
+
+    if current_user.beri_balance < WARLORD_WEEKLY_COST:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient beri \u2014 need {WARLORD_WEEKLY_COST:,}\u0e3f",
+        )
+
+    now = datetime.now(timezone.utc)
+    base = (
+        current_user.warlord_until
+        if current_user.warlord_until and current_user.warlord_until > now
+        else now
+    )
+    current_user.warlord_until = base + timedelta(days=7)
+    current_user.beri_balance -= WARLORD_WEEKLY_COST
+
+    expiry_str = current_user.warlord_until.strftime("%b %d, %Y")
+    db.add(models.BeriEvent(
+        user_id=current_user.id,
+        event_type="warlord_subscribe",
+        amount=-WARLORD_WEEKLY_COST,
+        description=f"Warlord registration \u2014 immunity active until {expiry_str}",
+    ))
 
     db.add(current_user)
     db.commit()
