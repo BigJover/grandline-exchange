@@ -999,6 +999,56 @@ body::after {
 .ledger-amount.neg { color:var(--red); }
 .ledger-empty { font-family:'Share Tech Mono',monospace; font-size:0.76rem; color:var(--text-dim); text-align:center; padding:40px 0; }
 
+/* ── LEADERBOARD PAGE ── */
+.leaderboard-panel {
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  width:min(680px,96vw); max-height:90vh; overflow-y:auto; position:relative;
+  padding:32px 28px 28px;
+}
+.leaderboard-title { font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900; color:var(--gold); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
+.leaderboard-sub { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); margin-bottom:22px; }
+.leaderboard-list { display:flex; flex-direction:column; gap:5px; }
+.leaderboard-row {
+  display:grid; grid-template-columns:38px auto 1fr auto; align-items:center; gap:10px;
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+  padding:11px 14px; transition:border-color 0.15s;
+}
+.leaderboard-row:hover { border-color:var(--punk-dim); }
+.leaderboard-row.lb-current {
+  border-color:var(--punk-dim);
+  background:rgba(224,64,251,0.06);
+  box-shadow:0 0 14px rgba(224,64,251,0.07);
+}
+.leaderboard-row.lb-current .leaderboard-username { color:var(--punk); }
+.leaderboard-row.lb-gap {
+  background:transparent; border:1px dashed var(--border);
+  justify-content:center; padding:6px 14px;
+}
+.leaderboard-rank {
+  font-family:'Orbitron',sans-serif; font-size:0.7rem; font-weight:700;
+  color:var(--text-dim); text-align:center; letter-spacing:1px;
+}
+.leaderboard-rank.r1 { color:var(--gold); font-size:0.85rem; text-shadow:0 0 10px rgba(212,160,23,0.5); }
+.leaderboard-rank.r2 { color:#b0bec5; font-size:0.8rem; }
+.leaderboard-rank.r3 { color:#cd7f32; font-size:0.76rem; }
+.leaderboard-faction-icon { font-size:1.05rem; line-height:1; text-align:center; }
+.leaderboard-name-col { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.leaderboard-username {
+  font-family:'Orbitron',sans-serif; font-size:0.72rem; font-weight:700;
+  color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.leaderboard-faction-label { font-family:'Share Tech Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
+.leaderboard-beri {
+  font-family:'Share Tech Mono',monospace; font-size:0.84rem; font-weight:600;
+  color:var(--gold); text-align:right; white-space:nowrap;
+}
+.leaderboard-warlord-pip {
+  display:inline-block; width:6px; height:6px; border-radius:50%;
+  background:#ff8c00; box-shadow:0 0 6px #ff8c0088; margin-left:6px; vertical-align:middle;
+}
+.leaderboard-gap-label { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); letter-spacing:1px; grid-column:1/-1; text-align:center; }
+.leaderboard-empty { font-family:'Share Tech Mono',monospace; font-size:0.76rem; color:var(--text-dim); text-align:center; padding:40px 0; }
+
 /* ── WARLORD PANEL ── */
 .warlord-panel {
   display:none; margin-top:24px; border:1px solid #ff8c0055;
@@ -1051,9 +1101,9 @@ body::after {
   /* Modal on mobile */
   .modal-stock-val { font-size:1.55rem; }
   /* Overlay panels: tighten padding */
-  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel { padding:20px 14px 20px; }
+  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel, .leaderboard-panel { padding:20px 14px 20px; }
   /* Overlay titles: scale down */
-  .faction-page-title, .ledger-title { font-size:0.84rem; letter-spacing:1px; }
+  .faction-page-title, .ledger-title, .leaderboard-title { font-size:0.84rem; letter-spacing:1px; }
   /* Ledger entries: stack badge+description row, then amount row */
   .ledger-entry { grid-template-columns:auto 1fr; align-items:start; gap:8px; }
   .ledger-amount { grid-column:1 / -1; text-align:left; font-size:0.78rem; border-top:1px solid var(--border); padding-top:5px; margin-top:2px; }
@@ -1075,8 +1125,8 @@ body::after {
   .header-main { padding:6px 10px; }
   .logo-title { font-size:0.78rem; letter-spacing:1px; }
   /* Overlay panels: squeeze further on tiny screens */
-  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel { padding:14px 10px 16px; }
-  .faction-page-title, .ledger-title { font-size:0.72rem; letter-spacing:0; }
+  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel, .leaderboard-panel { padding:14px 10px 16px; }
+  .faction-page-title, .ledger-title, .leaderboard-title { font-size:0.72rem; letter-spacing:0; }
   .ledger-desc { font-size:0.65rem; }
   .faction-page-sub, .ledger-sub { font-size:0.66rem; }
 }
@@ -1362,6 +1412,16 @@ body::after {
     <div class="ledger-title">◈ Beri Ledger</div>
     <div class="ledger-sub">All income, faction payments, and trades — most recent first.</div>
     <div class="ledger-list" id="ledger-list"><div class="ledger-empty">Loading…</div></div>
+  </div>
+</div>
+
+<!-- LEADERBOARD PAGE -->
+<div class="req-overlay" id="leaderboard-overlay">
+  <div class="leaderboard-panel">
+    <button class="req-close" id="leaderboard-close">✕ Close</button>
+    <div class="leaderboard-title">◈ Beri Leaderboard</div>
+    <div class="leaderboard-sub">Top holders across the Grand Line — updated live.</div>
+    <div class="leaderboard-list" id="leaderboard-list"><div class="leaderboard-empty">Loading…</div></div>
   </div>
 </div>
 
@@ -2522,6 +2582,7 @@ function updateAuthUI(){
             '<button class="auth-dropdown-item" id="header-portfolio-btn">◈ Portfolio</button>' +
             '<button class="auth-dropdown-item" id="header-faction-btn">⚑ Faction</button>' +
             '<button class="auth-dropdown-item" id="header-ledger-btn">⊟ Ledger</button>' +
+            '<button class="auth-dropdown-item" id="header-leaderboard-btn">⬆ Leaderboard</button>' +
             '<hr class="auth-dropdown-divider">' +
             '<button class="auth-dropdown-item" id="header-logout-btn">⏻ Log Out</button>' +
           '</div>' +
@@ -2531,6 +2592,7 @@ function updateAuthUI(){
       document.getElementById('header-portfolio-btn').addEventListener('click', openPortfolio);
       document.getElementById('header-faction-btn').addEventListener('click', openFactionPage);
       document.getElementById('header-ledger-btn').addEventListener('click', openLedger);
+      document.getElementById('header-leaderboard-btn').addEventListener('click', openLeaderboard);
     }
     updateFactionHeaderDisplay();
     block.style.display = 'flex';
@@ -3199,6 +3261,92 @@ function renderWarlordPanel(){
   panel.classList.add('visible');
 }
 
+// ── LEADERBOARD PAGE ─────────────────────────────────────────────────────────
+
+function openLeaderboard(){
+  document.getElementById('leaderboard-overlay').classList.add('open');
+  loadLeaderboard();
+}
+
+function closeLeaderboard(){
+  document.getElementById('leaderboard-overlay').classList.remove('open');
+}
+
+async function loadLeaderboard(){
+  const list = document.getElementById('leaderboard-list');
+  list.innerHTML = '<div class="leaderboard-empty">Loading\u2026</div>';
+  try {
+    const res = await fetch(API_BASE + '/users/leaderboard?limit=50', {
+      headers: { 'Authorization': 'Bearer ' + getAuthToken() },
+    });
+    if(!res.ok) throw new Error('API error ' + res.status);
+    const entries = await res.json();
+    renderLeaderboard(entries);
+  } catch(e){
+    list.innerHTML = '<div class="leaderboard-empty" style="color:var(--red)">\u26A0 Could not load leaderboard: ' + e.message + '</div>';
+  }
+}
+
+function renderLeaderboard(entries){
+  const list = document.getElementById('leaderboard-list');
+  if(!entries || !entries.length){
+    list.innerHTML = '<div class="leaderboard-empty">No data yet.</div>';
+    return;
+  }
+
+  // Faction icons by id
+  const factionIcons = {
+    pirate: '\u2620\uFE0F', marine: '\u2693', royalty: '\uD83D\uDC51',
+    citizen: '\uD83D\uDCBC', revolutionary: '\u270A', creature: '\uD83C\uDF0A',
+  };
+
+  // Separate top entries from the current-user-only trailing entry
+  const topEntries = entries.filter(function(e){ return !e.is_current || entries.indexOf(e) < entries.length - 1 || entries.length === 1; });
+  // Simpler: split at the gap
+  const maxTopRank = entries.filter(function(e){ return !e.is_current; }).reduce(function(m,e){ return Math.max(m,e.rank); }, 0);
+  const currentEntry = entries.find(function(e){ return e.is_current; });
+  const currentIsInTop = currentEntry && currentEntry.rank <= maxTopRank + 1;
+
+  let html = '';
+
+  for(const e of entries){
+    // If this is the current user appended below a gap, render separator first
+    if(e.is_current && e === entries[entries.length - 1] && entries.length > 1 && !entries.slice(0, -1).some(function(x){ return x.is_current; })){
+      html += '<div class="leaderboard-row lb-gap"><span class="leaderboard-gap-label">\u00B7\u00B7\u00B7  your rank  \u00B7\u00B7\u00B7</span></div>';
+    }
+
+    const rankClass = e.rank === 1 ? 'r1' : e.rank === 2 ? 'r2' : e.rank === 3 ? 'r3' : '';
+    const rankLabel = e.rank === 1 ? '\uD83E\uDD47' : e.rank === 2 ? '\uD83E\uDD48' : e.rank === 3 ? '\uD83E\uDD49' : '#' + e.rank;
+    const factionIcon = e.user_faction ? (factionIcons[e.user_faction] || '\u25C8') : '\u25C8';
+    const factionLabel = e.user_faction ? e.user_faction.charAt(0).toUpperCase() + e.user_faction.slice(1) : 'No Faction';
+    const beriStr = formatBeri(e.beri_balance);
+    const warlordPip = e.warlord_active ? '<span class="leaderboard-warlord-pip" title="Warlord active"></span>' : '';
+
+    html += '<div class="leaderboard-row' + (e.is_current ? ' lb-current' : '') + '">' +
+      '<div class="leaderboard-rank ' + rankClass + '">' + rankLabel + '</div>' +
+      '<div class="leaderboard-faction-icon">' + factionIcon + '</div>' +
+      '<div class="leaderboard-name-col">' +
+        '<div class="leaderboard-username">' + escHtml(e.username) + (e.is_current ? ' \u25C4 you' : '') + warlordPip + '</div>' +
+        '<div class="leaderboard-faction-label">' + factionLabel + '</div>' +
+      '</div>' +
+      '<div class="leaderboard-beri">' + beriStr + '\u0e3f</div>' +
+    '</div>';
+  }
+
+  list.innerHTML = html;
+}
+
+function formatBeri(n){
+  if(n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'B';
+  if(n >= 1_000_000)     return (n / 1_000_000).toFixed(2) + 'M';
+  if(n >= 1_000)         return (n / 1_000).toFixed(1) + 'K';
+  return Math.floor(n).toLocaleString();
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── LEDGER PAGE ───────────────────────────────────────────────────────────────
 
 const LEDGER_BADGE_CONFIG = {
@@ -3284,6 +3432,7 @@ async function init() {
   updateAuthUI();
   document.getElementById('faction-close').addEventListener('click', closeFactionPage);
   document.getElementById('ledger-close').addEventListener('click', closeLedger);
+  document.getElementById('leaderboard-close').addEventListener('click', closeLeaderboard);
 
   try {
     const res = await fetch(API_BASE + '/characters/');

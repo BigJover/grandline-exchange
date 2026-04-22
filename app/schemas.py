@@ -77,6 +77,17 @@ class FactionUpdate(BaseModel):
     faction: str
 
 
+# ── Leaderboard ──────────────────────────────────────────────────────────────
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    username: str
+    user_faction: Optional[str] = None
+    beri_balance: float
+    warlord_active: bool = False
+    is_current: bool = False
+
+
 # ── Ledger ───────────────────────────────────────────────────────────────────
 
 class LedgerEntry(BaseModel):

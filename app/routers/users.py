@@ -124,6 +124,54 @@ def subscribe_warlord(
     return current_user
 
 
+@router.get("/leaderboard", response_model=List[schemas.LeaderboardEntry])
+def get_leaderboard(
+    limit: int = 50,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    now = datetime.now(timezone.utc)
+    top = (
+        db.query(models.User)
+        .filter(models.User.is_bot == False)
+        .order_by(models.User.beri_balance.desc())
+        .limit(limit)
+        .all()
+    )
+
+    entries = []
+    current_in_top = False
+    for rank, u in enumerate(top, 1):
+        is_current = u.id == current_user.id
+        if is_current:
+            current_in_top = True
+        entries.append(schemas.LeaderboardEntry(
+            rank=rank,
+            username=u.username,
+            user_faction=u.user_faction,
+            beri_balance=u.beri_balance,
+            warlord_active=bool(u.warlord_until and u.warlord_until > now),
+            is_current=is_current,
+        ))
+
+    if not current_in_top:
+        higher_count = (
+            db.query(models.User)
+            .filter(models.User.is_bot == False, models.User.beri_balance > current_user.beri_balance)
+            .count()
+        )
+        entries.append(schemas.LeaderboardEntry(
+            rank=higher_count + 1,
+            username=current_user.username,
+            user_faction=current_user.user_faction,
+            beri_balance=current_user.beri_balance,
+            warlord_active=bool(current_user.warlord_until and current_user.warlord_until > now),
+            is_current=True,
+        ))
+
+    return entries
+
+
 @router.get("/me/ledger", response_model=List[schemas.LedgerEntry])
 def get_ledger(
     limit: int = 60,
