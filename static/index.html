@@ -2262,6 +2262,8 @@ function chartStats(c) {
 function isUp(c) { return chartStats(c).up; }
 function changePct(c) { return chartStats(c).pct; }
 
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 function buildEventLog(priceHistory) {
   if(!priceHistory || priceHistory.length < 2) return '';
   // Most recent first
