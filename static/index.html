@@ -762,11 +762,16 @@ body::after {
 }
 
 /* ── RELATED NODES ── */
-.modal-related-grid { display:flex; flex-wrap:wrap; gap:7px; }
+#modal-related-wrap {
+  display:flex; flex-direction:column; align-items:flex-end; gap:6px;
+  align-self:flex-start; flex-shrink:0; max-width:260px;
+}
+#modal-related-wrap .modal-section-label { font-size:0.42rem; align-self:flex-end; }
+.modal-related-grid { display:flex; flex-wrap:wrap; gap:5px; justify-content:flex-end; }
 .related-chip {
-  font-family:'Share Tech Mono',monospace; font-size:0.65rem; color:var(--text-dim);
+  font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim);
   background:var(--surface2); border:1px solid var(--border); border-radius:4px;
-  padding:5px 11px; cursor:pointer; transition:all 0.15s; white-space:nowrap;
+  padding:3px 9px; cursor:pointer; transition:all 0.15s; white-space:nowrap;
 }
 .related-chip:hover {
   border-color:var(--punk); color:var(--punk); background:var(--punk-glow);
@@ -1240,6 +1245,8 @@ body::after {
   .controls { padding:10px 16px 12px; }
 }
 @media(max-width:540px){
+  #modal-related-wrap { max-width:160px; }
+  .related-chip { font-size:0.55rem; padding:2px 7px; }
   .cards-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:8px; padding:0 10px 32px; }
   .stock-card { padding:12px 12px 0 12px; min-height:175px; }
   .card-name { font-size:0.78rem; }
@@ -1645,6 +1652,11 @@ body::after {
             <span class="modal-cat-badge" id="modal-cat"></span>
           </div>
         </div>
+        <!-- ── Related Nodes — shared header, visible on both tabs ── -->
+        <div id="modal-related-wrap" style="display:none;">
+          <div class="modal-section-label">◈ Related</div>
+          <div class="modal-related-grid" id="modal-related-grid"></div>
+        </div>
       </div>
       <div class="modal-tab-bar">
         <button class="modal-tab active" id="tab-stock" onclick="switchModalTab('stock')">◈ Stock</button>
@@ -1766,23 +1778,6 @@ body::after {
         <div class="modal-sbs-block" id="modal-sbs-entries"></div>
       </div>
 
-      <!-- ── Related Nodes ── -->
-      <div id="modal-related-wrap" style="display:none;">
-        <div class="modal-section-label">◈ Related Nodes</div>
-        <div class="modal-related-grid" id="modal-related-grid"></div>
-      </div>
-
-      <!-- ── Price Event Log (collapsible) ── -->
-      <div id="modal-event-log-wrap" style="display:none;">
-        <div class="modal-section-label event-log-toggle" id="event-log-toggle">
-          ◈ Price Event Log
-          <span class="event-log-chevron">▼</span>
-        </div>
-        <div class="event-log-body" id="event-log-body">
-          <div class="event-log" id="modal-event-log"></div>
-        </div>
-      </div>
-
       <!-- Comments -->
       <div class="modal-comments-wrap">
         <div class="modal-section-label">◈ Community Analysis <span class="comments-week-label" id="comments-week-label"></span></div>
@@ -1796,6 +1791,17 @@ body::after {
           <div class="comment-feedback" id="comment-feedback"></div>
         </div>
         <div class="comment-login-prompt" id="comment-login-prompt" style="display:none;">Log in to join the discussion</div>
+      </div>
+
+      <!-- ── Price Event Log (collapsible, below comments) ── -->
+      <div id="modal-event-log-wrap" style="display:none;">
+        <div class="modal-section-label event-log-toggle" id="event-log-toggle">
+          ◈ Price Event Log
+          <span class="event-log-chevron">▼</span>
+        </div>
+        <div class="event-log-body" id="event-log-body">
+          <div class="event-log" id="modal-event-log"></div>
+        </div>
       </div>
     </div>
   </div>
