@@ -520,6 +520,40 @@ body::after {
   background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:12px 14px;
   border-left:3px solid var(--punk-dim); white-space:pre-line;
 }
+.modal-bio-empty { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); font-style:italic; }
+
+/* ── Price Event Log ── */
+.event-log {
+  background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+}
+.event-log-entry {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:8px 12px; border-left:3px solid transparent;
+  border-bottom:1px solid rgba(42,30,66,0.6);
+}
+.event-log-entry:last-child { border-bottom:none; }
+.event-log-entry.up   { border-left-color:var(--green); background:rgba(0,208,132,0.03); }
+.event-log-entry.down { border-left-color:var(--red);   background:rgba(255,68,85,0.03); }
+.event-log-entry.flat { border-left-color:var(--border); }
+.event-log-left { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.event-log-ch {
+  font-family:'Orbitron',sans-serif; font-size:0.42rem; font-weight:700;
+  letter-spacing:1.5px; color:var(--punk); opacity:0.65; text-transform:uppercase;
+}
+.event-log-label {
+  font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:var(--text);
+  line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.event-log-right { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0; }
+.event-log-delta {
+  font-family:'Share Tech Mono',monospace; font-size:0.7rem; font-weight:600; white-space:nowrap;
+}
+.event-log-beri {
+  font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); white-space:nowrap;
+}
+.event-log-delta.up { color:var(--green); }
+.event-log-delta.down { color:var(--red); }
+.event-log-delta.flat { color:var(--text-dim); }
 
 .empty-state { grid-column:1/-1; text-align:center; padding:60px 24px; color:var(--text-dim); }
 .skull-big { font-size:3rem; display:block; margin-bottom:12px; }
@@ -1684,7 +1718,14 @@ body::after {
 
     <!-- ── Info pane ── -->
     <div class="modal-pane" id="pane-info" style="display:none;">
-      <div class="modal-bio" id="modal-bio"></div>
+
+      <!-- ── Intel Brief (bio) ── -->
+      <div id="modal-bio-wrap">
+        <div class="modal-section-label">◈ Intel Brief</div>
+        <div class="modal-bio" id="modal-bio"></div>
+      </div>
+
+      <!-- ── Bounty + Designation ── -->
       <div class="modal-bounty-block" id="modal-bounty-block" style="display:none;">
         <div class="modal-bounty-label" id="modal-bounty-label">Canon Bounty</div>
         <div class="modal-bounty-val" id="modal-bounty-val"></div>
@@ -1695,14 +1736,26 @@ body::after {
         <div class="modal-title-line" id="modal-title-line"></div>
         <div class="modal-full-name" id="modal-full-name"></div>
       </div>
-      <div>
+
+      <!-- ── Vegapunk Cognitive Analysis ── -->
+      <div id="modal-analysis-wrap" style="display:none;">
         <div class="modal-section-label">◈ Vegapunk Cognitive Analysis</div>
         <div class="modal-events-text" id="modal-events"></div>
       </div>
+
+      <!-- ── Price Event Log ── -->
+      <div id="modal-event-log-wrap" style="display:none;">
+        <div class="modal-section-label">◈ Price Event Log</div>
+        <div class="event-log" id="modal-event-log"></div>
+      </div>
+
+      <!-- ── SBS Intelligence Feed ── -->
       <div id="modal-sbs-wrap" style="display:none;">
         <div class="modal-section-label">◈ SBS Intelligence Feed</div>
         <div class="modal-sbs-block" id="modal-sbs-entries"></div>
       </div>
+
+      <!-- ── Related Nodes ── -->
       <div id="modal-related-wrap" style="display:none;">
         <div class="modal-section-label">◈ Related Nodes</div>
         <div class="modal-related-grid" id="modal-related-grid"></div>
@@ -2202,6 +2255,34 @@ function chartStats(c) {
 function isUp(c) { return chartStats(c).up; }
 function changePct(c) { return chartStats(c).pct; }
 
+function buildEventLog(priceHistory) {
+  if(!priceHistory || priceHistory.length < 2) return '';
+  // Most recent first
+  const entries = priceHistory.slice().reverse();
+  return entries.map(function(entry, i){
+    const prev = entries[i + 1];
+    var dir = 'flat', deltaStr = '— stable', beriStr = fBeri(entry.beri);
+    if(prev){
+      var diff = entry.beri - prev.beri;
+      var pct  = Math.abs(diff / prev.beri * 100);
+      if(diff > 0.001){        dir='up';   deltaStr='▲ +'+fPct(pct)+'%'; }
+      else if(diff < -0.001){  dir='down'; deltaStr='▼ −'+fPct(pct)+'%'; }
+    } else {
+      deltaStr = '◈ base';
+    }
+    return '<div class="event-log-entry '+dir+'">' +
+      '<div class="event-log-left">' +
+        '<span class="event-log-ch">Ch.'+entry.chapter+'</span>' +
+        '<span class="event-log-label">'+esc(entry.label)+'</span>' +
+      '</div>' +
+      '<div class="event-log-right">' +
+        '<span class="event-log-delta '+dir+'">'+deltaStr+'</span>' +
+        '<span class="event-log-beri">'+beriStr+'</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
 function renderCards() {
   const filtered=getFiltered();
   document.getElementById('results-count').textContent=filtered.length+' of '+CHARACTERS.length+' characters';
@@ -2325,7 +2406,18 @@ function openModal(id) {
   }
 
   // Bio
-  document.getElementById('modal-bio').textContent = c.bio||'';
+  var bioEl = document.getElementById('modal-bio');
+  var bioWrap = document.getElementById('modal-bio-wrap');
+  if(c.bio){
+    bioEl.innerHTML = '';
+    bioEl.className = 'modal-bio';
+    bioEl.textContent = c.bio;
+    bioWrap.style.display = '';
+  } else {
+    bioEl.className = 'modal-bio modal-bio-empty';
+    bioEl.textContent = 'Intel pending — no file on record.';
+    bioWrap.style.display = '';
+  }
 
   // Stock value + change
   const beri=c.beri||0;
@@ -2364,8 +2456,21 @@ function openModal(id) {
     dot.addEventListener('mouseleave', ()=>{ tip.style.display='none'; });
   });
 
-  // Events
-  document.getElementById('modal-events').textContent = c.events||'No recent market analysis available.';
+  // Cognitive Analysis
+  var analysisWrap = document.getElementById('modal-analysis-wrap');
+  if(c.events){
+    document.getElementById('modal-events').textContent = c.events;
+    analysisWrap.style.display = '';
+  } else {
+    analysisWrap.style.display = 'none';
+  }
+
+  // Price Event Log
+  var logWrap = document.getElementById('modal-event-log-wrap');
+  var logEl   = document.getElementById('modal-event-log');
+  var logHtml = buildEventLog(c.price_history);
+  if(logHtml){ logEl.innerHTML = logHtml; logWrap.style.display = ''; }
+  else { logWrap.style.display = 'none'; }
 
   // SBS Intelligence Feed
   const sbsWrap = document.getElementById('modal-sbs-wrap');
