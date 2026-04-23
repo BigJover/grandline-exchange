@@ -1181,6 +1181,94 @@ body::after {
 .warlord-subscribe-btn:disabled { opacity:0.4; cursor:not-allowed; }
 .warlord-desc { font-family:'Share Tech Mono',monospace; font-size:0.66rem; color:var(--text-dim); margin-top:10px; border-top:1px solid var(--border); padding-top:10px; line-height:1.5; }
 
+/* ── CASINO PAGE ── */
+.casino-panel {
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  width:min(780px,96vw); max-height:90vh; overflow-y:auto; position:relative;
+  padding:32px 28px 28px;
+}
+.casino-title { font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900; color:var(--punk); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
+.casino-sub { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); margin-bottom:20px; line-height:1.5; }
+.casino-filter-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+.casino-filter-btn {
+  background:transparent; border:1px solid var(--border); border-radius:4px;
+  color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif;
+  font-size:0.53rem; font-weight:700; letter-spacing:1px; padding:5px 12px;
+  text-transform:uppercase; transition:all 0.15s;
+}
+.casino-filter-btn:hover { border-color:var(--punk-dim); color:var(--punk); }
+.casino-filter-btn.active { border-color:var(--punk); color:var(--punk); background:rgba(224,64,251,0.08); }
+.casino-list { display:flex; flex-direction:column; gap:12px; }
+.casino-prop {
+  background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+  padding:18px 20px;
+}
+.casino-prop-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.casino-cat-badge {
+  font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; letter-spacing:1px;
+  text-transform:uppercase; border-radius:3px; padding:2px 7px; border:1px solid; white-space:nowrap;
+}
+.casino-status-open   { font-family:'Share Tech Mono',monospace; font-size:0.58rem; border-radius:3px; padding:2px 7px; background:rgba(0,208,132,0.12); color:#00d084; border:1px solid rgba(0,208,132,0.3); }
+.casino-status-closed { font-family:'Share Tech Mono',monospace; font-size:0.58rem; border-radius:3px; padding:2px 7px; background:rgba(255,140,0,0.12); color:#ff8c00; border:1px solid rgba(255,140,0,0.3); }
+.casino-status-resolved { font-family:'Share Tech Mono',monospace; font-size:0.58rem; border-radius:3px; padding:2px 7px; background:rgba(136,136,136,0.12); color:#888; border:1px solid rgba(136,136,136,0.3); }
+.casino-closes-at { font-family:'Share Tech Mono',monospace; font-size:0.58rem; color:var(--text-dim); margin-left:auto; }
+.casino-question {
+  font-family:'Orbitron',sans-serif; font-size:0.82rem; font-weight:700;
+  color:var(--text); margin-bottom:12px; line-height:1.4;
+}
+.casino-odds-bar { height:5px; border-radius:3px; overflow:hidden; display:flex; margin-bottom:12px; background:rgba(255,255,255,0.05); }
+.casino-odds-seg { height:100%; transition:width 0.4s; }
+.casino-options { display:flex; flex-direction:column; gap:7px; }
+.casino-option {
+  display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px;
+  background:var(--bg); border:1px solid var(--border); border-radius:7px;
+  padding:10px 14px; cursor:pointer; transition:border-color 0.15s, background 0.15s;
+}
+.casino-option:hover:not(.no-interact) { border-color:var(--punk-dim); background:rgba(224,64,251,0.05); }
+.casino-option.winning  { border-color:#00d084 !important; background:rgba(0,208,132,0.07) !important; cursor:default; }
+.casino-option.losing   { opacity:0.45; cursor:default; }
+.casino-option.my-pick  { border-color:var(--gold); background:rgba(212,160,23,0.07); }
+.casino-option.no-interact { cursor:default; }
+.casino-option-left { display:flex; flex-direction:column; gap:3px; }
+.casino-option-label { font-family:'Share Tech Mono',monospace; font-size:0.75rem; color:var(--text); }
+.casino-option-sub { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); }
+.casino-option-right { display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+.casino-option-pct { font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700; color:var(--text-dim); }
+.casino-option-pool { font-family:'Share Tech Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
+.casino-win-badge  { font-family:'Orbitron',sans-serif; font-size:0.46rem; font-weight:700; letter-spacing:1px; background:rgba(0,208,132,0.15); border:1px solid rgba(0,208,132,0.4); border-radius:3px; color:#00d084; padding:2px 6px; white-space:nowrap; }
+.casino-loss-badge { font-family:'Orbitron',sans-serif; font-size:0.46rem; font-weight:700; letter-spacing:1px; background:rgba(255,68,85,0.12); border:1px solid rgba(255,68,85,0.3); border-radius:3px; color:var(--red); padding:2px 6px; white-space:nowrap; }
+.casino-bet-zone {
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border);
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+}
+.casino-bet-input {
+  background:var(--bg); border:1px solid var(--border); border-radius:5px;
+  color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:0.82rem;
+  padding:7px 10px; width:140px; outline:none; -moz-appearance:textfield;
+}
+.casino-bet-input::-webkit-outer-spin-button,
+.casino-bet-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.casino-bet-input:focus { border-color:var(--punk-dim); }
+.casino-bet-input::placeholder { color:var(--text-dim); opacity:0.45; }
+.casino-confirm-btn {
+  background:transparent; border:1px solid var(--punk); border-radius:5px; color:var(--punk);
+  cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.54rem; font-weight:700;
+  letter-spacing:1.5px; padding:8px 16px; text-transform:uppercase; transition:all 0.18s; white-space:nowrap;
+}
+.casino-confirm-btn:hover:not(:disabled) { box-shadow:0 0 10px rgba(224,64,251,0.25); }
+.casino-confirm-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.casino-cancel-btn {
+  background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim);
+  cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.54rem; font-weight:700;
+  letter-spacing:1.5px; padding:8px 12px; text-transform:uppercase; transition:all 0.18s;
+}
+.casino-cancel-btn:hover { border-color:var(--red); color:var(--red); }
+.casino-feedback { font-family:'Share Tech Mono',monospace; font-size:0.68rem; margin-top:8px; width:100%; }
+.casino-feedback.ok  { color:#00d084; }
+.casino-feedback.err { color:var(--red); }
+.casino-pool-footer { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
+.casino-empty { font-family:'Share Tech Mono',monospace; font-size:0.76rem; color:var(--text-dim); text-align:center; padding:40px 0; }
+
 /* ── Mobile responsive ── */
 @media(max-width:768px){
   .cards-grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; padding:0 16px 40px; }
@@ -1212,9 +1300,9 @@ body::after {
   .modal-header-top { gap:10px; margin-bottom:12px; }
   .modal-pane { padding:16px; gap:14px; }
   /* Overlay panels: tighten padding */
-  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel, .leaderboard-panel { padding:20px 14px 20px; }
+  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel, .leaderboard-panel, .casino-panel { padding:20px 14px 20px; }
   /* Overlay titles: scale down */
-  .faction-page-title, .ledger-title, .leaderboard-title { font-size:0.84rem; letter-spacing:1px; }
+  .faction-page-title, .ledger-title, .leaderboard-title, .casino-title { font-size:0.84rem; letter-spacing:1px; }
   /* Ledger entries: stack badge+description row, then amount row */
   .ledger-entry { grid-template-columns:auto 1fr; align-items:start; gap:8px; }
   .ledger-amount { grid-column:1 / -1; text-align:left; font-size:0.78rem; border-top:1px solid var(--border); padding-top:5px; margin-top:2px; }
@@ -1236,8 +1324,8 @@ body::after {
   .header-main { padding:6px 10px; }
   .logo-title { font-size:0.78rem; letter-spacing:1px; }
   /* Overlay panels: squeeze further on tiny screens */
-  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel, .leaderboard-panel { padding:14px 10px 16px; }
-  .faction-page-title, .ledger-title, .leaderboard-title { font-size:0.72rem; letter-spacing:0; }
+  .faction-panel, .ledger-panel, .portfolio-panel, .req-panel, .leaderboard-panel, .casino-panel { padding:14px 10px 16px; }
+  .faction-page-title, .ledger-title, .leaderboard-title, .casino-title { font-size:0.72rem; letter-spacing:0; }
   .ledger-desc { font-size:0.65rem; }
   .faction-page-sub, .ledger-sub { font-size:0.66rem; }
 }
@@ -1567,6 +1655,22 @@ body::after {
     <div class="leaderboard-title">◈ Beri Leaderboard</div>
     <div class="leaderboard-sub">Top holders across the Grand Line — updated live.</div>
     <div class="leaderboard-list" id="leaderboard-list"><div class="leaderboard-empty">Loading…</div></div>
+  </div>
+</div>
+
+<!-- CASINO PAGE -->
+<div class="req-overlay" id="casino-overlay">
+  <div class="casino-panel">
+    <button class="req-close" id="casino-close">✕ Close</button>
+    <div class="casino-title">⚄ Grand Line Casino</div>
+    <div class="casino-sub">Parimutuel betting — losers fund the winners. Bet beri on chapter events, arc outcomes, and community slander.</div>
+    <div class="casino-filter-bar" id="casino-filter-bar">
+      <button class="casino-filter-btn active" data-status="">All</button>
+      <button class="casino-filter-btn" data-status="open">Open</button>
+      <button class="casino-filter-btn" data-status="closed">Closed</button>
+      <button class="casino-filter-btn" data-status="resolved">Resolved</button>
+    </div>
+    <div class="casino-list" id="casino-list"><div class="casino-empty">Loading…</div></div>
   </div>
 </div>
 
@@ -3083,6 +3187,7 @@ function updateAuthUI(){
             '<button class="auth-dropdown-item" id="header-faction-btn">⚑ Faction</button>' +
             '<button class="auth-dropdown-item" id="header-ledger-btn">⊟ Ledger</button>' +
             '<button class="auth-dropdown-item" id="header-leaderboard-btn">⬆ Leaderboard</button>' +
+            '<button class="auth-dropdown-item" id="header-casino-btn">⚄ Casino</button>' +
             '<hr class="auth-dropdown-divider">' +
             '<button class="auth-dropdown-item" id="header-logout-btn">⏻ Log Out</button>' +
           '</div>' +
@@ -3093,6 +3198,7 @@ function updateAuthUI(){
       document.getElementById('header-faction-btn').addEventListener('click', openFactionPage);
       document.getElementById('header-ledger-btn').addEventListener('click', openLedger);
       document.getElementById('header-leaderboard-btn').addEventListener('click', openLeaderboard);
+      document.getElementById('header-casino-btn').addEventListener('click', openCasino);
     }
     updateFactionHeaderDisplay();
     block.style.display = 'flex';
@@ -3864,6 +3970,10 @@ const LEDGER_BADGE_CONFIG = {
   buster_call:         { label: 'Buster Call',   color: '#ff4455' },
   enforcement_bonus:   { label: 'Enforcement',   color: '#3a8fff' },
   warlord_subscribe:   { label: 'Warlord',       color: '#ff8c00' },
+  casino_bet:          { label: 'Casino Bet',    color: '#c084fc' },
+  casino_win:          { label: 'Casino Win',    color: '#00d084' },
+  casino_loss:         { label: 'Casino Loss',   color: '#ff4455' },
+  admin_grant:         { label: 'Admin Grant',   color: '#d4a017' },
 };
 
 function openLedger(){
@@ -3934,6 +4044,14 @@ async function init() {
   document.getElementById('faction-close').addEventListener('click', closeFactionPage);
   document.getElementById('ledger-close').addEventListener('click', closeLedger);
   document.getElementById('leaderboard-close').addEventListener('click', closeLeaderboard);
+  document.getElementById('casino-close').addEventListener('click', closeCasino);
+  document.getElementById('casino-filter-bar').addEventListener('click', function(e){
+    const btn = e.target.closest('.casino-filter-btn');
+    if(!btn) return;
+    document.querySelectorAll('.casino-filter-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    loadCasino(btn.dataset.status);
+  });
 
   try {
     const res = await fetch(API_BASE + '/characters/');
@@ -4024,6 +4142,213 @@ init();
   update();
   window.addEventListener('resize', update);
 })();
+
+// ── CASINO ────────────────────────────────────────────────────────────────────
+
+const CASINO_CAT = {
+  chapter:  { label:'Chapter',   color:'#3a8fff' },
+  arc:      { label:'Arc',       color:'#d4a017' },
+  slander:  { label:'Slander',   color:'#ff4455' },
+  meta:     { label:'Meta',      color:'#c084fc' },
+  endgame:  { label:'Endgame',   color:'#ff6b9d' },
+};
+const CASINO_OPT_COLORS = ['#e040fb','#3a8fff','#00d084','#ff8c00','#ff4455','#c084fc'];
+
+// active bet zone state: {propId, optionIndex}
+let casinoBetPending = null;
+
+function openCasino(){
+  document.getElementById('casino-overlay').classList.add('open');
+  loadCasino('');
+}
+function closeCasino(){
+  document.getElementById('casino-overlay').classList.remove('open');
+  casinoBetPending = null;
+}
+
+async function loadCasino(status){
+  const list = document.getElementById('casino-list');
+  list.innerHTML = '<div class="casino-empty">Loading\u2026</div>';
+  casinoBetPending = null;
+  try {
+    const url = API_BASE + '/casino/' + (status ? '?status=' + status : '');
+    const res = await fetch(url, { credentials:'include' });
+    if(!res.ok) throw new Error('API error ' + res.status);
+    const props = await res.json();
+    renderCasinoProps(props);
+  } catch(e){
+    list.innerHTML = '<div class="casino-empty" style="color:var(--red)">⚠ Could not load propositions: ' + e.message + '</div>';
+  }
+}
+
+function renderCasinoProps(props){
+  const list = document.getElementById('casino-list');
+  if(!props.length){
+    list.innerHTML = '<div class="casino-empty">No propositions yet — check back after the next chapter drops.</div>';
+    return;
+  }
+  list.innerHTML = props.map(renderCasinoProp).join('');
+}
+
+function renderCasinoProp(prop){
+  const cat = CASINO_CAT[prop.category] || { label: prop.category || 'General', color:'#888' };
+  const catStyle = 'background:' + cat.color + '22;color:' + cat.color + ';border-color:' + cat.color + '55';
+
+  const statusHtml = '<span class="casino-status-' + prop.status + '">' +
+    (prop.status === 'open' ? '● Open' : prop.status === 'closed' ? '◌ Closed' : '✓ Resolved') + '</span>';
+
+  let closesHtml = '';
+  if(prop.closes_at && prop.status === 'open'){
+    const diff = new Date(prop.closes_at) - Date.now();
+    if(diff > 0){
+      const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000);
+      closesHtml = '<span class="casino-closes-at">closes in ' + (h > 0 ? h+'h ' : '') + m + 'm</span>';
+    }
+  }
+
+  // Odds bar
+  const total = prop.total_pool;
+  const barSegs = prop.odds.map(function(o, i){
+    const w = total > 0 ? (o.total_bet / total * 100).toFixed(1) : (100/prop.odds.length).toFixed(1);
+    return '<div class="casino-odds-seg" style="width:' + w + '%;background:' + CASINO_OPT_COLORS[i % CASINO_OPT_COLORS.length] + '"></div>';
+  }).join('');
+
+  // Options
+  const isOpen = prop.status === 'open';
+  const isResolved = prop.status === 'resolved';
+  const userBetOpt = prop.user_bet_option;
+  const userBetAmt = prop.user_bet_amount;
+
+  const optHtml = prop.odds.map(function(o, i){
+    const color = CASINO_OPT_COLORS[i % CASINO_OPT_COLORS.length];
+    const pct = total > 0 ? (o.total_bet/total*100).toFixed(1) : (100/prop.odds.length).toFixed(1);
+    const poolStr = fBeri(o.total_bet);
+
+    let cls = 'casino-option';
+    if(!isOpen) cls += ' no-interact';
+    if(isResolved){
+      cls += (i === prop.correct_option ? ' winning' : ' losing');
+    }
+    if(userBetOpt === i) cls += ' my-pick';
+
+    // Sub-label
+    let subParts = [];
+    if(userBetOpt === i && userBetAmt) subParts.push('Your bet: ' + fBeri(userBetAmt));
+    if(isResolved && userBetOpt === i){
+      if(i === prop.correct_option){
+        // estimate payout
+        const winPool = prop.odds[i].total_bet;
+        const prize = prop.total_pool * (1 - prop.house_cut);
+        const est = winPool > 0 ? Math.round(userBetAmt / winPool * prize) : 0;
+        subParts.push('<span class="casino-win-badge">+' + fBeri(est) + ' payout</span>');
+      } else {
+        subParts.push('<span class="casino-loss-badge">lost</span>');
+      }
+    }
+    const subHtml = subParts.length ? '<div class="casino-option-sub">' + subParts.join(' · ') + '</div>' : '';
+
+    // Right side badges for resolved
+    let rightExtra = '';
+    if(isResolved && i === prop.correct_option) rightExtra = '<span class="casino-win-badge">Winner</span>';
+
+    const clickAttr = (isOpen && userBetOpt === null) ? 'onclick="casinoSelectOption(' + prop.id + ',' + i + ')"' : '';
+
+    return '<div class="' + cls + '" ' + clickAttr + ' style="' + (userBetOpt === i ? 'border-color:' + color + '88' : '') + '">' +
+      '<div class="casino-option-left">' +
+        '<div class="casino-option-label">' + escHtml(o.label) + '</div>' +
+        subHtml +
+      '</div>' +
+      '<div class="casino-option-right">' +
+        '<div class="casino-option-pct">' + pct + '%</div>' +
+        '<div class="casino-option-pool">' + poolStr + '</div>' +
+        rightExtra +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // Bet zone (rendered empty; filled by casinoSelectOption)
+  const betZoneHtml = isOpen && !currentUser
+    ? '<div class="casino-bet-zone"><span style="font-family:Share Tech Mono,monospace;font-size:0.68rem;color:var(--text-dim)">Log in to place a bet</span></div>'
+    : '<div class="casino-bet-zone" id="casino-bet-zone-' + prop.id + '" style="display:none"></div>';
+
+  const poolFooter = '<div class="casino-pool-footer">Total pool: ' + fBeri(total) +
+    ' · House cut: ' + Math.round(prop.house_cut*100) + '%' +
+    (isResolved && prop.correct_option !== null ? ' · Answer: <strong style="color:#00d084">' + escHtml(prop.options[prop.correct_option]) + '</strong>' : '') +
+    '</div>';
+
+  return '<div class="casino-prop" id="casino-prop-' + prop.id + '">' +
+    '<div class="casino-prop-header">' +
+      '<span class="casino-cat-badge" style="' + catStyle + '">' + escHtml(cat.label) + '</span>' +
+      statusHtml +
+      closesHtml +
+    '</div>' +
+    '<div class="casino-question">' + escHtml(prop.question) + '</div>' +
+    '<div class="casino-odds-bar">' + barSegs + '</div>' +
+    '<div class="casino-options">' + optHtml + '</div>' +
+    betZoneHtml +
+    poolFooter +
+  '</div>';
+}
+
+function casinoSelectOption(propId, optionIndex){
+  casinoBetPending = { propId, optionIndex };
+  const zone = document.getElementById('casino-bet-zone-' + propId);
+  if(!zone) return;
+  const optLabel = escHtml(document.querySelector('#casino-prop-' + propId + ' .casino-option:nth-child(' + (optionIndex+1) + ') .casino-option-label').textContent);
+  zone.style.display = 'flex';
+  zone.innerHTML =
+    '<span style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim)">Bet on <strong style="color:var(--text)">' + optLabel + '</strong>:</span>' +
+    '<input type="number" class="casino-bet-input" id="casino-amt-' + propId + '" placeholder="amount ฿" min="100">' +
+    '<button class="casino-confirm-btn" id="casino-confirm-' + propId + '" onclick="casinoSubmitBet(' + propId + ',' + optionIndex + ')">Place Bet</button>' +
+    '<button class="casino-cancel-btn" onclick="casinoCancelBet(' + propId + ')">✕</button>' +
+    '<div class="casino-feedback" id="casino-fb-' + propId + '"></div>';
+  document.getElementById('casino-amt-' + propId).focus();
+}
+
+function casinoCancelBet(propId){
+  const zone = document.getElementById('casino-bet-zone-' + propId);
+  if(zone){ zone.style.display='none'; zone.innerHTML=''; }
+  casinoBetPending = null;
+}
+
+async function casinoSubmitBet(propId, optionIndex){
+  const amtEl = document.getElementById('casino-amt-' + propId);
+  const fb = document.getElementById('casino-fb-' + propId);
+  const btn = document.getElementById('casino-confirm-' + propId);
+  const amount = parseFloat(amtEl.value);
+  if(!amount || amount < 100){ fb.className='casino-feedback err'; fb.textContent='⚠ Minimum bet is 100฿'; return; }
+  btn.disabled = true; btn.textContent = 'Placing…';
+  fb.className='casino-feedback'; fb.textContent='';
+  try {
+    const res = await fetch(API_BASE + '/casino/bet', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({ proposition_id: propId, option_index: optionIndex, amount }),
+    });
+    const data = await res.json();
+    if(!res.ok){ fb.className='casino-feedback err'; fb.textContent='⚠ ' + (data.detail||'Bet failed'); btn.disabled=false; btn.textContent='Place Bet'; return; }
+    if(currentUser) currentUser.beri_balance = data.new_balance;
+    updateHeaderWallet();
+    fb.className='casino-feedback ok'; fb.textContent='✓ Bet placed — ' + fBeri(amount) + ' locked in.';
+    btn.disabled=true;
+    // Reload this prop to show updated odds
+    setTimeout(function(){ reloadCasinoProp(propId); }, 800);
+  } catch(e){
+    fb.className='casino-feedback err'; fb.textContent='⚠ Connection error';
+    btn.disabled=false; btn.textContent='Place Bet';
+  }
+}
+
+async function reloadCasinoProp(propId){
+  try {
+    const res = await fetch(API_BASE + '/casino/' + propId, { credentials:'include' });
+    if(!res.ok) return;
+    const prop = await res.json();
+    const el = document.getElementById('casino-prop-' + propId);
+    if(el) el.outerHTML = renderCasinoProp(prop);
+  } catch(e){}
+}
 
 </script>
 </body>
