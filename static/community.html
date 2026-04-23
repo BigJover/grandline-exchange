@@ -306,7 +306,7 @@
           </div>
         </div>
       </div>
-      <button class="header-login-btn" id="header-login-btn">LOG IN</button>
+      <button class="header-login-btn" id="header-login-btn" style="visibility:hidden">LOG IN</button>
     </div>
   </div>
   <div class="ticker-wrap">
@@ -412,7 +412,10 @@ function updateAuthUI(){
       block=document.createElement('div'); block.id='header-user-block'; block.className='auth-dropdown';
       block.innerHTML='<button class="auth-dropdown-trigger">• '+esc(currentUser.username)+' •</button>'+
         '<div class="auth-dropdown-menu"><div class="auth-dropdown-menu-inner">'+
-        '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">← Exchange</button>'+
+        '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">◈ Portfolio</button>'+
+        '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">⚑ Faction</button>'+
+        '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">⊟ Ledger</button>'+
+        '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">⬆ Leaderboard</button>'+
         '<button class="auth-dropdown-item" onclick="window.location.href=\'/casino\'">⚄ Casino</button>'+
         '<hr class="auth-dropdown-divider">'+
         '<button class="auth-dropdown-item" id="hdr-logout-btn">⏻ Log Out</button>'+
@@ -425,7 +428,7 @@ function updateAuthUI(){
     }
     block.style.display='flex';
   } else {
-    loginBtn.style.display='';
+    loginBtn.style.visibility='visible';
     const b=document.getElementById('header-user-block'); if(b) b.style.display='none';
   }
   updateHeaderWallet();

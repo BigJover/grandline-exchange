@@ -1345,7 +1345,7 @@ body::after {
           </div>
         </div>
       </div>
-      <button class="header-login-btn" id="header-login-btn">LOG IN</button>
+      <button class="header-login-btn" id="header-login-btn" style="visibility:hidden">LOG IN</button>
     </div>
   </div>
   <div class="ticker-wrap"><span class="ticker-label">◈ LIVE FEED</span><div class="ticker-clip"><div class="ticker-inner" id="ticker"></div></div></div>
@@ -3104,7 +3104,7 @@ function updateAuthUI(){
     updateFactionHeaderDisplay();
     block.style.display = 'flex';
   } else {
-    loginBtn.style.display = '';
+    loginBtn.style.visibility = 'visible';
     const block = document.getElementById('header-user-block');
     if(block) block.style.display = 'none';
   }
