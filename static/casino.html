@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grand Line Casino — GLSE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #05050c;
+      --surface:  #0d0d1a;
+      --surface2: #111122;
+      --border:   #1e1e35;
+      --text:     #e8e8f0;
+      --text-dim: #6a6a8a;
+      --punk:     #e040fb;
+      --punk-dim: #7b1fa2;
+      --punk2:    #ce93d8;
+      --gold:     #d4a017;
+      --gold-dim: #8a6500;
+      --gold-glow:rgba(212,160,23,0.25);
+      --green:    #00d084;
+      --red:      #ff4455;
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html, body { min-height:100vh; background:var(--bg); color:var(--text); font-family:'Share Tech Mono', monospace; }
+
+    /* ── Header ── */
+    .c-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 28px; border-bottom:1px solid var(--border);
+      background:rgba(5,5,12,0.9); backdrop-filter:blur(12px);
+      position:sticky; top:0; z-index:50;
+    }
+    .c-header-left { display:flex; align-items:center; gap:18px; }
+    .c-back-btn {
+      background:transparent; border:1px solid var(--border); border-radius:5px;
+      color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif;
+      font-size:0.52rem; font-weight:700; letter-spacing:1px; padding:6px 12px;
+      text-transform:uppercase; transition:all 0.15s; text-decoration:none;
+      display:inline-flex; align-items:center; gap:5px;
+    }
+    .c-back-btn:hover { border-color:var(--punk-dim); color:var(--punk); }
+    .c-logo { display:flex; flex-direction:column; }
+    .c-logo-title {
+      font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:900;
+      color:var(--punk); letter-spacing:3px; text-transform:uppercase;
+      text-shadow:0 0 20px rgba(224,64,251,0.4);
+    }
+    .c-logo-sub { font-size:0.58rem; color:var(--text-dim); letter-spacing:2px; margin-top:1px; }
+    .c-header-right { display:flex; align-items:center; gap:14px; }
+    .c-wallet {
+      font-family:'Share Tech Mono',monospace; font-size:0.75rem;
+      color:var(--gold); border:1px solid var(--gold-dim); border-radius:5px;
+      padding:5px 12px; background:rgba(212,160,23,0.06);
+    }
+    .c-wallet-label { font-size:0.52rem; color:var(--text-dim); letter-spacing:1px; }
+    .c-user-chip {
+      font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700;
+      color:var(--text-dim); letter-spacing:1px;
+    }
+
+    /* ── Layout ── */
+    .c-page { max-width:1100px; margin:0 auto; padding:32px 24px 60px; }
+    .c-hero { margin-bottom:32px; }
+    .c-hero-title {
+      font-family:'Orbitron',sans-serif; font-size:1.6rem; font-weight:900;
+      color:var(--text); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;
+    }
+    .c-hero-title span { color:var(--punk); }
+    .c-hero-sub { font-size:0.74rem; color:var(--text-dim); line-height:1.6; max-width:560px; }
+
+    .c-body { display:grid; grid-template-columns:200px 1fr; gap:28px; align-items:start; }
+
+    /* ── Sidebar filters ── */
+    .c-sidebar { display:flex; flex-direction:column; gap:6px; position:sticky; top:80px; }
+    .c-sidebar-label {
+      font-family:'Orbitron',sans-serif; font-size:0.5rem; font-weight:700;
+      color:var(--text-dim); letter-spacing:2px; text-transform:uppercase;
+      margin-bottom:4px; padding-bottom:8px; border-bottom:1px solid var(--border);
+    }
+    .c-filter-btn {
+      background:transparent; border:1px solid var(--border); border-radius:6px;
+      color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif;
+      font-size:0.55rem; font-weight:700; letter-spacing:1px; padding:9px 14px;
+      text-align:left; text-transform:uppercase; transition:all 0.15s; width:100%;
+    }
+    .c-filter-btn:hover { border-color:var(--punk-dim); color:var(--punk); background:rgba(224,64,251,0.04); }
+    .c-filter-btn.active { border-color:var(--punk); color:var(--punk); background:rgba(224,64,251,0.08); }
+    .c-sidebar-divider { border:none; border-top:1px solid var(--border); margin:8px 0; }
+
+    /* ── Prop list ── */
+    .c-list { display:flex; flex-direction:column; gap:14px; }
+    .c-empty {
+      font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:var(--text-dim);
+      text-align:center; padding:60px 0; border:1px dashed var(--border); border-radius:10px;
+    }
+
+    /* ── Prop card ── */
+    .c-prop {
+      background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      padding:22px 24px; transition:border-color 0.15s;
+    }
+    .c-prop:hover { border-color:rgba(224,64,251,0.2); }
+    .c-prop-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .c-cat-badge {
+      font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700;
+      letter-spacing:1px; text-transform:uppercase; border-radius:3px;
+      padding:3px 8px; border:1px solid; white-space:nowrap;
+    }
+    .c-status-open     { font-family:'Share Tech Mono',monospace; font-size:0.6rem; border-radius:3px; padding:3px 8px; background:rgba(0,208,132,0.12); color:#00d084; border:1px solid rgba(0,208,132,0.3); }
+    .c-status-closed   { font-family:'Share Tech Mono',monospace; font-size:0.6rem; border-radius:3px; padding:3px 8px; background:rgba(255,140,0,0.12); color:#ff8c00; border:1px solid rgba(255,140,0,0.3); }
+    .c-status-resolved { font-family:'Share Tech Mono',monospace; font-size:0.6rem; border-radius:3px; padding:3px 8px; background:rgba(136,136,136,0.12); color:#888; border:1px solid rgba(136,136,136,0.3); }
+    .c-closes-at { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-left:auto; }
+
+    .c-question {
+      font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:700;
+      color:var(--text); margin-bottom:16px; line-height:1.4;
+    }
+
+    .c-odds-bar { height:6px; border-radius:3px; overflow:hidden; display:flex; margin-bottom:16px; background:rgba(255,255,255,0.04); }
+    .c-odds-seg { height:100%; transition:width 0.4s; }
+
+    .c-options { display:flex; flex-direction:column; gap:8px; }
+    .c-option {
+      display:grid; grid-template-columns:1fr auto; align-items:center; gap:12px;
+      background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+      padding:12px 16px; cursor:pointer; transition:border-color 0.15s, background 0.15s;
+    }
+    .c-option:hover:not(.no-interact) { border-color:var(--punk-dim); background:rgba(224,64,251,0.05); }
+    .c-option.winning  { border-color:#00d084 !important; background:rgba(0,208,132,0.07) !important; cursor:default; }
+    .c-option.losing   { opacity:0.4; cursor:default; }
+    .c-option.my-pick  { border-color:var(--gold); background:rgba(212,160,23,0.06); }
+    .c-option.no-interact { cursor:default; }
+
+    .c-option-left { display:flex; flex-direction:column; gap:4px; }
+    .c-option-label { font-family:'Share Tech Mono',monospace; font-size:0.82rem; color:var(--text); }
+    .c-option-sub   { font-family:'Share Tech Mono',monospace; font-size:0.62rem; color:var(--text-dim); }
+    .c-option-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+    .c-option-pct  { font-family:'Orbitron',sans-serif; font-size:0.72rem; font-weight:700; color:var(--text-dim); }
+    .c-option-pool { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); }
+    .c-win-badge  { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; letter-spacing:1px; background:rgba(0,208,132,0.15); border:1px solid rgba(0,208,132,0.4); border-radius:3px; color:#00d084; padding:2px 7px; white-space:nowrap; }
+    .c-loss-badge { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; letter-spacing:1px; background:rgba(255,68,85,0.12); border:1px solid rgba(255,68,85,0.3); border-radius:3px; color:var(--red); padding:2px 7px; white-space:nowrap; }
+
+    /* ── Bet zone ── */
+    .c-bet-zone {
+      margin-top:14px; padding-top:14px; border-top:1px solid var(--border);
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .c-bet-label { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); }
+    .c-bet-label strong { color:var(--text); }
+    .c-bet-input {
+      background:var(--bg); border:1px solid var(--border); border-radius:6px;
+      color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:0.86rem;
+      padding:8px 12px; width:150px; outline:none; -moz-appearance:textfield;
+    }
+    .c-bet-input::-webkit-outer-spin-button,
+    .c-bet-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+    .c-bet-input:focus { border-color:var(--punk-dim); }
+    .c-bet-input::placeholder { color:var(--text-dim); opacity:0.45; }
+    .c-confirm-btn {
+      background:transparent; border:1px solid var(--punk); border-radius:6px; color:var(--punk);
+      cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.56rem; font-weight:700;
+      letter-spacing:1.5px; padding:9px 20px; text-transform:uppercase; transition:all 0.18s; white-space:nowrap;
+    }
+    .c-confirm-btn:hover:not(:disabled) { background:rgba(224,64,251,0.08); box-shadow:0 0 12px rgba(224,64,251,0.2); }
+    .c-confirm-btn:disabled { opacity:0.4; cursor:not-allowed; }
+    .c-cancel-btn {
+      background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--text-dim);
+      cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.56rem; font-weight:700;
+      letter-spacing:1px; padding:9px 14px; text-transform:uppercase; transition:all 0.18s;
+    }
+    .c-cancel-btn:hover { border-color:var(--red); color:var(--red); }
+    .c-feedback { font-family:'Share Tech Mono',monospace; font-size:0.7rem; width:100%; margin-top:4px; }
+    .c-feedback.ok  { color:#00d084; }
+    .c-feedback.err { color:var(--red); }
+    .c-login-prompt { font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:var(--text-dim); }
+    .c-login-prompt a { color:var(--punk); text-decoration:none; }
+    .c-login-prompt a:hover { text-decoration:underline; }
+
+    /* ── Pool footer ── */
+    .c-pool-footer {
+      font-family:'Share Tech Mono',monospace; font-size:0.62rem; color:var(--text-dim);
+      margin-top:14px; padding-top:12px; border-top:1px solid var(--border);
+      display:flex; gap:16px; flex-wrap:wrap;
+    }
+
+    /* ── Mobile ── */
+    @media(max-width:700px){
+      .c-body { grid-template-columns:1fr; }
+      .c-sidebar { position:static; flex-direction:row; flex-wrap:wrap; gap:6px; }
+      .c-sidebar-label { display:none; }
+      .c-sidebar-divider { display:none; }
+      .c-filter-btn { width:auto; flex:1; min-width:80px; text-align:center; }
+      .c-page { padding:20px 14px 40px; }
+      .c-hero-title { font-size:1.1rem; }
+      .c-header { padding:10px 14px; }
+      .c-logo-title { font-size:0.85rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="c-header">
+  <div class="c-header-left">
+    <a href="/" class="c-back-btn">← Exchange</a>
+    <div class="c-logo">
+      <div class="c-logo-title">⚄ Casino</div>
+      <div class="c-logo-sub">Grand Line Stock Exchange</div>
+    </div>
+  </div>
+  <div class="c-header-right">
+    <div id="c-user-info" style="display:none">
+      <div class="c-wallet">
+        <div class="c-wallet-label">WALLET</div>
+        <div id="c-wallet-val">—</div>
+      </div>
+    </div>
+    <div class="c-user-chip" id="c-username"></div>
+  </div>
+</header>
+
+<div class="c-page">
+  <div class="c-hero">
+    <div class="c-hero-title">Grand Line <span>Casino</span></div>
+    <div class="c-hero-sub">Parimutuel betting — losers fund the winners. Pick your side on chapter events, arc outcomes, and community slander. One bet per proposition. No take-backs.</div>
+  </div>
+
+  <div class="c-body">
+    <nav class="c-sidebar">
+      <div class="c-sidebar-label">Filter</div>
+      <button class="c-filter-btn active" data-status="">All Bets</button>
+      <button class="c-filter-btn" data-status="open">● Open</button>
+      <button class="c-filter-btn" data-status="closed">◌ Closed</button>
+      <button class="c-filter-btn" data-status="resolved">✓ Resolved</button>
+      <hr class="c-sidebar-divider">
+      <div class="c-sidebar-label">Category</div>
+      <button class="c-filter-btn" data-cat="chapter">Chapter</button>
+      <button class="c-filter-btn" data-cat="arc">Arc</button>
+      <button class="c-filter-btn" data-cat="slander">Slander</button>
+      <button class="c-filter-btn" data-cat="meta">Meta</button>
+      <button class="c-filter-btn" data-cat="endgame">Endgame</button>
+    </nav>
+
+    <div class="c-list" id="c-list">
+      <div class="c-empty">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '';
+const OPT_COLORS = ['#e040fb','#3a8fff','#00d084','#ff8c00','#ff4455','#c084fc'];
+const CAT_META = {
+  chapter:  { label:'Chapter',  color:'#3a8fff' },
+  arc:      { label:'Arc',      color:'#d4a017' },
+  slander:  { label:'Slander',  color:'#ff4455' },
+  meta:     { label:'Meta',     color:'#c084fc' },
+  endgame:  { label:'Endgame',  color:'#ff6b9d' },
+};
+
+let currentUser = null;
+let allProps = [];
+let activeStatus = '';
+let activeCat = '';
+
+function fB(v){
+  if(!v && v!==0) return '0 ฿';
+  if(v>=1e9) return (v/1e9).toFixed(2).replace(/\.?0+$/,'')+'B ฿';
+  if(v>=1e6) return (v/1e6).toFixed(1).replace(/\.?0+$/,'')+'M ฿';
+  if(v>=1e3) return (v/1e3).toFixed(0)+'K ฿';
+  return v.toFixed ? v.toFixed(2).replace(/\.?0+$/,'')+' ฿' : v+' ฿';
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function init(){
+  try {
+    const res = await fetch(API_BASE+'/auth/me', { credentials:'include' });
+    if(res.ok){
+      currentUser = await res.json();
+      document.getElementById('c-user-info').style.display='';
+      document.getElementById('c-username').textContent = currentUser.username;
+      document.getElementById('c-wallet-val').textContent = fB(currentUser.beri_balance);
+    }
+  } catch(e){}
+  await loadProps();
+}
+
+async function loadProps(){
+  const list = document.getElementById('c-list');
+  list.innerHTML = '<div class="c-empty">Loading…</div>';
+  try {
+    const qs = activeStatus ? '?status='+activeStatus : '';
+    const res = await fetch(API_BASE+'/casino/'+qs, { credentials:'include' });
+    if(!res.ok) throw new Error(''+res.status);
+    allProps = await res.json();
+    renderFiltered();
+  } catch(e){
+    list.innerHTML = '<div class="c-empty" style="color:var(--red)">⚠ Could not load — '+esc(e.message)+'</div>';
+  }
+}
+
+function renderFiltered(){
+  const filtered = activeCat ? allProps.filter(p => p.category === activeCat) : allProps;
+  const list = document.getElementById('c-list');
+  if(!filtered.length){
+    list.innerHTML = '<div class="c-empty">No propositions here yet — check back after the next chapter.</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(renderProp).join('');
+}
+
+function renderProp(prop){
+  const cm = CAT_META[prop.category] || { label: prop.category||'General', color:'#888' };
+  const catStyle = 'background:'+cm.color+'22;color:'+cm.color+';border-color:'+cm.color+'55';
+
+  const statusHtml = '<span class="c-status-'+prop.status+'">' +
+    (prop.status==='open' ? '● Open' : prop.status==='closed' ? '◌ Closed' : '✓ Resolved') + '</span>';
+
+  let closesHtml = '';
+  if(prop.closes_at && prop.status==='open'){
+    const diff = new Date(prop.closes_at) - Date.now();
+    if(diff > 0){
+      const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000);
+      closesHtml = '<span class="c-closes-at">closes in '+(h>0?h+'h ':'')+m+'m</span>';
+    }
+  }
+
+  const total = prop.total_pool;
+  const barSegs = prop.odds.map(function(o,i){
+    const w = total>0 ? (o.total_bet/total*100).toFixed(1) : (100/prop.odds.length).toFixed(1);
+    return '<div class="c-odds-seg" style="width:'+w+'%;background:'+OPT_COLORS[i%OPT_COLORS.length]+'"></div>';
+  }).join('');
+
+  const isOpen = prop.status==='open';
+  const isResolved = prop.status==='resolved';
+  const uOpt = prop.user_bet_option;
+  const uAmt = prop.user_bet_amount;
+
+  const optHtml = prop.odds.map(function(o,i){
+    const color = OPT_COLORS[i%OPT_COLORS.length];
+    const pct = total>0 ? (o.total_bet/total*100).toFixed(1) : (100/prop.odds.length).toFixed(1);
+
+    let cls = 'c-option';
+    if(!isOpen) cls += ' no-interact';
+    if(isResolved) cls += (i===prop.correct_option ? ' winning' : ' losing');
+    if(uOpt===i) cls += ' my-pick';
+
+    let subParts = [];
+    if(uOpt===i && uAmt) subParts.push('Your bet: '+fB(uAmt));
+    if(isResolved && uOpt===i){
+      if(i===prop.correct_option){
+        const wp = prop.odds[i].total_bet;
+        const prize = prop.total_pool*(1-prop.house_cut);
+        const est = wp>0 ? Math.round(uAmt/wp*prize) : 0;
+        subParts.push('<span class="c-win-badge">+'+fB(est)+' payout</span>');
+      } else {
+        subParts.push('<span class="c-loss-badge">lost</span>');
+      }
+    }
+    const subHtml = subParts.length ? '<div class="c-option-sub">'+subParts.join(' · ')+'</div>' : '';
+    const winBadge = (isResolved && i===prop.correct_option) ? '<span class="c-win-badge">Winner ✓</span>' : '';
+    const click = (isOpen && uOpt===null && currentUser) ? 'onclick="selectOpt('+prop.id+','+i+')"' : '';
+    const borderStyle = uOpt===i ? 'border-color:'+color+'88' : '';
+
+    return '<div class="'+cls+'" '+click+' style="'+borderStyle+'">' +
+      '<div class="c-option-left"><div class="c-option-label">'+esc(o.label)+'</div>'+subHtml+'</div>' +
+      '<div class="c-option-right"><div class="c-option-pct">'+pct+'%</div><div class="c-option-pool">'+fB(o.total_bet)+'</div>'+winBadge+'</div>' +
+    '</div>';
+  }).join('');
+
+  let betZoneHtml = '';
+  if(isOpen){
+    if(!currentUser){
+      betZoneHtml = '<div class="c-bet-zone"><span class="c-login-prompt">→ <a href="/">Log in</a> to place a bet</span></div>';
+    } else if(uOpt===null){
+      betZoneHtml = '<div class="c-bet-zone" id="bz-'+prop.id+'" style="display:none"></div>';
+    } else {
+      betZoneHtml = '<div class="c-bet-zone"><span style="font-size:0.68rem;color:var(--text-dim)">Bet locked in — good luck.</span></div>';
+    }
+  }
+
+  const footer = '<div class="c-pool-footer">' +
+    '<span>Pool: '+fB(total)+'</span>' +
+    '<span>House: '+Math.round(prop.house_cut*100)+'%</span>' +
+    (isResolved && prop.correct_option!==null ? '<span style="color:#00d084">Answer: <strong>'+esc(prop.options[prop.correct_option])+'</strong></span>' : '') +
+  '</div>';
+
+  return '<div class="c-prop" id="cp-'+prop.id+'">' +
+    '<div class="c-prop-header"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span>'+statusHtml+closesHtml+'</div>' +
+    '<div class="c-question">'+esc(prop.question)+'</div>' +
+    '<div class="c-odds-bar">'+barSegs+'</div>' +
+    '<div class="c-options">'+optHtml+'</div>' +
+    betZoneHtml +
+    footer +
+  '</div>';
+}
+
+function selectOpt(propId, optIdx){
+  const bz = document.getElementById('bz-'+propId);
+  if(!bz) return;
+  const prop = allProps.find(p=>p.id===propId);
+  if(!prop) return;
+  const label = esc(prop.options[optIdx]);
+  bz.style.display = 'flex';
+  bz.innerHTML =
+    '<span class="c-bet-label">Bet on <strong>'+label+'</strong>:</span>' +
+    '<input type="number" class="c-bet-input" id="bi-'+propId+'" placeholder="amount ฿" min="100">' +
+    '<button class="c-confirm-btn" id="bcf-'+propId+'" onclick="submitBet('+propId+','+optIdx+')">Place Bet</button>' +
+    '<button class="c-cancel-btn" onclick="cancelBet('+propId+')">✕</button>' +
+    '<div class="c-feedback" id="bfb-'+propId+'"></div>';
+  document.getElementById('bi-'+propId).focus();
+}
+
+function cancelBet(propId){
+  const bz = document.getElementById('bz-'+propId);
+  if(bz){ bz.style.display='none'; bz.innerHTML=''; }
+}
+
+async function submitBet(propId, optIdx){
+  const inp = document.getElementById('bi-'+propId);
+  const fb  = document.getElementById('bfb-'+propId);
+  const btn = document.getElementById('bcf-'+propId);
+  const amount = parseFloat(inp.value);
+  if(!amount||amount<100){ fb.className='c-feedback err'; fb.textContent='⚠ Minimum bet is 100 ฿'; return; }
+  btn.disabled=true; btn.textContent='Placing…';
+  fb.className='c-feedback'; fb.textContent='';
+  try {
+    const res = await fetch(API_BASE+'/casino/bet',{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({proposition_id:propId, option_index:optIdx, amount}),
+    });
+    const data = await res.json();
+    if(!res.ok){ fb.className='c-feedback err'; fb.textContent='⚠ '+(data.detail||'Bet failed'); btn.disabled=false; btn.textContent='Place Bet'; return; }
+    if(currentUser){
+      currentUser.beri_balance = data.new_balance;
+      document.getElementById('c-wallet-val').textContent = fB(data.new_balance);
+    }
+    fb.className='c-feedback ok'; fb.textContent='✓ Bet placed — '+fB(amount)+' locked in.';
+    btn.disabled=true;
+    setTimeout(function(){ reloadProp(propId); }, 900);
+  } catch(e){
+    fb.className='c-feedback err'; fb.textContent='⚠ Connection error';
+    btn.disabled=false; btn.textContent='Place Bet';
+  }
+}
+
+async function reloadProp(propId){
+  try {
+    const res = await fetch(API_BASE+'/casino/'+propId, { credentials:'include' });
+    if(!res.ok) return;
+    const prop = await res.json();
+    const idx = allProps.findIndex(p=>p.id===propId);
+    if(idx>=0) allProps[idx]=prop;
+    const el = document.getElementById('cp-'+propId);
+    if(el){ const tmp=document.createElement('div'); tmp.innerHTML=renderProp(prop); el.replaceWith(tmp.firstChild); }
+  } catch(e){}
+}
+
+// Sidebar filter wiring
+document.querySelectorAll('.c-filter-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    if(btn.dataset.status !== undefined){
+      document.querySelectorAll('[data-status]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStatus = btn.dataset.status;
+      loadProps();
+    } else if(btn.dataset.cat !== undefined){
+      const same = activeCat === btn.dataset.cat;
+      document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('active'));
+      if(!same){ btn.classList.add('active'); activeCat = btn.dataset.cat; }
+      else activeCat = '';
+      renderFiltered();
+    }
+  });
+});
+
+init();
+</script>
+</body>
+</html>
