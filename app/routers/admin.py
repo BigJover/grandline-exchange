@@ -114,6 +114,21 @@ def trigger_buster_call(
     }
 
 
+@router.post("/delete-user")
+def delete_user(secret: str, username: str, db: Session = Depends(get_db)):
+    """Delete a user and all their shares/transactions. Protected by ADMIN_SECRET."""
+    _check_secret(secret)
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+    db.query(models.Share).filter(models.Share.user_id == user.id).delete()
+    db.query(models.Transaction).filter(models.Transaction.user_id == user.id).delete()
+    db.query(models.BeriEvent).filter(models.BeriEvent.user_id == user.id).delete()
+    db.delete(user)
+    db.commit()
+    return {"status": "ok", "deleted": username}
+
+
 @router.get("/users")
 def list_users(secret: str, db: Session = Depends(get_db)):
     """List all non-bot users. Protected by ADMIN_SECRET."""
