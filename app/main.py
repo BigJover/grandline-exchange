@@ -93,8 +93,10 @@ backfill_base_beri()
 
 async def price_broadcaster():
     """Every 5 s: drain trade-triggered updates and broadcast.
-       Every 30 s: send a full price snapshot — only when clients are connected."""
-    snapshot_every = 6   # 6 × 5 s = 30 s between snapshots
+       Every 60 s: send a full price snapshot — only when clients are connected."""
+    import gc
+    from sqlalchemy import text as _text
+    snapshot_every = 12   # 12 × 5 s = 60 s between snapshots
     tick = 0
     while True:
         await asyncio.sleep(5)
@@ -115,15 +117,13 @@ async def price_broadcaster():
             except Exception:
                 break
 
-        # Full snapshot every 30 s to sync newly connected clients
+        # Full snapshot every 60 s — raw SQL, no ORM objects held in memory
         if tick >= snapshot_every:
             tick = 0
-            db = SessionLocal()
-            try:
-                rows = db.query(models.Character.id, models.Character.beri).all()
-                batch = {str(r.id): r.beri for r in rows}
-            finally:
-                db.close()
+            with engine.connect() as conn:
+                rows = conn.execute(_text("SELECT id, beri FROM characters")).fetchall()
+                batch = {str(r[0]): r[1] for r in rows}
+            gc.collect()
 
         if batch:
             await manager.broadcast({"type": "prices", "data": batch})
