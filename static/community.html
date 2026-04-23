@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community — GLSE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#07040f; --surface:#0f0a1e; --surface2:#17112a; --border:#2a1e42;
+      --text:#cdd0ec; --text-dim:#5a4a78;
+      --punk:#e040fb; --punk-dim:#7b1fa2; --punk-glow:rgba(224,64,251,0.10);
+      --punk2:#29b6f6; --gold:#d4a017; --gold-dim:#7a5c0a;
+      --gold-glow:rgba(212,160,23,0.10); --green:#00d084; --red:#ff4455;
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar-track { background:var(--bg); }
+    ::-webkit-scrollbar-thumb { background:var(--punk-dim); border-radius:2px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--punk); }
+    html { overflow-x:hidden; }
+    body {
+      background:var(--bg);
+      background-image:
+        radial-gradient(ellipse 62% 52% at 14% 26%, rgba(224,64,251,0.20) 0%, transparent 62%),
+        radial-gradient(ellipse 60% 48% at 86% 20%, rgba(41,182,246,0.17) 0%, transparent 60%),
+        radial-gradient(ellipse 42% 34% at 50% 52%, rgba(240,90,140,0.11) 0%, transparent 60%),
+        radial-gradient(ellipse 130% 7%  at 50% 54%, rgba(210,238,255,0.06) 0%, transparent 100%),
+        radial-gradient(ellipse 110% 42% at 50% 92%, rgba(0,140,150,0.11) 0%, transparent 64%),
+        radial-gradient(ellipse 38% 40% at 97% 60%, rgba(255,115,35,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 32% 42% at 2%  64%, rgba(41,182,246,0.09) 0%, transparent 60%),
+        radial-gradient(ellipse 90% 24% at 50% 0%,  rgba(224,64,251,0.07) 0%, transparent 100%),
+        linear-gradient(rgba(42,30,66,0.32) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(42,30,66,0.32) 1px, transparent 1px);
+      background-size:
+        100% 100%, 100% 100%, 100% 100%, 100% 100%,
+        100% 100%, 100% 100%, 100% 100%, 100% 100%,
+        30px 30px, 30px 30px;
+      background-attachment:
+        fixed, fixed, fixed, fixed,
+        fixed, fixed, fixed, fixed,
+        scroll, scroll;
+      color:var(--text); font-family:'Share Tech Mono',monospace; min-height:100vh; overflow-x:hidden;
+    }
+    body::after {
+      content:''; position:fixed; left:0; right:0; top:60px; height:3px;
+      background:linear-gradient(90deg, transparent 0%, rgba(224,64,251,0.22) 30%, rgba(41,182,246,0.22) 70%, transparent 100%);
+      animation:scan-line 16s linear infinite; pointer-events:none; z-index:1;
+    }
+    @keyframes scan-line { 0%{top:60px;opacity:0.9} 85%{opacity:0.35} 100%{top:100vh;opacity:0} }
+
+    /* ── Header (identical to exchange + casino) ── */
+    .site-header {
+      background:linear-gradient(180deg,#140a28 0%,#100820 30%,#0b0516 70%,var(--bg) 100%);
+      border-bottom:1px solid var(--punk-dim); position:sticky; top:0; z-index:100;
+      box-shadow:0 4px 40px rgba(0,0,0,0.9), 0 1px 0 var(--punk-dim), 0 0 60px rgba(224,64,251,0.06);
+    }
+    @keyframes logo-pulse {
+      0%,100%{filter:drop-shadow(0 0 10px var(--punk-dim)) drop-shadow(0 0 24px rgba(224,64,251,0.25))}
+      50%{filter:drop-shadow(0 0 20px #7b1fa2) drop-shadow(0 0 48px rgba(224,64,251,0.6)) drop-shadow(0 0 80px rgba(224,64,251,0.18))}
+    }
+    @keyframes badge-pulse {
+      0%,100%{box-shadow:0 0 6px rgba(224,64,251,0.12)}
+      50%{box-shadow:0 0 20px rgba(224,64,251,0.38),inset 0 0 10px rgba(224,64,251,0.07);border-color:var(--punk)}
+    }
+    @keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+    @keyframes transmission-shimmer { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 14px rgba(224,64,251,0.5)} }
+    .header-main { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:12px 24px; gap:16px; }
+    .logo-block { display:flex; align-items:center; gap:14px; }
+    .punk-records-logo { color:var(--punk); filter:drop-shadow(0 0 10px var(--punk-dim)) drop-shadow(0 0 24px rgba(224,64,251,0.25)); flex-shrink:0; animation:logo-pulse 5s ease-in-out infinite; }
+    .logo-text { display:flex; flex-direction:column; line-height:1; }
+    .logo-title { font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900; color:var(--punk); letter-spacing:2px; text-transform:uppercase; text-shadow:0 0 20px var(--punk-dim),0 0 40px rgba(224,64,251,0.3); }
+    .logo-sub   { font-family:'Share Tech Mono',monospace; font-size:0.5rem; color:var(--text-dim); letter-spacing:2.5px; text-transform:uppercase; margin-top:5px; }
+    .back-link  { font-family:'Orbitron',sans-serif; font-size:0.46rem; font-weight:700; color:var(--text-dim); letter-spacing:1.5px; text-decoration:none; text-transform:uppercase; margin-top:5px; display:inline-block; transition:color 0.15s; }
+    .back-link:hover { color:var(--punk); }
+    .wallet-center { display:flex; flex-direction:column; align-items:center; gap:2px; background:var(--surface); border:1px solid rgba(212,160,23,0.55); border-radius:6px; padding:7px 20px; cursor:pointer; box-shadow:0 0 28px rgba(212,160,23,0.16),inset 0 1px 0 rgba(212,160,23,0.10); }
+    .wallet-center-label { font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:600; color:var(--text-dim); letter-spacing:3px; text-transform:uppercase; }
+    .wallet-center-val   { font-family:'Share Tech Mono',monospace; font-size:1.25rem; color:var(--gold); font-weight:700; letter-spacing:1.5px; text-shadow:0 0 22px rgba(212,160,23,0.60); }
+    .wallet-login-prompt { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--punk); letter-spacing:1px; animation:badge-pulse 3s ease-in-out infinite; display:none; }
+    .header-stats { display:flex; gap:24px; align-items:center; justify-content:flex-end; }
+    .stat-box { text-align:right; }
+    .stat-label { font-size:0.52rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px; font-family:'Orbitron',sans-serif; font-weight:400; }
+    .stat-value { font-family:'Share Tech Mono',monospace; font-size:0.9rem; color:var(--gold); font-weight:600; }
+    .stat-box:nth-child(1) .stat-value { color:var(--punk2); text-shadow:0 0 14px rgba(41,182,246,0.5); }
+    .stat-box:nth-child(2) .stat-value { color:var(--punk); text-shadow:0 0 14px rgba(224,64,251,0.5); }
+    .drop-timer { color:var(--green) !important; text-shadow:0 0 14px rgba(0,208,132,0.5) !important; font-size:0.78rem !important; }
+    .notif-dropdown { position:relative; display:flex; align-items:center; }
+    .notif-trigger { cursor:pointer; appearance:none; -webkit-appearance:none; background:rgba(41,182,246,0.10); border:1px solid rgba(41,182,246,0.7); border-radius:4px; padding:6px 14px; font-family:'Orbitron',sans-serif; font-weight:600; font-size:0.62rem; color:var(--punk2); letter-spacing:2px; animation:badge-pulse 3.5s ease-in-out infinite; }
+    .notif-trigger::before { content:'●'; margin-right:7px; font-size:0.45rem; vertical-align:middle; animation:dot-blink 1.8s ease-in-out infinite; }
+    .notif-trigger:hover { box-shadow:0 0 22px rgba(41,182,246,0.42); }
+    .notif-menu { position:absolute; top:calc(100% + 10px); right:0; opacity:0; pointer-events:none; transform:translateY(-6px); transition:opacity 0.18s,transform 0.18s; z-index:200; width:min(520px,94vw); }
+    .notif-dropdown:hover .notif-menu, .notif-dropdown:focus-within .notif-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+    .update-panel { background:linear-gradient(135deg,rgba(18,9,32,0.95) 0%,rgba(8,12,24,0.95) 100%); border:1px solid var(--punk-dim); border-radius:8px; padding:16px 20px; position:relative; overflow:hidden; box-shadow:0 0 40px rgba(224,64,251,0.07),inset 0 1px 0 rgba(224,64,251,0.09); }
+    .update-panel::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,var(--punk) 0%,var(--punk2) 50%,var(--punk) 100%); }
+    .update-panel::after  { content:'◈ PUNK RECORDS NODE'; position:absolute; right:14px; bottom:9px; font-size:0.42rem; color:var(--punk); opacity:0.18; font-family:'Orbitron',sans-serif; letter-spacing:3px; pointer-events:none; }
+    .update-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .update-badge  { background:linear-gradient(90deg,var(--punk),var(--punk2)); color:#07040f; font-size:0.58rem; font-weight:700; letter-spacing:2px; padding:3px 10px; border-radius:3px; font-family:'Orbitron',sans-serif; animation:transmission-shimmer 4s ease-in-out infinite; }
+    .update-week   { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); }
+    .update-text   { font-family:'Share Tech Mono',monospace; font-size:0.78rem; color:var(--text); line-height:1.75; }
+    .update-movers { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .mover-chip    { font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:3px 10px; border-radius:4px; display:flex; align-items:center; gap:4px; }
+    .mover-chip.up   { background:rgba(0,208,132,0.14); border:1px solid rgba(0,208,132,0.50); color:var(--green); }
+    .mover-chip.down { background:rgba(255,68,85,0.14);  border:1px solid rgba(255,68,85,0.50);  color:var(--red); }
+    .mover-chip.new  { background:rgba(41,182,246,0.14); border:1px solid rgba(41,182,246,0.55); color:var(--punk2); }
+    .header-login-btn { background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim); font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:600; letter-spacing:2px; padding:7px 16px; cursor:pointer; text-transform:uppercase; transition:all 0.2s; }
+    .header-login-btn:hover { border-color:var(--punk-dim); color:var(--punk); box-shadow:0 0 10px var(--punk-glow); }
+    .auth-dropdown { position:relative; display:flex; align-items:center; }
+    .auth-dropdown-trigger { background:transparent; border:1px solid var(--punk-dim); border-radius:5px; color:var(--punk); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:1.5px; padding:7px 14px; text-transform:uppercase; transition:all 0.18s; text-shadow:0 0 8px var(--punk-glow); }
+    .auth-dropdown-trigger:hover, .auth-dropdown:focus-within .auth-dropdown-trigger { border-color:var(--punk); box-shadow:0 0 12px var(--punk-glow); }
+    .auth-dropdown-menu { position:absolute; top:100%; right:0; padding-top:6px; opacity:0; pointer-events:none; transform:translateY(-4px); transition:opacity 0.18s,transform 0.18s; z-index:200; }
+    .auth-dropdown:focus-within .auth-dropdown-menu, .auth-dropdown:hover .auth-dropdown-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+    .auth-dropdown-menu-inner { background:var(--surface); border:1px solid var(--punk-dim); border-radius:7px; min-width:160px; padding:6px; box-shadow:0 8px 32px rgba(0,0,0,0.7),0 0 20px rgba(224,64,251,0.08); }
+    .auth-dropdown-item { display:block; width:100%; background:none; border:none; border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:8px 12px; text-align:left; transition:all 0.12s; }
+    .auth-dropdown-item:hover { background:rgba(224,64,251,0.07); color:var(--text); }
+    .auth-dropdown-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
+    .ticker-wrap  { background:#0a0318; border-bottom:1px solid var(--punk-dim); border-top:1px solid rgba(41,182,246,0.22); padding:5px 0; overflow:hidden; white-space:nowrap; display:flex; align-items:center; }
+    .ticker-label { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; color:var(--punk); letter-spacing:2.5px; padding:0 14px; white-space:nowrap; flex-shrink:0; border-right:1px solid var(--punk-dim); opacity:0.75; text-shadow:0 0 10px var(--punk-dim); }
+    .ticker-clip  { flex:1; overflow:hidden; min-width:0; }
+    .ticker-inner { display:inline-flex; animation:ticker 90s linear infinite; width:max-content; }
+    .ticker-item  { font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0 20px; border-right:1px solid var(--border); display:inline-flex; align-items:center; gap:5px; color:var(--text-dim); }
+    .ticker-item span { color:var(--punk2); opacity:0.9; }
+    @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+    /* ── Page layout ── */
+    .page-wrap { max-width:1200px; margin:0 auto; padding:32px 24px 60px; }
+    .page-hero { margin-bottom:28px; }
+    .page-title { font-family:'Orbitron',sans-serif; font-size:1.6rem; font-weight:900; color:var(--text); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+    .page-title span { color:var(--punk2); }
+    .page-sub { font-size:0.74rem; color:var(--text-dim); line-height:1.6; max-width:580px; }
+
+    /* ── Scope toggle ── */
+    .scope-bar { display:flex; align-items:center; gap:8px; margin-bottom:22px; }
+    .scope-btn { background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.52rem; font-weight:700; letter-spacing:1px; padding:7px 16px; text-transform:uppercase; transition:all 0.15s; }
+    .scope-btn:hover { border-color:var(--punk-dim); color:var(--punk); }
+    .scope-btn.active { border-color:var(--punk2); color:var(--punk2); background:rgba(41,182,246,0.08); }
+    .scope-label { font-family:'Orbitron',sans-serif; font-size:0.48rem; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-right:6px; }
+
+    /* ── Two-column body ── */
+    .community-body { display:grid; grid-template-columns:1fr 340px; gap:28px; align-items:start; }
+
+    /* ── Comment feed ── */
+    .feed { display:flex; flex-direction:column; gap:12px; }
+    .feed-empty { font-size:0.8rem; color:var(--text-dim); text-align:center; padding:60px 0; border:1px dashed var(--border); border-radius:10px; }
+    .comment-card {
+      background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px;
+      padding:18px 20px; display:flex; flex-direction:column; gap:10px;
+      box-shadow:0 4px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(224,64,251,0.04);
+      transition:border-color 0.15s;
+    }
+    .comment-card:hover { border-color:rgba(41,182,246,0.3); }
+    .comment-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .char-badge {
+      font-family:'Orbitron',sans-serif; font-size:0.46rem; font-weight:700;
+      letter-spacing:1px; text-transform:uppercase; border-radius:3px;
+      padding:3px 8px; background:rgba(41,182,246,0.12); color:var(--punk2);
+      border:1px solid rgba(41,182,246,0.3); white-space:nowrap;
+    }
+    .author-chip { font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:var(--punk); }
+    .week-chip   { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-left:auto; }
+    .comment-body { font-family:'Share Tech Mono',monospace; font-size:0.82rem; color:var(--text); line-height:1.7; }
+    .comment-footer { display:flex; align-items:center; gap:10px; }
+    .like-btn {
+      background:transparent; border:1px solid var(--border); border-radius:5px;
+      color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace;
+      font-size:0.68rem; padding:4px 12px; transition:all 0.15s;
+      display:flex; align-items:center; gap:5px;
+    }
+    .like-btn:hover:not(:disabled) { border-color:rgba(212,160,23,0.5); color:var(--gold); }
+    .like-btn.liked { border-color:rgba(212,160,23,0.6); color:var(--gold); background:rgba(212,160,23,0.07); }
+    .like-btn:disabled { opacity:0.45; cursor:default; }
+    .rank-badge {
+      font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:700;
+      letter-spacing:1px; padding:3px 8px; border-radius:3px;
+    }
+    .rank-1 { background:rgba(212,160,23,0.18); color:var(--gold); border:1px solid rgba(212,160,23,0.4); }
+    .rank-2 { background:rgba(180,180,180,0.12); color:#aaa; border:1px solid rgba(180,180,180,0.3); }
+    .rank-3 { background:rgba(180,100,40,0.12); color:#c87a3a; border:1px solid rgba(180,100,40,0.3); }
+
+    /* ── Discord panel ── */
+    .discord-panel {
+      position:sticky; top:100px;
+      background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px;
+      overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.45);
+    }
+    .discord-header {
+      background:linear-gradient(135deg, #1a0d2e 0%, #0f0a1e 100%);
+      border-bottom:1px solid var(--border); padding:14px 18px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .discord-title { font-family:'Orbitron',sans-serif; font-size:0.62rem; font-weight:700; color:var(--text); letter-spacing:2px; text-transform:uppercase; }
+    .discord-dot { width:8px; height:8px; border-radius:50%; background:var(--text-dim); margin-left:auto; }
+    .discord-body { padding:24px 18px; display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center; }
+    .discord-icon {
+      width:64px; height:64px; border-radius:50%;
+      background:linear-gradient(135deg, #5865F2 0%, #7983f5 100%);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.8rem; box-shadow:0 0 30px rgba(88,101,242,0.35);
+      opacity:0.7;
+    }
+    .discord-coming { font-family:'Orbitron',sans-serif; font-size:0.68rem; font-weight:700; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; }
+    .discord-desc { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); line-height:1.65; }
+    .discord-desc strong { color:var(--text); }
+    .discord-placeholder-btn {
+      width:100%; background:rgba(88,101,242,0.12); border:1px solid rgba(88,101,242,0.35);
+      border-radius:6px; color:rgba(88,101,242,0.7); cursor:default;
+      font-family:'Orbitron',sans-serif; font-size:0.56rem; font-weight:700;
+      letter-spacing:1.5px; padding:10px; text-transform:uppercase; opacity:0.6;
+    }
+    .discord-footer { padding:12px 18px; border-top:1px solid var(--border); font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); text-align:center; }
+
+    /* ── Mobile ── */
+    @media(max-width:860px){
+      .community-body { grid-template-columns:1fr; }
+      .discord-panel { position:static; }
+    }
+    @media(max-width:600px){
+      .page-wrap { padding:20px 14px 40px; }
+      .page-title { font-size:1.1rem; }
+      .header-main { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; gap:8px; }
+      .wallet-center { padding:5px 12px; }
+      .wallet-center-val { font-size:1rem; }
+      .header-stats { display:none; }
+      .logo-sub { display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="site-header">
+  <div class="header-main">
+    <div class="logo-block">
+      <svg class="punk-records-logo" viewBox="0 0 72 56" width="66" height="51" xmlns="http://www.w3.org/2000/svg" aria-label="Punk Records">
+        <defs>
+          <radialGradient id="dome-ext" cx="50%" cy="28%" r="62%">
+            <stop offset="0%"   stop-color="#f0e840"/>
+            <stop offset="40%"  stop-color="#29b6f6"/>
+            <stop offset="78%"  stop-color="#c060e8"/>
+            <stop offset="100%" stop-color="#e040fb"/>
+          </radialGradient>
+          <clipPath id="dome-clip"><ellipse cx="36" cy="27" rx="29" ry="25"/></clipPath>
+        </defs>
+        <ellipse cx="36" cy="27" rx="29" ry="25" fill="url(#dome-ext)"/>
+        <ellipse cx="36" cy="32" rx="21" ry="17" fill="#0d0520"/>
+        <g clip-path="url(#dome-clip)" opacity="0.55">
+          <line x1="15" y1="32" x2="57" y2="32" stroke="#6020a0" stroke-width="0.8"/>
+          <line x1="17" y1="27" x2="55" y2="27" stroke="#6020a0" stroke-width="0.7"/>
+          <line x1="21" y1="23" x2="51" y2="23" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="26" y1="19" x2="46" y2="19" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="31" y1="16" x2="41" y2="16" stroke="#6020a0" stroke-width="0.5"/>
+          <line x1="36" y1="14" x2="15" y2="32" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="21" y2="33" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="29" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="36" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="43" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="51" y2="33" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="57" y2="32" stroke="#6020a0" stroke-width="0.6"/>
+        </g>
+        <path d="M15 32 L19 39 L23 32 L27 39 L31 32 L36 39 L41 32 L45 39 L49 32 L53 39 L57 32"
+              fill="none" stroke="#e040fb" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+        <rect x="5"  y="10" width="7" height="5" rx="0.8" fill="#29b6f6" opacity="0.8" transform="rotate(-22 8.5 12.5)"/>
+        <rect x="60" y="8"  width="7" height="5" rx="0.8" fill="#29b6f6" opacity="0.8" transform="rotate(22 63.5 10.5)"/>
+        <rect x="1"  y="24" width="5" height="4" rx="0.6" fill="#29b6f6" opacity="0.6" transform="rotate(-10 3.5 26)"/>
+        <rect x="66" y="22" width="5" height="4" rx="0.6" fill="#29b6f6" opacity="0.6" transform="rotate(10 68.5 24)"/>
+        <rect x="10" y="2"  width="6" height="4" rx="0.6" fill="#29b6f6" opacity="0.5" transform="rotate(-35 13 4)"/>
+        <rect x="56" y="1"  width="6" height="4" rx="0.6" fill="#29b6f6" opacity="0.5" transform="rotate(35 59 3)"/>
+      </svg>
+      <div class="logo-text">
+        <span class="logo-title">Grand Line Stock Exchange</span>
+        <span class="logo-sub">Dr. Vegapunk's Beri Analytics Engine ◈ Punk Records Node</span>
+        <a href="/" class="back-link">← Exchange</a>
+      </div>
+    </div>
+    <div class="wallet-center" id="wallet-center-block">
+      <span class="wallet-center-label">◈ Your Wallet</span>
+      <span class="wallet-center-val" id="header-wallet-val">— ฿</span>
+      <span class="wallet-login-prompt" id="wallet-login-prompt">Log in to trade</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-box">
+        <div class="stat-label">Next Beri Drop</div>
+        <div class="stat-value drop-timer" id="drop-timer">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Last Uplink</div>
+        <div class="stat-value">Ch. 1180</div>
+      </div>
+      <div class="notif-dropdown">
+        <button class="notif-trigger">TRANSMISSION</button>
+        <div class="notif-menu">
+          <div class="update-panel">
+            <div class="update-header">
+              <span class="update-badge">Vegapunk Transmission</span>
+              <span class="update-week">Uplink: Ch.1180 ◈ Elbaf Node Active</span>
+            </div>
+            <div class="update-text">The Elbaf Arc continues to shake community valuations. Harald's debut as King of Elbaf saw immediate surges for Giant-affiliated characters, while Shanks' Shamrock connection to the Gorosei keeps Red Hair Pirates at historic highs.</div>
+            <div class="update-movers">
+              <span class="mover-chip up">▲ Harald</span>
+              <span class="mover-chip up">▲ Shanks</span>
+              <span class="mover-chip up">▲ Joy Boy</span>
+              <span class="mover-chip down">▼ Eustass Kidd</span>
+              <span class="mover-chip down">▼ Saturn</span>
+              <span class="mover-chip new">★ Man Marked by Flames</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="header-login-btn" id="header-login-btn">LOG IN</button>
+    </div>
+  </div>
+  <div class="ticker-wrap">
+    <span class="ticker-label">◈ COMMUNITY</span>
+    <div class="ticker-clip"><div class="ticker-inner">
+      <span class="ticker-item"><span>TOP TAKES</span> — most liked comments this week</span>
+      <span class="ticker-item"><span>LIKE</span> — vote up the best analysis</span>
+      <span class="ticker-item"><span>COMMENT</span> — open any character card on the exchange</span>
+      <span class="ticker-item"><span>DISCORD</span> — server coming soon</span>
+      <span class="ticker-item"><span>ONE PIECE</span> — we are not catching up to oda</span>
+      <span class="ticker-item"><span>ELBAF ARC</span> — Harald stock to the moon</span>
+      <span class="ticker-item"><span>TOP TAKES</span> — most liked comments this week</span>
+      <span class="ticker-item"><span>LIKE</span> — vote up the best analysis</span>
+      <span class="ticker-item"><span>COMMENT</span> — open any character card on the exchange</span>
+      <span class="ticker-item"><span>DISCORD</span> — server coming soon</span>
+      <span class="ticker-item"><span>ONE PIECE</span> — we are not catching up to oda</span>
+      <span class="ticker-item"><span>ELBAF ARC</span> — Harald stock to the moon</span>
+    </div></div>
+  </div>
+</div>
+
+<!-- ── Page ── -->
+<div class="page-wrap">
+  <div class="page-hero">
+    <div class="page-title">Grand Line <span>Community</span></div>
+    <div class="page-sub">The best takes from across the exchange — sorted by community votes. Drop your analysis on any character card, then come here to see what rose to the top.</div>
+  </div>
+
+  <div class="scope-bar">
+    <span class="scope-label">Showing</span>
+    <button class="scope-btn active" id="btn-week" onclick="setScope('week')">This Week</button>
+    <button class="scope-btn" id="btn-all"  onclick="setScope('all')">All Time</button>
+  </div>
+
+  <div class="community-body">
+    <div class="feed" id="feed">
+      <div class="feed-empty">Loading…</div>
+    </div>
+
+    <aside class="discord-panel">
+      <div class="discord-header">
+        <div class="discord-title">◈ Live Server</div>
+        <div class="discord-dot"></div>
+      </div>
+      <div class="discord-body">
+        <div class="discord-icon">🗨</div>
+        <div class="discord-coming">Coming Soon</div>
+        <div class="discord-desc">
+          The Grand Line Exchange Discord server is being set up.<br><br>
+          When live, <strong>the general channel will appear here</strong> — readable by anyone, postable after joining the server with your Discord account.
+        </div>
+        <button class="discord-placeholder-btn" disabled>Join Server — Coming Soon</button>
+      </div>
+      <div class="discord-footer">Powered by Widgetbot · Read-only until you join</div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const API = '';
+let currentUser = null;
+let scope = 'week';
+
+function fB(v){
+  if(!v&&v!==0) return '0 ฿';
+  if(v>=1e9) return (v/1e9).toFixed(2).replace(/\.?0+$/,'')+'B ฿';
+  if(v>=1e6) return (v/1e6).toFixed(1).replace(/\.?0+$/,'')+'M ฿';
+  if(v>=1e3) return (v/1e3).toFixed(0)+'K ฿';
+  return v.toFixed?v.toFixed(2).replace(/\.?0+$/,'')+' ฿':v+' ฿';
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Header: wallet + drop timer + auth ──────────────────────────────────────
+function updateHeaderWallet(){
+  const el=document.getElementById('header-wallet-val');
+  const pr=document.getElementById('wallet-login-prompt');
+  if(!el) return;
+  if(currentUser){ el.textContent=fB(currentUser.beri_balance); el.style.color='var(--gold)'; if(pr) pr.style.display='none'; }
+  else { el.textContent='— ฿'; el.style.color='var(--text-dim)'; if(pr) pr.style.display=''; }
+}
+
+function getNextDropTime(){
+  const now=new Date(), next=new Date(now);
+  const d=(7-now.getUTCDay())%7||7;
+  next.setUTCDate(now.getUTCDate()+d); next.setUTCHours(0,0,0,0); return next;
+}
+function updateDropTimer(){
+  const el=document.getElementById('drop-timer'); if(!el) return;
+  const diff=getNextDropTime()-new Date();
+  if(diff<=0){el.textContent='DROP NOW';return;}
+  const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+  const pad=n=>String(n).padStart(2,'0'),days=Math.floor(h/24);
+  el.textContent=days>0?`${days}d ${pad(h%24)}h ${pad(m)}m`:`${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+updateDropTimer(); setInterval(updateDropTimer,1000);
+
+function updateAuthUI(){
+  const loginBtn=document.getElementById('header-login-btn'); if(!loginBtn) return;
+  if(currentUser){
+    loginBtn.style.display='none';
+    let block=document.getElementById('header-user-block');
+    if(!block){
+      block=document.createElement('div'); block.id='header-user-block'; block.className='auth-dropdown';
+      block.innerHTML='<button class="auth-dropdown-trigger">• '+esc(currentUser.username)+' •</button>'+
+        '<div class="auth-dropdown-menu"><div class="auth-dropdown-menu-inner">'+
+        '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">← Exchange</button>'+
+        '<button class="auth-dropdown-item" onclick="window.location.href=\'/casino\'">⚄ Casino</button>'+
+        '<hr class="auth-dropdown-divider">'+
+        '<button class="auth-dropdown-item" id="hdr-logout-btn">⏻ Log Out</button>'+
+        '</div></div>';
+      loginBtn.parentNode.insertBefore(block,loginBtn.nextSibling);
+      document.getElementById('hdr-logout-btn').addEventListener('click',async function(){
+        await fetch(API+'/auth/logout',{method:'POST',credentials:'include'}).catch(()=>{});
+        window.location.href='/';
+      });
+    }
+    block.style.display='flex';
+  } else {
+    loginBtn.style.display='';
+    const b=document.getElementById('header-user-block'); if(b) b.style.display='none';
+  }
+  updateHeaderWallet();
+}
+
+document.getElementById('header-login-btn').addEventListener('click',()=>window.location.href='/');
+document.getElementById('wallet-center-block').addEventListener('click',function(){ if(!currentUser) window.location.href='/'; });
+
+// ── Scope toggle ─────────────────────────────────────────────────────────────
+function setScope(s){
+  scope=s;
+  document.getElementById('btn-week').classList.toggle('active',s==='week');
+  document.getElementById('btn-all').classList.toggle('active',s==='all');
+  loadFeed();
+}
+
+// ── Feed ─────────────────────────────────────────────────────────────────────
+async function loadFeed(){
+  const feed=document.getElementById('feed');
+  feed.innerHTML='<div class="feed-empty">Loading…</div>';
+  try {
+    const res=await fetch(API+'/comments/top?scope='+scope+'&limit=30',{credentials:'include'});
+    if(!res.ok) throw new Error(res.status);
+    const comments=await res.json();
+    if(!comments.length){
+      feed.innerHTML='<div class="feed-empty">No comments yet this '+(scope==='week'?'week':'time')+'.<br>Drop a take on any character card on the exchange.</div>';
+      return;
+    }
+    feed.innerHTML=comments.map((c,i)=>renderComment(c,i)).join('');
+  } catch(e){
+    feed.innerHTML='<div class="feed-empty" style="color:var(--red)">⚠ Could not load — '+esc(String(e))+'</div>';
+  }
+}
+
+function renderComment(c, idx){
+  const rank = idx===0?'<span class="rank-badge rank-1">◈ #1</span>':
+               idx===1?'<span class="rank-badge rank-2">◈ #2</span>':
+               idx===2?'<span class="rank-badge rank-3">◈ #3</span>':'';
+  const likedCls = c.liked ? ' liked' : '';
+  const disabledAttr = currentUser ? '' : ' disabled title="Log in to like"';
+  const weekLabel = formatWeek(c.week);
+  return '<div class="comment-card" id="cc-'+c.id+'">'+
+    '<div class="comment-meta">'+
+      '<span class="char-badge">'+esc(c.character_name)+'</span>'+
+      '<span class="author-chip">'+esc(c.username)+'</span>'+
+      (rank?rank:'')+
+      '<span class="week-chip">'+weekLabel+'</span>'+
+    '</div>'+
+    '<div class="comment-body">'+esc(c.body)+'</div>'+
+    '<div class="comment-footer">'+
+      '<button class="like-btn'+likedCls+'" id="lb-'+c.id+'"'+disabledAttr+' onclick="toggleLike('+c.id+',this)">'+
+        '♥ <span id="lc-'+c.id+'">'+c.likes+'</span>'+
+      '</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function formatWeek(w){
+  if(!w) return '';
+  const [year,weekStr]=w.split('-W');
+  if(!weekStr) return w;
+  return 'W'+weekStr+' \''+String(year).slice(2);
+}
+
+async function toggleLike(commentId, btn){
+  if(!currentUser) return;
+  btn.disabled=true;
+  try {
+    const res=await fetch(API+'/comments/'+commentId+'/like',{method:'POST',credentials:'include'});
+    if(!res.ok) throw new Error();
+    const data=await res.json();
+    const liked=data.liked;
+    btn.classList.toggle('liked',liked);
+    document.getElementById('lc-'+commentId).textContent=data.likes;
+  } catch(e){}
+  btn.disabled=false;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init(){
+  try {
+    const res=await fetch(API+'/auth/me',{credentials:'include'});
+    if(res.ok) currentUser=await res.json();
+  } catch(e){}
+  updateAuthUI();
+  await loadFeed();
+}
+
+init();
+</script>
+</body>
+</html>

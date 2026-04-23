@@ -190,6 +190,16 @@ def root():
     )
 
 
+@app.get("/community")
+def community_page():
+    with open(os.path.join(STATIC_DIR, "community.html"), "r") as f:
+        content = f.read()
+    return HTMLResponse(
+        content=content,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
 @app.get("/casino")
 def casino_page():
     with open(os.path.join(STATIC_DIR, "casino.html"), "r") as f:

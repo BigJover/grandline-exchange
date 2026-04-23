@@ -3086,6 +3086,7 @@ function updateAuthUI(){
             '<button class="auth-dropdown-item" id="header-faction-btn">⚑ Faction</button>' +
             '<button class="auth-dropdown-item" id="header-ledger-btn">⊟ Ledger</button>' +
             '<button class="auth-dropdown-item" id="header-leaderboard-btn">⬆ Leaderboard</button>' +
+            '<button class="auth-dropdown-item" id="header-community-btn">◈ Community</button>'+
             '<button class="auth-dropdown-item" id="header-casino-btn">⚄ Casino</button>'+
             '<hr class="auth-dropdown-divider">' +
             '<button class="auth-dropdown-item" id="header-logout-btn">⏻ Log Out</button>' +
@@ -3097,6 +3098,7 @@ function updateAuthUI(){
       document.getElementById('header-faction-btn').addEventListener('click', openFactionPage);
       document.getElementById('header-ledger-btn').addEventListener('click', openLedger);
       document.getElementById('header-leaderboard-btn').addEventListener('click', openLeaderboard);
+      document.getElementById('header-community-btn').addEventListener('click', function(){ window.location.href='/community'; });
       document.getElementById('header-casino-btn').addEventListener('click', function(){ window.location.href='/casino'; });
     }
     updateFactionHeaderDisplay();
