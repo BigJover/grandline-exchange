@@ -114,6 +114,14 @@ def trigger_buster_call(
     }
 
 
+@router.get("/users")
+def list_users(secret: str, db: Session = Depends(get_db)):
+    """List all non-bot users. Protected by ADMIN_SECRET."""
+    _check_secret(secret)
+    users = db.query(models.User).filter(models.User.is_bot == False).order_by(models.User.created_at).all()
+    return [{"id": u.id, "username": u.username, "email": u.email, "beri_balance": int(u.beri_balance), "created_at": str(u.created_at)} for u in users]
+
+
 @router.post("/add-user-beri")
 def add_user_beri(secret: str, username: str, amount: int, db: Session = Depends(get_db)):
     """Add beri to a user's balance. Protected by ADMIN_SECRET."""
