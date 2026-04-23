@@ -1647,7 +1647,7 @@ body::after {
             <span class="trade-qty-label">QTY</span>
             <div class="trade-qty-controls">
               <button class="trade-qty-btn" id="trade-qty-minus">−</button>
-              <input type="number" class="trade-qty-display" id="trade-qty-val" value="1" min="1">
+              <input type="number" class="trade-qty-display" id="trade-qty-val" placeholder="1" min="1">
               <button class="trade-qty-btn" id="trade-qty-plus">+</button>
             </div>
             <div class="trade-cost-row">Total: <span class="trade-cost-val" id="trade-cost-display">— ฿</span></div>
@@ -1907,7 +1907,7 @@ function updateShortDisplay(c){
 function updateTradeUI(c){
   tradeCharId = c.id;
   tradeQty = 1;
-  document.getElementById('trade-qty-val').value = 1;
+  document.getElementById('trade-qty-val').value = '';
   const fb=document.getElementById('trade-feedback');
   fb.className='trade-feedback'; fb.textContent='';
   const sp=livePrice(c);
@@ -1928,7 +1928,8 @@ function updateTradeUI(c){
 }
 
 function tradeUpdateQty(delta){
-  tradeQty=Math.max(1,tradeQty+delta);
+  const cur=parseInt(document.getElementById('trade-qty-val').value,10)||1;
+  tradeQty=Math.max(1,cur+delta);
   document.getElementById('trade-qty-val').value=tradeQty;
   if(tradeCharId===null) return;
   const c=CHARACTERS.find(x=>x.id===tradeCharId);
