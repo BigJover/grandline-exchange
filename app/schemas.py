@@ -120,6 +120,7 @@ class TradeResponse(BaseModel):
     beri_balance: float
     shares_held: int
     price_per_share: float
+    new_beri: float
 
 
 class ShareOut(BaseModel):

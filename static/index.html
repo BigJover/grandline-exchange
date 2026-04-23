@@ -1730,6 +1730,7 @@ body::after {
 <script>
 
 let CHARACTERS = [];
+const SESSION_BERI = {}; // char.id → beri at session start, for live delta arrows
 
 // ── Username display filter ──
 const _BLOCKED = [
@@ -1819,6 +1820,21 @@ function setShorts(s){ localStorage.setItem('glse_shorts', JSON.stringify(s)); }
 function updateCardSharePrice(c){
   const el=document.getElementById('card-sp-'+c.id);
   if(el) el.textContent=fBeri(livePrice(c));
+}
+function updateCardArrow(c){
+  const el=document.getElementById('card-arrow-'+c.id);
+  if(!el) return;
+  const {hasChart, up, pct}=chartStats(c);
+  if(pct!==null){
+    el.className='card-change '+(up?'change-up':'change-down');
+    el.textContent=(up?'▲ +':'▼ ')+pct+'%';
+  } else if(hasChart){
+    el.className='card-change '+(up?'change-up':'change-down');
+    el.textContent=up?'▲':'▼';
+  } else {
+    el.className='card-change change-flat';
+    el.textContent='—';
+  }
 }
 
 let tradeCharId = null;
@@ -2157,7 +2173,13 @@ function chartStats(c) {
     hasChart = true;
     computedPct = canon > 0 ? Math.abs((beri-canon)/canon*100).toFixed(1) : null;
   }
-  // RECENT_PCT override takes priority for arrow + % display
+  // Live session delta: if price has moved since page load, that wins
+  const sessionStart = SESSION_BERI[c.id];
+  if (sessionStart && Math.abs(c.beri - sessionStart) / sessionStart > 0.0001) {
+    const livePct = Math.abs((c.beri - sessionStart) / sessionStart * 100).toFixed(1);
+    return { hasChart, up: c.beri >= sessionStart, pct: livePct };
+  }
+  // Editorial baseline for chars not yet traded this session
   const r = RECENT_PCT[c.name];
   if (r) return { hasChart, up: r.up, pct: r.pct };
   return { hasChart, up: chartUp, pct: computedPct };
@@ -2178,10 +2200,10 @@ function renderCards() {
     const beri=c.beri||0;
     const {hasChart, up, pct} = chartStats(c);
     const changeHtml = pct!==null
-      ?'<span class="card-change '+(up?'change-up':'change-down')+'">'+(up?'▲':'▼')+' '+pct+'%</span>'
+      ?'<span id="card-arrow-'+c.id+'" class="card-change '+(up?'change-up':'change-down')+'">'+(up?'▲ +':'▼ ')+pct+'%</span>'
       :(hasChart
-        ?'<span class="card-change '+(up?'change-up':'change-down')+'">'+(up?'▲':'▼')+'</span>'
-        :'<span class="card-change change-flat">—</span>');
+        ?'<span id="card-arrow-'+c.id+'" class="card-change '+(up?'change-up':'change-down')+'">'+(up?'▲':'▼')+'</span>'
+        :'<span id="card-arrow-'+c.id+'" class="card-change change-flat">—</span>');
     const svgHtml = hasChart
       ?'<div class="card-chart">'+buildSVG(c,up,200,87,1.8)+(c.price_history?makeLabels(c.price_history):'')+'</div>'
       :'<div class="card-chart-empty"><div class="chart-flat-line"></div></div>';
@@ -2547,10 +2569,11 @@ document.getElementById('trade-buy-btn').addEventListener('click', async functio
       currentUser.beri_balance=data.beri_balance;
       if(!serverPortfolio) serverPortfolio={};
       serverPortfolio[key]=data.shares_held;
+      if(data.new_beri) c.beri=data.new_beri;
       const pressure=getMarketPressure();
       pressure[key]=(pressure[key]||0)+tradeQty;
       setMarketPressure(pressure);
-      updateHeaderWallet(); updateCardSharePrice(c); updateTradeUI(c); updateModalPosition(c);
+      updateHeaderWallet(); updateCardSharePrice(c); updateCardArrow(c); updateTradeUI(c); updateModalPosition(c);
       fb.className='trade-feedback ok';
       fb.textContent='✓ Bought '+tradeQty+' share'+(tradeQty!==1?'s':'')+' of '+c.name+' for '+fBeri(data.price_per_share*tradeQty);
     } catch(e){
@@ -2590,10 +2613,11 @@ document.getElementById('trade-sell-btn').addEventListener('click', async functi
       currentUser.beri_balance=data.beri_balance;
       if(!serverPortfolio) serverPortfolio={};
       if(data.shares_held===0) delete serverPortfolio[key]; else serverPortfolio[key]=data.shares_held;
+      if(data.new_beri) c.beri=data.new_beri;
       const pressure=getMarketPressure();
       pressure[key]=Math.max(0,(pressure[key]||0)-qty);
       setMarketPressure(pressure);
-      updateHeaderWallet(); updateCardSharePrice(c); updateTradeUI(c); updateModalPosition(c);
+      updateHeaderWallet(); updateCardSharePrice(c); updateCardArrow(c); updateTradeUI(c); updateModalPosition(c);
       fb.className='trade-feedback ok';
       fb.textContent='✓ Sold '+qty+' share'+(qty!==1?'s':'')+' of '+c.name+' for '+fBeri(data.price_per_share*qty);
     } catch(e){
@@ -3913,6 +3937,7 @@ async function init() {
     CHARACTERS.forEach((c, i) => {
       c.live_rank = i + 1;
       if (BERI_OVERRIDES[c.name] !== undefined) c.beri = BERI_OVERRIDES[c.name];
+      SESSION_BERI[c.id] = c.beri;
     });
   } catch(e) {
     console.error('Failed to load characters from API:', e);
@@ -3948,6 +3973,7 @@ init();
         if(!c || Math.abs(c.beri - beri) < 1) continue;
         c.beri = beri;
         updateCardSharePrice(c);
+        updateCardArrow(c);
         anyChanged = true;
         // If this character's modal is open, refresh trade UI
         if(tradeCharId === c.id) updateTradeUI(c);

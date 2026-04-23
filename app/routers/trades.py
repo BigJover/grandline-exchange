@@ -8,8 +8,8 @@ from app.price_queue import updates as price_updates
 
 router = APIRouter(prefix="/trade", tags=["trade"])
 
-# Price impact per share traded: 0.01% of current beri, capped at 5% per trade
-IMPACT_PER_SHARE = 0.0001
+# Price impact per share traded: 0.2% of current beri per share, capped at 5% per trade
+IMPACT_PER_SHARE = 0.002
 IMPACT_CAP = 0.05
 BERI_FLOOR = 100_000  # beri never drops below this
 
@@ -102,6 +102,7 @@ def execute_trade(
         beri_balance=current_user.beri_balance,
         shares_held=shares_held,
         price_per_share=float(price),
+        new_beri=character.beri,
     )
 
 
