@@ -14,9 +14,9 @@ IMPACT_CAP = 0.05
 BERI_FLOOR = 100_000  # beri never drops below this
 
 
-def share_price(character: models.Character) -> int:
-    """Canonical share price: beri market cap / 100,000."""
-    return max(1, int(character.beri // 100_000))
+def share_price(character: models.Character) -> float:
+    """Canonical share price: beri market cap / 100,000, rounded to 2 decimal places."""
+    return max(0.01, round(character.beri / 100_000, 2))
 
 
 @router.post("/", response_model=schemas.TradeResponse)

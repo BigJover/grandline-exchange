@@ -592,6 +592,7 @@ body::after {
 }
 .trade-qty-display::-webkit-outer-spin-button,
 .trade-qty-display::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.trade-qty-display::placeholder { color:var(--text-dim); opacity:0.45; }
 .trade-cost-row {
   font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:var(--text-dim);
   margin-left:auto; letter-spacing:0.5px; text-align:right;
@@ -1768,13 +1769,13 @@ function nameSeed(n) { let s=0; for(let i=0;i<n.length;i++) s+=n.charCodeAt(i)*(
 
 // ── WALLET / TRADING SYSTEM ──
 const STARTING_BERI = 15000;
-function basePrice(beri){ return Math.max(1, Math.floor((beri||0)/100000)); }
+function basePrice(beri){ return Math.max(0.01, Math.round((beri||0)/1000)/100); }
 function getMarketPressure(){ try{ return JSON.parse(localStorage.getItem('glse_pressure')||'{}'); }catch(e){return {};} }
 function setMarketPressure(p){ localStorage.setItem('glse_pressure', JSON.stringify(p)); }
 function livePrice(c){
   const bp=basePrice(c.beri);
   const net=(getMarketPressure()[String(c.id)]||0);
-  return Math.max(1, Math.floor(bp*(1+Math.sqrt(Math.max(0,net))*0.001)));
+  return Math.max(0.01, Math.round(bp*(1+Math.sqrt(Math.max(0,net))*0.001)*100)/100);
 }
 function initMarketPressure(){
   if(localStorage.getItem('glse_market_init')) return;
