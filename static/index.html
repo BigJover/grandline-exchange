@@ -3030,6 +3030,11 @@ let currentUser = null;
 // Auth uses httpOnly cookies — no token ever stored in JS or localStorage
 function authHeaders(){ return {}; }
 
+const HINT_KEY = 'glse_user_hint';
+function saveHint(u){ if(u) localStorage.setItem(HINT_KEY, JSON.stringify({username:u.username,beri_balance:u.beri_balance})); }
+function clearHint(){ localStorage.removeItem(HINT_KEY); }
+function loadHint(){ try{ return JSON.parse(localStorage.getItem(HINT_KEY)); }catch(e){ return null; } }
+
 async function fetchCurrentUser(){
   try {
     const res = await fetch(API_BASE + '/auth/me', { credentials: 'include' });
@@ -3112,6 +3117,7 @@ function updateAuthUI(){
 }
 
 async function handleLogout(){
+  clearHint();
   await fetch(API_BASE + '/auth/logout', { method: 'POST', credentials: 'include' }).catch(()=>{});
   currentUser = null;
   serverPortfolio = null;
@@ -3158,6 +3164,7 @@ document.getElementById('login-submit').addEventListener('click', async function
   try {
     await apiLogin(username, password);
     currentUser = await fetchCurrentUser();
+    saveHint(currentUser);
     await fetchPortfolio();
     updateAuthUI();
     closeAuthModal();
@@ -3185,6 +3192,7 @@ document.getElementById('signup-submit').addEventListener('click', async functio
   try {
     await apiSignup(username, email, password);
     currentUser = await fetchCurrentUser();
+    saveHint(currentUser);
     await fetchPortfolio();
     updateAuthUI();
     closeAuthModal();
@@ -3938,8 +3946,11 @@ function renderLedger(entries){
 }
 
 async function init() {
-  // Restore session if token exists
+  // Show cached state instantly, then verify cookie in background
+  const hint = loadHint();
+  if(hint){ currentUser = hint; updateAuthUI(); }
   currentUser = await fetchCurrentUser();
+  if(currentUser) saveHint(currentUser); else clearHint();
   if(currentUser) await fetchPortfolio();
   updateAuthUI();
   document.getElementById('faction-close').addEventListener('click', closeFactionPage);

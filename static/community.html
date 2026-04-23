@@ -424,6 +424,7 @@ function updateAuthUI(){
         '</div></div>';
       loginBtn.parentNode.insertBefore(block,loginBtn.nextSibling);
       document.getElementById('hdr-logout-btn').addEventListener('click',async function(){
+        clearHint();
         await fetch(API+'/auth/logout',{method:'POST',credentials:'include'}).catch(()=>{});
         window.location.href='/';
       });
@@ -510,11 +511,19 @@ async function toggleLike(commentId, btn){
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+const HINT_KEY = 'glse_user_hint';
+function saveHint(u){ if(u) localStorage.setItem(HINT_KEY, JSON.stringify({username:u.username,beri_balance:u.beri_balance})); }
+function clearHint(){ localStorage.removeItem(HINT_KEY); }
+function loadHint(){ try{ return JSON.parse(localStorage.getItem(HINT_KEY)); }catch(e){ return null; } }
+
 async function init(){
+  const hint = loadHint();
+  if(hint){ currentUser = hint; updateAuthUI(); }
   try {
     const res=await fetch(API+'/auth/me',{credentials:'include'});
-    if(res.ok) currentUser=await res.json();
-  } catch(e){}
+    if(res.ok){ currentUser=await res.json(); saveHint(currentUser); }
+    else { currentUser=null; clearHint(); }
+  } catch(e){ currentUser=null; clearHint(); }
   updateAuthUI();
   await loadFeed();
 }
