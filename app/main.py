@@ -23,7 +23,7 @@ def run_column_migrations():
     """Add new columns to existing tables without Alembic. Safe to run on every startup."""
     from sqlalchemy import text
     is_postgres = str(engine.url).startswith("postgres")
-    migrations = [
+    user_migrations = [
         ("user_faction",       "TEXT"),
         ("faction_history",    "TEXT DEFAULT '[]'"),
         ("badges",             "TEXT DEFAULT '[]'"),
@@ -32,8 +32,11 @@ def run_column_migrations():
         ("warlord_until",       "TIMESTAMPTZ" if is_postgres else "DATETIME"),
         ("is_admin",           "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
     ]
+    char_migrations = [
+        ("base_beri", "DOUBLE PRECISION" if is_postgres else "FLOAT"),
+    ]
     with engine.connect() as conn:
-        for col, col_type in migrations:
+        for col, col_type in user_migrations:
             try:
                 if is_postgres:
                     conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {col_type}"))
@@ -45,10 +48,47 @@ def run_column_migrations():
                     conn.rollback()
                 except Exception:
                     pass
+        for col, col_type in char_migrations:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE characters ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE characters ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+
+def backfill_base_beri():
+    """Populate base_beri from seed JSON for characters that don't have it yet.
+    Runs once per new character row — subsequent calls are no-ops."""
+    import json as _json
+    from sqlalchemy import text
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "characters.json")
+    try:
+        with open(data_path) as f:
+            chars = _json.load(f)
+        seed_beri = {c["name"]: float(c.get("beri", 0)) for c in chars if c.get("beri")}
+    except Exception:
+        return
+    with engine.connect() as conn:
+        rows = conn.execute(text("SELECT id, name FROM characters WHERE base_beri IS NULL")).fetchall()
+        for row in rows:
+            original = seed_beri.get(row[1])
+            if original:
+                conn.execute(
+                    text("UPDATE characters SET base_beri = :b WHERE id = :id"),
+                    {"b": original, "id": row[0]},
+                )
+        conn.commit()
 
 
 run_column_migrations()
 Base.metadata.create_all(bind=engine)
+backfill_base_beri()
 
 
 async def price_broadcaster():

@@ -13,6 +13,7 @@ class Character(Base):
     faction = Column(String, default="")
     category = Column(String, default="")
     beri = Column(Float, nullable=False)
+    base_beri = Column(Float, nullable=True)   # original seeded value, never updated
     canon_bounty = Column(Float, nullable=True)
     status = Column(String, default="active")
     notes = Column(String, default="")

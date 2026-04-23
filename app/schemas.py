@@ -19,6 +19,7 @@ class CharacterOut(BaseModel):
     faction: str
     category: str
     beri: float
+    base_beri: Optional[float] = None
     canon_bounty: Optional[float]
     status: str
     rank: Optional[str]

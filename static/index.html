@@ -2178,6 +2178,12 @@ function chartStats(c) {
   // Most recent trade/tick delta — reflects the actual price jump
   const delta = PRICE_DELTA[c.id];
   if (delta) return { hasChart, up: delta.up, pct: delta.pct };
+  // All-time trading impact: current beri vs original seeded value
+  const base = c.base_beri;
+  if (base && base > 0 && Math.abs(c.beri - base) / base > 0.0001) {
+    const allTimePct = Math.abs((c.beri - base) / base * 100).toFixed(2);
+    return { hasChart, up: c.beri > base, pct: allTimePct };
+  }
   // Editorial baseline for chars not yet traded this session
   const r = RECENT_PCT[c.name];
   if (r) return { hasChart, up: r.up, pct: r.pct };
