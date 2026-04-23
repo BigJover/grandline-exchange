@@ -20,6 +20,8 @@ def signup(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
         email=user_in.email,
         password_hash=auth.hash_password(user_in.password),
         beri_balance=100_000,
+        user_faction="citizen",
+        faction_history=["citizen"],
     )
     db.add(user)
     db.commit()

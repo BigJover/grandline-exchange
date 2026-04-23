@@ -13,6 +13,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 VALID_FACTIONS = {"marine", "royalty", "pirate", "citizen", "revolutionary", "creature"}
 FACTION_COOLDOWN_HOURS = 24
+ROYALTY_BERI_MINIMUM = 500_000
 
 FACTION_BLOCKS = {
     "pirate":        ["marine"],
@@ -47,6 +48,12 @@ def set_faction(
 
     if target == "creature" and not current_user.creature_unlocked:
         raise HTTPException(status_code=403, detail="Creature faction is locked — earn the unlock first")
+
+    if target == "royalty" and current_user.beri_balance < ROYALTY_BERI_MINIMUM:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Royalty requires {ROYALTY_BERI_MINIMUM:,}฿ — you have {int(current_user.beri_balance):,}฿",
+        )
 
     if current_user.user_faction == "creature":
         raise HTTPException(status_code=403, detail="You have lost your humanity. There is no way back.")

@@ -3383,14 +3383,18 @@ function renderFactionPage(){
 
   let html = '';
 
+  const ROYALTY_MIN = 500000;
+
   for(const f of FACTION_DATA){
     const isCurrent = currentFactionId === f.id;
     const blockedBy = factionBlockedBy(f.id);
     const isBlocked = !!blockedBy && !isCurrent;
+    const wallet = currentUser ? (currentUser.beri_balance || 0) : 0;
+    const royaltyLocked = f.id === 'royalty' && !isCurrent && wallet < ROYALTY_MIN;
 
     let cardClass = 'faction-card';
     if(isCurrent) cardClass += ' fc-current';
-    else if(isBlocked) cardClass += ' fc-blocked';
+    else if(isBlocked || royaltyLocked) cardClass += ' fc-blocked';
 
     let actionHtml = '';
     if(isCurrent){
@@ -3399,6 +3403,8 @@ function renderFactionPage(){
       actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>You have lost your humanity</button></div>';
     } else if(isBlocked){
       actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>\uD83D\uDD12 ' + BLOCK_REASONS[blockedBy] + '</button></div>';
+    } else if(royaltyLocked){
+      actionHtml = '<div class="faction-action"><button class="faction-join-btn" disabled>\uD83D\uDD12 Requires 500,000฿ — you have ' + fBeri(wallet) + '</button></div>';
     } else {
       actionHtml = '<div class="faction-action"><button class="faction-join-btn" data-faction="' + f.id + '">Align with ' + f.name + '</button></div>';
     }
