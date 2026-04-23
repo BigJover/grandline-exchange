@@ -114,6 +114,25 @@ def trigger_buster_call(
     }
 
 
+@router.post("/add-user-beri")
+def add_user_beri(secret: str, username: str, amount: int, db: Session = Depends(get_db)):
+    """Add beri to a user's balance. Protected by ADMIN_SECRET."""
+    _check_secret(secret)
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+    old = user.beri_balance
+    user.beri_balance += amount
+    db.add(models.BeriEvent(
+        user_id=user.id,
+        event_type="admin_grant",
+        amount=amount,
+        description=f"Admin grant \u2014 {amount:,}\u0e3f added",
+    ))
+    db.commit()
+    return {"status": "ok", "username": username, "old_balance": old, "new_balance": user.beri_balance}
+
+
 @router.post("/beri-drop")
 def trigger_beri_drop(secret: str, db: Session = Depends(get_db)):
     """Manually trigger a beri drop. Protected by ADMIN_SECRET env var."""
