@@ -36,6 +36,8 @@ def seed():
                 img=c.get("img", ""),
                 bio=c.get("bio", ""),
                 events=c.get("events", ""),
+                sbs=c.get("sbs", []),
+                related=c.get("related", []),
             )
             db.add(character)
 

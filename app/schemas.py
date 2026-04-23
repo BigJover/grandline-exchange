@@ -27,6 +27,8 @@ class CharacterOut(BaseModel):
     img: str
     bio: str
     events: str
+    sbs: List[Any] = []
+    related: List[str] = []
 
     model_config = {"from_attributes": True}
 

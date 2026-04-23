@@ -22,6 +22,8 @@ class Character(Base):
     img = Column(String, default="")
     bio = Column(String, default="")
     events = Column(String, default="")
+    sbs = Column(JSON, default=list)
+    related = Column(JSON, default=list)
 
 
 class User(Base):
