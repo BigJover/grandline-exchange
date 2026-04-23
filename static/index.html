@@ -397,8 +397,14 @@ body::after {
 .comment-feedback { font-family:'Share Tech Mono',monospace; font-size:0.72rem; display:none; }
 .comment-feedback.ok { color:var(--green); }
 .comment-feedback.err { color:var(--red); }
+.modal-header-title {
+  font-family:'Share Tech Mono',monospace; font-size:0.52rem; letter-spacing:3px;
+  color:var(--gold); text-transform:uppercase; opacity:0.85; margin-bottom:3px; line-height:1;
+}
 .modal-name {
-  font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:700; color:var(--text); line-height:1.25;
+  font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:700;
+  color:var(--punk2); line-height:1.25;
+  text-shadow:0 0 18px rgba(41,182,246,0.35);
 }
 .modal-meta { display:flex; align-items:center; gap:8px; }
 .modal-rank-badge {
@@ -1622,6 +1628,7 @@ body::after {
       </div>
       <div class="modal-header-top">
         <div class="modal-header-info">
+          <div class="modal-header-title" id="modal-header-title" style="display:none;"></div>
           <div class="modal-name" id="modal-name"></div>
           <div class="modal-meta">
             <span class="modal-rank-badge" id="modal-rank"></span>
@@ -2360,8 +2367,15 @@ function openModal(id) {
   // Reset to Stock tab
   switchModalTab('stock');
 
-  // Name / meta
-  document.getElementById('modal-name').textContent = c.name;
+  // Header title line + name
+  var headerTitle = document.getElementById('modal-header-title');
+  if(c.title){
+    headerTitle.textContent = c.title;
+    headerTitle.style.display = '';
+  } else {
+    headerTitle.style.display = 'none';
+  }
+  document.getElementById('modal-name').textContent = c.full_name || c.name;
   document.getElementById('modal-rank').textContent = '#'+c.live_rank+' RANKED';
   const catEl=document.getElementById('modal-cat');
   catEl.textContent = CAT_LABELS[c.category]||c.category||'Unknown';

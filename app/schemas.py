@@ -29,6 +29,9 @@ class CharacterOut(BaseModel):
     events: str
     sbs: List[Any] = []
     related: List[str] = []
+    full_name: Optional[str] = None
+    title: Optional[str] = None
+    notes: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -24,6 +24,8 @@ class Character(Base):
     events = Column(String, default="")
     sbs = Column(JSON, default=list)
     related = Column(JSON, default=list)
+    full_name = Column(String, nullable=True)
+    title = Column(String, nullable=True)
 
 
 class User(Base):

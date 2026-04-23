@@ -36,6 +36,8 @@ def run_column_migrations():
         ("base_beri", "DOUBLE PRECISION" if is_postgres else "FLOAT"),
         ("sbs",       "JSON"             if is_postgres else "TEXT"),
         ("related",   "JSON"             if is_postgres else "TEXT"),
+        ("full_name", "TEXT"),
+        ("title",     "TEXT"),
     ]
     with engine.connect() as conn:
         for col, col_type in user_migrations:
@@ -89,33 +91,41 @@ def backfill_base_beri():
 
 
 def patch_character_meta():
-    """Populate bio, events, sbs, related from character_meta.json for rows that lack them.
+    """Populate bio, events, sbs, related, full_name, title from seed files.
+    Uses ORM so JSON columns are handled correctly on both SQLite and Postgres.
     Safe to run on every startup — skips characters that already have a bio."""
     import json as _json
-    from sqlalchemy import text
     meta_path = os.path.join(os.path.dirname(__file__), "..", "data", "character_meta.json")
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "characters.json")
     try:
         with open(meta_path) as f:
             meta = _json.load(f)
+        with open(data_path) as f:
+            seed = {c["name"]: c for c in _json.load(f)}
     except Exception:
         return
-    is_postgres = str(engine.url).startswith("postgres")
-    with engine.connect() as conn:
-        rows = conn.execute(text("SELECT id, name FROM characters WHERE bio IS NULL OR bio = ''")).fetchall()
-        for row in rows:
-            m = meta.get(row[1])
-            if not m:
-                continue
-            sbs_val     = _json.dumps(m.get("sbs", []))
-            related_val = _json.dumps(m.get("related", []))
-            conn.execute(
-                text("UPDATE characters SET bio=:bio, events=:events, sbs=:sbs::json, related=:related::json WHERE id=:id"
-                     if is_postgres else
-                     "UPDATE characters SET bio=:bio, events=:events, sbs=:sbs, related=:related WHERE id=:id"),
-                {"bio": m.get("bio", ""), "events": m.get("events", ""),
-                 "sbs": sbs_val, "related": related_val, "id": row[0]},
-            )
-        conn.commit()
+    db = SessionLocal()
+    try:
+        chars = db.query(models.Character).filter(
+            (models.Character.bio == None) | (models.Character.bio == "")
+        ).all()
+        for char in chars:
+            m = meta.get(char.name)
+            if m:
+                char.bio     = m.get("bio", "")
+                char.events  = m.get("events", "")
+                char.sbs     = m.get("sbs", [])
+                char.related = m.get("related", [])
+            s = seed.get(char.name)
+            if s:
+                char.full_name = s.get("full_name") or None
+                char.title     = s.get("title") or None
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"patch_character_meta error: {e}")
+    finally:
+        db.close()
 
 
 run_column_migrations()
