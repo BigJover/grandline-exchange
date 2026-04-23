@@ -19,6 +19,10 @@ def signup(request: Request, response: Response, user_in: schemas.UserCreate, db
         raise HTTPException(status_code=400, detail="Username must be 3–32 characters")
     if not user_in.username.replace("_", "").replace("-", "").isalnum():
         raise HTTPException(status_code=400, detail="Username may only contain letters, numbers, _ and -")
+    if len(user_in.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if len(user_in.password) > 72:
+        raise HTTPException(status_code=400, detail="Password must be 72 characters or fewer")
     if db.query(models.User).filter(models.User.username == user_in.username).first():
         raise HTTPException(status_code=400, detail="Username already taken")
     if db.query(models.User).filter(models.User.email == user_in.email).first():
