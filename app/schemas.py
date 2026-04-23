@@ -33,6 +33,11 @@ class CharacterOut(BaseModel):
     title: Optional[str] = None
     notes: Optional[str] = None
 
+    @field_validator('sbs', 'related', 'aliases', 'price_history', mode='before')
+    @classmethod
+    def coerce_none_to_list(cls, v):
+        return v if v is not None else []
+
     model_config = {"from_attributes": True}
 
 
