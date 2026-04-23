@@ -65,47 +65,129 @@
       100% { top:100vh; opacity:0; }
     }
 
-    /* ── Header ── */
-    .c-header {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:12px 24px;
-      background:linear-gradient(180deg,#100820 0%,#0b0516 60%,var(--bg) 100%);
+    /* ── Site header (matches Exchange) ── */
+    .site-header {
+      background:linear-gradient(180deg, #140a28 0%, #100820 30%, #0b0516 70%, var(--bg) 100%);
       border-bottom:1px solid var(--punk-dim);
-      box-shadow:0 4px 40px rgba(0,0,0,0.9), 0 1px 0 var(--punk-dim), 0 0 60px rgba(224,64,251,0.06);
       position:sticky; top:0; z-index:100;
+      box-shadow:0 4px 40px rgba(0,0,0,0.9), 0 1px 0 var(--punk-dim), 0 0 60px rgba(224,64,251,0.06);
     }
     @keyframes logo-pulse {
-      0%,100% { text-shadow:0 0 20px rgba(224,64,251,0.4); }
-      50%      { text-shadow:0 0 30px #7b1fa2, 0 0 60px rgba(224,64,251,0.6); }
+      0%,100% { filter:drop-shadow(0 0 10px var(--punk-dim)) drop-shadow(0 0 24px rgba(224,64,251,0.25)); }
+      50%      { filter:drop-shadow(0 0 20px #7b1fa2) drop-shadow(0 0 48px rgba(224,64,251,0.6)) drop-shadow(0 0 80px rgba(224,64,251,0.18)); }
     }
-    .c-header-left { display:flex; align-items:center; gap:18px; }
-    .c-back-btn {
+    @keyframes badge-pulse {
+      0%,100% { box-shadow:0 0 6px rgba(224,64,251,0.12); }
+      50%      { box-shadow:0 0 20px rgba(224,64,251,0.38), inset 0 0 10px rgba(224,64,251,0.07); border-color:var(--punk); }
+    }
+    @keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+    @keyframes transmission-shimmer { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 14px rgba(224,64,251,0.5)} }
+    .header-main { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:12px 24px; gap:16px; }
+    .logo-block { display:flex; align-items:center; gap:14px; }
+    .punk-records-logo { color:var(--punk); filter:drop-shadow(0 0 10px var(--punk-dim)) drop-shadow(0 0 24px rgba(224,64,251,0.25)); flex-shrink:0; animation:logo-pulse 5s ease-in-out infinite; }
+    .logo-text { display:flex; flex-direction:column; line-height:1; }
+    .logo-title { font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900; color:var(--punk); letter-spacing:2px; text-transform:uppercase; text-shadow:0 0 20px var(--punk-dim), 0 0 40px rgba(224,64,251,0.3); }
+    .logo-sub   { font-family:'Share Tech Mono',monospace; font-size:0.5rem; color:var(--text-dim); letter-spacing:2.5px; text-transform:uppercase; margin-top:5px; }
+    .back-link {
+      font-family:'Orbitron',sans-serif; font-size:0.46rem; font-weight:700;
+      color:var(--text-dim); letter-spacing:1.5px; text-decoration:none;
+      text-transform:uppercase; margin-top:5px; display:inline-block;
+      transition:color 0.15s;
+    }
+    .back-link:hover { color:var(--punk); }
+    .wallet-center {
+      display:flex; flex-direction:column; align-items:center; gap:2px;
+      background:var(--surface); border:1px solid rgba(212,160,23,0.55);
+      border-radius:6px; padding:7px 20px; cursor:pointer;
+      box-shadow:0 0 28px rgba(212,160,23,0.16), inset 0 1px 0 rgba(212,160,23,0.10);
+    }
+    .wallet-center-label { font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:600; color:var(--text-dim); letter-spacing:3px; text-transform:uppercase; }
+    .wallet-center-val   { font-family:'Share Tech Mono',monospace; font-size:1.25rem; color:var(--gold); font-weight:700; letter-spacing:1.5px; text-shadow:0 0 22px rgba(212,160,23,0.60); }
+    .wallet-login-prompt { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--punk); letter-spacing:1px; animation:badge-pulse 3s ease-in-out infinite; display:none; }
+    .header-stats { display:flex; gap:24px; align-items:center; justify-content:flex-end; }
+    .stat-box { text-align:right; }
+    .stat-label { font-size:0.52rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px; font-family:'Orbitron',sans-serif; font-weight:400; }
+    .stat-value { font-family:'Share Tech Mono',monospace; font-size:0.9rem; color:var(--gold); font-weight:600; }
+    .stat-box:nth-child(1) .stat-value { color:var(--punk2); text-shadow:0 0 14px rgba(41,182,246,0.5); }
+    .stat-box:nth-child(2) .stat-value { color:var(--punk); text-shadow:0 0 14px rgba(224,64,251,0.5); }
+    .drop-timer { color:var(--green) !important; text-shadow:0 0 14px rgba(0,208,132,0.5) !important; font-size:0.78rem !important; }
+    .notif-dropdown { position:relative; display:flex; align-items:center; }
+    .notif-trigger {
+      cursor:pointer; appearance:none; -webkit-appearance:none;
+      background:rgba(41,182,246,0.10); border:1px solid rgba(41,182,246,0.7);
+      border-radius:4px; padding:6px 14px; font-family:'Orbitron',sans-serif;
+      font-weight:600; font-size:0.62rem; color:var(--punk2); letter-spacing:2px;
+      animation:badge-pulse 3.5s ease-in-out infinite;
+    }
+    .notif-trigger::before { content:'●'; margin-right:7px; font-size:0.45rem; vertical-align:middle; animation:dot-blink 1.8s ease-in-out infinite; }
+    .notif-trigger:hover { box-shadow:0 0 22px rgba(41,182,246,0.42); }
+    .notif-menu {
+      position:absolute; top:calc(100% + 10px); right:0;
+      opacity:0; pointer-events:none; transform:translateY(-6px);
+      transition:opacity 0.18s, transform 0.18s; z-index:200;
+      width:min(520px,94vw);
+    }
+    .notif-dropdown:hover .notif-menu,
+    .notif-dropdown:focus-within .notif-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+    .update-panel {
+      background:linear-gradient(135deg,rgba(18,9,32,0.95) 0%,rgba(8,12,24,0.95) 100%);
+      border:1px solid var(--punk-dim); border-radius:8px; padding:16px 20px;
+      position:relative; overflow:hidden;
+      box-shadow:0 0 40px rgba(224,64,251,0.07), inset 0 1px 0 rgba(224,64,251,0.09);
+    }
+    .update-panel::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,var(--punk) 0%,var(--punk2) 50%,var(--punk) 100%); }
+    .update-panel::after  { content:'◈ PUNK RECORDS NODE'; position:absolute; right:14px; bottom:9px; font-size:0.42rem; color:var(--punk); opacity:0.18; font-family:'Orbitron',sans-serif; letter-spacing:3px; pointer-events:none; }
+    .update-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .update-badge  { background:linear-gradient(90deg,var(--punk),var(--punk2)); color:#07040f; font-size:0.58rem; font-weight:700; letter-spacing:2px; padding:3px 10px; border-radius:3px; font-family:'Orbitron',sans-serif; animation:transmission-shimmer 4s ease-in-out infinite; }
+    .update-week   { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); }
+    .update-text   { font-family:'Share Tech Mono',monospace; font-size:0.78rem; color:var(--text); line-height:1.75; }
+    .update-movers { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .mover-chip    { font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:3px 10px; border-radius:4px; display:flex; align-items:center; gap:4px; }
+    .mover-chip.up   { background:rgba(0,208,132,0.14); border:1px solid rgba(0,208,132,0.50); color:var(--green); }
+    .mover-chip.down { background:rgba(255,68,85,0.14);  border:1px solid rgba(255,68,85,0.50);  color:var(--red); }
+    .mover-chip.new  { background:rgba(41,182,246,0.14); border:1px solid rgba(41,182,246,0.55); color:var(--punk2); }
+    .header-login-btn {
       background:transparent; border:1px solid var(--border); border-radius:5px;
-      color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif;
-      font-size:0.52rem; font-weight:700; letter-spacing:1px; padding:6px 12px;
-      text-transform:uppercase; transition:all 0.15s; text-decoration:none;
-      display:inline-flex; align-items:center; gap:5px;
+      color:var(--text-dim); font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:600;
+      letter-spacing:2px; padding:7px 16px; cursor:pointer; text-transform:uppercase; transition:all 0.2s;
     }
-    .c-back-btn:hover { border-color:var(--punk-dim); color:var(--punk); }
-    .c-logo { display:flex; flex-direction:column; }
-    .c-logo-title {
-      font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900;
-      color:var(--punk); letter-spacing:2px; text-transform:uppercase;
-      text-shadow:0 0 20px var(--punk-dim), 0 0 40px rgba(224,64,251,0.3);
-      animation:logo-pulse 5s ease-in-out infinite;
+    .header-login-btn:hover { border-color:var(--punk-dim); color:var(--punk); box-shadow:0 0 10px var(--punk-glow); }
+    .auth-dropdown { position:relative; display:flex; align-items:center; }
+    .auth-dropdown-trigger {
+      background:transparent; border:1px solid var(--punk-dim); border-radius:5px;
+      color:var(--punk); cursor:pointer; font-family:'Orbitron',sans-serif;
+      font-size:0.6rem; font-weight:700; letter-spacing:1.5px; padding:7px 14px;
+      text-transform:uppercase; transition:all 0.18s; text-shadow:0 0 8px var(--punk-glow);
     }
-    .c-logo-sub { font-family:'Share Tech Mono',monospace; font-size:0.5rem; color:var(--text-dim); letter-spacing:2.5px; text-transform:uppercase; margin-top:5px; }
-    .c-header-right { display:flex; align-items:center; gap:14px; }
-    .c-wallet {
-      font-family:'Share Tech Mono',monospace; font-size:0.75rem;
-      color:var(--gold); border:1px solid var(--gold-dim); border-radius:5px;
-      padding:5px 12px; background:rgba(212,160,23,0.06);
+    .auth-dropdown-trigger:hover,
+    .auth-dropdown:focus-within .auth-dropdown-trigger { border-color:var(--punk); box-shadow:0 0 12px var(--punk-glow); }
+    .auth-dropdown-menu {
+      position:absolute; top:100%; right:0; padding-top:6px;
+      opacity:0; pointer-events:none; transform:translateY(-4px);
+      transition:opacity 0.18s, transform 0.18s; z-index:200;
     }
-    .c-wallet-label { font-size:0.52rem; color:var(--text-dim); letter-spacing:1px; }
-    .c-user-chip {
-      font-family:'Orbitron',sans-serif; font-size:0.55rem; font-weight:700;
-      color:var(--text-dim); letter-spacing:1px;
+    .auth-dropdown:focus-within .auth-dropdown-menu,
+    .auth-dropdown:hover .auth-dropdown-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+    .auth-dropdown-menu-inner {
+      background:var(--surface); border:1px solid var(--punk-dim); border-radius:7px;
+      min-width:160px; padding:6px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(224,64,251,0.08);
     }
+    .auth-dropdown-item {
+      display:block; width:100%; background:none; border:none; border-radius:5px;
+      color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace;
+      font-size:0.72rem; padding:8px 12px; text-align:left; transition:all 0.12s;
+    }
+    .auth-dropdown-item:hover { background:rgba(224,64,251,0.07); color:var(--text); }
+    .auth-dropdown-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
+    /* Ticker */
+    .ticker-wrap { background:#0a0318; border-bottom:1px solid var(--punk-dim); border-top:1px solid rgba(41,182,246,0.22); padding:5px 0; overflow:hidden; white-space:nowrap; display:flex; align-items:center; }
+    .ticker-label { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; color:var(--punk); letter-spacing:2.5px; padding:0 14px; white-space:nowrap; flex-shrink:0; border-right:1px solid var(--punk-dim); opacity:0.75; text-shadow:0 0 10px var(--punk-dim); }
+    .ticker-clip  { flex:1; overflow:hidden; min-width:0; }
+    .ticker-inner { display:inline-flex; animation:ticker 80s linear infinite; width:max-content; }
+    .ticker-item  { font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0 20px; border-right:1px solid var(--border); display:inline-flex; align-items:center; gap:5px; color:var(--text-dim); }
+    .ticker-item span { color:var(--punk); opacity:0.8; }
+    @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
 
     /* ── Layout ── */
     .c-page { max-width:1100px; margin:0 auto; padding:32px 24px 60px; }
@@ -241,31 +323,123 @@
       .c-filter-btn { width:auto; flex:1; min-width:80px; text-align:center; }
       .c-page { padding:20px 14px 40px; }
       .c-hero-title { font-size:1.1rem; }
-      .c-header { padding:10px 14px; }
-      .c-logo-title { font-size:0.85rem; }
+      .header-main { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; gap:8px; }
+      .wallet-center { padding:5px 12px; }
+      .wallet-center-val { font-size:1rem; }
+      .header-stats { display:none; }
+      .logo-sub { display:none; }
     }
   </style>
 </head>
 <body>
 
-<header class="c-header">
-  <div class="c-header-left">
-    <a href="/" class="c-back-btn">← Exchange</a>
-    <div class="c-logo">
-      <div class="c-logo-title">⚄ Casino</div>
-      <div class="c-logo-sub">Grand Line Stock Exchange</div>
-    </div>
-  </div>
-  <div class="c-header-right">
-    <div id="c-user-info" style="display:none">
-      <div class="c-wallet">
-        <div class="c-wallet-label">WALLET</div>
-        <div id="c-wallet-val">—</div>
+<div class="site-header">
+  <div class="header-main">
+    <div class="logo-block">
+      <svg class="punk-records-logo" viewBox="0 0 72 56" width="66" height="51" xmlns="http://www.w3.org/2000/svg" aria-label="Punk Records">
+        <defs>
+          <radialGradient id="dome-ext" cx="50%" cy="28%" r="62%">
+            <stop offset="0%"   stop-color="#f0e840"/>
+            <stop offset="40%"  stop-color="#29b6f6"/>
+            <stop offset="78%"  stop-color="#c060e8"/>
+            <stop offset="100%" stop-color="#e040fb"/>
+          </radialGradient>
+          <clipPath id="dome-clip">
+            <ellipse cx="36" cy="27" rx="29" ry="25"/>
+          </clipPath>
+        </defs>
+        <ellipse cx="36" cy="27" rx="29" ry="25" fill="url(#dome-ext)"/>
+        <ellipse cx="36" cy="32" rx="21" ry="17" fill="#0d0520"/>
+        <g clip-path="url(#dome-clip)" opacity="0.55">
+          <line x1="15" y1="32" x2="57" y2="32" stroke="#6020a0" stroke-width="0.8"/>
+          <line x1="17" y1="27" x2="55" y2="27" stroke="#6020a0" stroke-width="0.7"/>
+          <line x1="21" y1="23" x2="51" y2="23" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="26" y1="19" x2="46" y2="19" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="31" y1="16" x2="41" y2="16" stroke="#6020a0" stroke-width="0.5"/>
+          <line x1="36" y1="14" x2="15" y2="32" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="21" y2="33" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="29" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="36" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="43" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="51" y2="33" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="57" y2="32" stroke="#6020a0" stroke-width="0.6"/>
+        </g>
+        <path d="M15 32 L19 39 L23 32 L27 39 L31 32 L36 39 L41 32 L45 39 L49 32 L53 39 L57 32"
+              fill="none" stroke="#e040fb" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+        <rect x="5"  y="10" width="7" height="5" rx="0.8" fill="#29b6f6" opacity="0.8" transform="rotate(-22 8.5 12.5)"/>
+        <rect x="60" y="8"  width="7" height="5" rx="0.8" fill="#29b6f6" opacity="0.8" transform="rotate(22 63.5 10.5)"/>
+        <rect x="1"  y="24" width="5" height="4" rx="0.6" fill="#29b6f6" opacity="0.6" transform="rotate(-10 3.5 26)"/>
+        <rect x="66" y="22" width="5" height="4" rx="0.6" fill="#29b6f6" opacity="0.6" transform="rotate(10 68.5 24)"/>
+        <rect x="10" y="2"  width="6" height="4" rx="0.6" fill="#29b6f6" opacity="0.5" transform="rotate(-35 13 4)"/>
+        <rect x="56" y="1"  width="6" height="4" rx="0.6" fill="#29b6f6" opacity="0.5" transform="rotate(35 59 3)"/>
+      </svg>
+      <div class="logo-text">
+        <span class="logo-title">Grand Line Stock Exchange</span>
+        <span class="logo-sub">Dr. Vegapunk's Beri Analytics Engine ◈ Punk Records Node</span>
+        <a href="/" class="back-link">← Exchange</a>
       </div>
     </div>
-    <div class="c-user-chip" id="c-username"></div>
+    <div class="wallet-center" id="wallet-center-block">
+      <span class="wallet-center-label">◈ Your Wallet</span>
+      <span class="wallet-center-val" id="header-wallet-val">— ฿</span>
+      <span class="wallet-login-prompt" id="wallet-login-prompt">Log in to bet</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-box">
+        <div class="stat-label">Next Beri Drop</div>
+        <div class="stat-value drop-timer" id="drop-timer">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Last Uplink</div>
+        <div class="stat-value">Ch. 1180</div>
+      </div>
+      <div class="notif-dropdown">
+        <button class="notif-trigger">TRANSMISSION</button>
+        <div class="notif-menu">
+          <div class="update-panel">
+            <div class="update-header">
+              <span class="update-badge">Vegapunk Transmission</span>
+              <span class="update-week">Uplink: Ch.1180 ◈ Elbaf Node Active</span>
+            </div>
+            <div class="update-text">
+              The Elbaf Arc continues to shake community valuations. Harald's debut as King of Elbaf saw immediate surges for Giant-affiliated characters, while Shanks' Shamrock connection to the Gorosei keeps Red Hair Pirates at historic highs.
+            </div>
+            <div class="update-movers">
+              <span class="mover-chip up">▲ Harald</span>
+              <span class="mover-chip up">▲ Shanks</span>
+              <span class="mover-chip up">▲ Joy Boy</span>
+              <span class="mover-chip down">▼ Eustass Kidd</span>
+              <span class="mover-chip down">▼ Saturn</span>
+              <span class="mover-chip new">★ Man Marked by Flames</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="header-login-btn" id="header-login-btn">LOG IN</button>
+    </div>
   </div>
-</header>
+  <div class="ticker-wrap">
+    <span class="ticker-label">⚄ CASINO</span>
+    <div class="ticker-clip">
+      <div class="ticker-inner">
+        <span class="ticker-item"><span>PARIMUTUEL BETTING</span> — losers fund the winners</span>
+        <span class="ticker-item"><span>ONE BET PER PROP</span> — no take-backs</span>
+        <span class="ticker-item"><span>HOUSE CUT</span> — 5% on all pools</span>
+        <span class="ticker-item"><span>CHAPTER BETS</span> — open after each uplink</span>
+        <span class="ticker-item"><span>ARC OUTCOMES</span> — long-run positions</span>
+        <span class="ticker-item"><span>COMMUNITY SLANDER</span> — pick your side</span>
+        <span class="ticker-item"><span>ENDGAME PROPS</span> — the final island awaits</span>
+        <span class="ticker-item"><span>PARIMUTUEL BETTING</span> — losers fund the winners</span>
+        <span class="ticker-item"><span>ONE BET PER PROP</span> — no take-backs</span>
+        <span class="ticker-item"><span>HOUSE CUT</span> — 5% on all pools</span>
+        <span class="ticker-item"><span>CHAPTER BETS</span> — open after each uplink</span>
+        <span class="ticker-item"><span>ARC OUTCOMES</span> — long-run positions</span>
+        <span class="ticker-item"><span>COMMUNITY SLANDER</span> — pick your side</span>
+        <span class="ticker-item"><span>ENDGAME PROPS</span> — the final island awaits</span>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="c-page">
   <div class="c-hero">
@@ -320,16 +494,90 @@ function fB(v){
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+function updateHeaderWallet(){
+  const el = document.getElementById('header-wallet-val');
+  const prompt = document.getElementById('wallet-login-prompt');
+  if(!el) return;
+  if(currentUser){
+    el.textContent = fB(currentUser.beri_balance);
+    el.style.color = 'var(--gold)';
+    el.style.display = '';
+    if(prompt) prompt.style.display = 'none';
+  } else {
+    el.textContent = '— ฿';
+    el.style.color = 'var(--text-dim)';
+    if(prompt) prompt.style.display = '';
+  }
+}
+
+function getNextDropTime(){
+  const now = new Date();
+  const next = new Date(now);
+  const daysUntilSunday = (7 - now.getUTCDay()) % 7 || 7;
+  next.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  next.setUTCHours(0, 0, 0, 0);
+  return next;
+}
+function updateDropTimer(){
+  const el = document.getElementById('drop-timer');
+  if(!el) return;
+  const diff = getNextDropTime() - new Date();
+  if(diff <= 0){ el.textContent = 'DROP NOW'; return; }
+  const h = Math.floor(diff/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  const s = Math.floor((diff%60000)/1000);
+  const pad = n => String(n).padStart(2,'0');
+  const days = Math.floor(h/24);
+  el.textContent = days > 0 ? `${days}d ${pad(h%24)}h ${pad(m)}m` : `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+updateDropTimer();
+setInterval(updateDropTimer, 1000);
+
+function updateAuthUI(){
+  const loginBtn = document.getElementById('header-login-btn');
+  if(!loginBtn) return;
+  if(currentUser){
+    loginBtn.style.display = 'none';
+    let block = document.getElementById('header-user-block');
+    if(!block){
+      block = document.createElement('div');
+      block.id = 'header-user-block';
+      block.className = 'auth-dropdown';
+      block.innerHTML =
+        '<button class="auth-dropdown-trigger" id="header-username">• '+esc(currentUser.username)+' •</button>'+
+        '<div class="auth-dropdown-menu"><div class="auth-dropdown-menu-inner">'+
+          '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">← Exchange</button>'+
+          '<hr class="auth-dropdown-divider">'+
+          '<button class="auth-dropdown-item" id="hdr-logout-btn">⏻ Log Out</button>'+
+        '</div></div>';
+      loginBtn.parentNode.insertBefore(block, loginBtn.nextSibling);
+      document.getElementById('hdr-logout-btn').addEventListener('click', async function(){
+        await fetch(API_BASE+'/auth/logout',{method:'POST',credentials:'include'}).catch(()=>{});
+        window.location.href = '/';
+      });
+    }
+    block.style.display = 'flex';
+  } else {
+    loginBtn.style.display = '';
+    const block = document.getElementById('header-user-block');
+    if(block) block.style.display = 'none';
+  }
+  updateHeaderWallet();
+}
+
+document.getElementById('header-login-btn').addEventListener('click', function(){
+  window.location.href = '/';
+});
+document.getElementById('wallet-center-block').addEventListener('click', function(){
+  if(!currentUser) window.location.href = '/';
+});
+
 async function init(){
   try {
     const res = await fetch(API_BASE+'/auth/me', { credentials:'include' });
-    if(res.ok){
-      currentUser = await res.json();
-      document.getElementById('c-user-info').style.display='';
-      document.getElementById('c-username').textContent = currentUser.username;
-      document.getElementById('c-wallet-val').textContent = fB(currentUser.beri_balance);
-    }
+    if(res.ok) currentUser = await res.json();
   } catch(e){}
+  updateAuthUI();
   await loadProps();
 }
 
