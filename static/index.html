@@ -587,8 +587,11 @@ body::after {
 .trade-qty-display {
   background:var(--bg); border-left:1px solid var(--border); border-right:1px solid var(--border);
   color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:0.9rem; font-weight:700;
-  width:46px; height:32px; display:flex; align-items:center; justify-content:center; letter-spacing:1px;
+  width:56px; height:32px; display:flex; align-items:center; justify-content:center; letter-spacing:1px;
+  border-top:none; border-bottom:none; outline:none; text-align:center; -moz-appearance:textfield;
 }
+.trade-qty-display::-webkit-outer-spin-button,
+.trade-qty-display::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 .trade-cost-row {
   font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:var(--text-dim);
   margin-left:auto; letter-spacing:0.5px; text-align:right;
@@ -1644,7 +1647,7 @@ body::after {
             <span class="trade-qty-label">QTY</span>
             <div class="trade-qty-controls">
               <button class="trade-qty-btn" id="trade-qty-minus">−</button>
-              <span class="trade-qty-display" id="trade-qty-val">1</span>
+              <input type="number" class="trade-qty-display" id="trade-qty-val" value="1" min="1">
               <button class="trade-qty-btn" id="trade-qty-plus">+</button>
             </div>
             <div class="trade-cost-row">Total: <span class="trade-cost-val" id="trade-cost-display">— ฿</span></div>
@@ -1888,6 +1891,7 @@ function updateShortDisplay(c){
 function updateTradeUI(c){
   tradeCharId = c.id;
   tradeQty = 1;
+  document.getElementById('trade-qty-val').value = 1;
   const fb=document.getElementById('trade-feedback');
   fb.className='trade-feedback'; fb.textContent='';
   const sp=livePrice(c);
@@ -1899,7 +1903,7 @@ function updateTradeUI(c){
   document.getElementById('trade-holdings').textContent=held+' share'+(held!==1?'s':'');
   const wallet=getWallet();
   document.getElementById('trade-wallet-bal').textContent=fBeri(wallet);
-  document.getElementById('trade-qty-val').textContent=tradeQty;
+  document.getElementById('trade-qty-val').value=tradeQty;
   document.getElementById('trade-total-cost').textContent=fBeri(sp*tradeQty);
   document.getElementById('trade-cost-display').textContent=fBeri(sp*tradeQty);
   document.getElementById('trade-sell-btn').disabled=(held===0);
@@ -1909,11 +1913,25 @@ function updateTradeUI(c){
 
 function tradeUpdateQty(delta){
   tradeQty=Math.max(1,tradeQty+delta);
+  document.getElementById('trade-qty-val').value=tradeQty;
   if(tradeCharId===null) return;
   const c=CHARACTERS.find(x=>x.id===tradeCharId);
   if(!c) return;
   const sp=livePrice(c);
-  document.getElementById('trade-qty-val').textContent=tradeQty;
+  const total=sp*tradeQty;
+  document.getElementById('trade-total-cost').textContent=fBeri(total);
+  document.getElementById('trade-cost-display').textContent=fBeri(total);
+  document.getElementById('trade-buy-btn').disabled=(getWallet()<total);
+}
+
+function tradeSetQtyFromInput(){
+  const raw=parseInt(document.getElementById('trade-qty-val').value,10);
+  tradeQty=isNaN(raw)||raw<1 ? 1 : raw;
+  document.getElementById('trade-qty-val').value=tradeQty;
+  if(tradeCharId===null) return;
+  const c=CHARACTERS.find(x=>x.id===tradeCharId);
+  if(!c) return;
+  const sp=livePrice(c);
   const total=sp*tradeQty;
   document.getElementById('trade-total-cost').textContent=fBeri(total);
   document.getElementById('trade-cost-display').textContent=fBeri(total);
@@ -2508,6 +2526,8 @@ document.getElementById('group-select').addEventListener('change',e=>{
 // ── TRADING TERMINAL EVENT LISTENERS ──
 document.getElementById('trade-qty-minus').addEventListener('click', function(){ tradeUpdateQty(-1); });
 document.getElementById('trade-qty-plus').addEventListener('click', function(){ tradeUpdateQty(1); });
+document.getElementById('trade-qty-val').addEventListener('input', tradeSetQtyFromInput);
+document.getElementById('trade-qty-val').addEventListener('blur', tradeSetQtyFromInput);
 
 document.getElementById('trade-buy-btn').addEventListener('click', async function(){
   const c=CHARACTERS.find(x=>x.id===tradeCharId);
