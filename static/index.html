@@ -1731,7 +1731,8 @@ body::after {
 <script>
 
 let CHARACTERS = [];
-const SESSION_BERI = {}; // char.id → beri at session start, for live delta arrows
+const SESSION_BERI = {}; // char.id → beri at session start
+const PRICE_DELTA = {};  // char.id → {pct, up} from most recent trade or WS tick
 
 // ── Username display filter ──
 const _BLOCKED = [
@@ -1920,7 +1921,6 @@ function updateTradeUI(c){
   document.getElementById('trade-holdings').textContent=held+' share'+(held!==1?'s':'');
   const wallet=getWallet();
   document.getElementById('trade-wallet-bal').textContent=fBeri(wallet);
-  document.getElementById('trade-qty-val').value=tradeQty;
   document.getElementById('trade-total-cost').textContent=fBeri(sp*tradeQty);
   document.getElementById('trade-cost-display').textContent=fBeri(sp*tradeQty);
   document.getElementById('trade-sell-btn').disabled=(held===0);
@@ -1945,7 +1945,7 @@ function tradeUpdateQty(delta){
 function tradeSetQtyFromInput(){
   const raw=parseInt(document.getElementById('trade-qty-val').value,10);
   tradeQty=isNaN(raw)||raw<1 ? 1 : raw;
-  document.getElementById('trade-qty-val').value=tradeQty;
+  // Don't write tradeQty back — keeps the field blank when user clears it
   if(tradeCharId===null) return;
   const c=CHARACTERS.find(x=>x.id===tradeCharId);
   if(!c) return;
@@ -2175,12 +2175,9 @@ function chartStats(c) {
     hasChart = true;
     computedPct = canon > 0 ? Math.abs((beri-canon)/canon*100).toFixed(1) : null;
   }
-  // Live session delta: if price has moved since page load, that wins
-  const sessionStart = SESSION_BERI[c.id];
-  if (sessionStart && Math.abs(c.beri - sessionStart) / sessionStart > 0.0001) {
-    const livePct = Math.abs((c.beri - sessionStart) / sessionStart * 100).toFixed(1);
-    return { hasChart, up: c.beri >= sessionStart, pct: livePct };
-  }
+  // Most recent trade/tick delta — reflects the actual price jump
+  const delta = PRICE_DELTA[c.id];
+  if (delta) return { hasChart, up: delta.up, pct: delta.pct };
   // Editorial baseline for chars not yet traded this session
   const r = RECENT_PCT[c.name];
   if (r) return { hasChart, up: r.up, pct: r.pct };
@@ -2572,7 +2569,11 @@ document.getElementById('trade-buy-btn').addEventListener('click', async functio
       currentUser.beri_balance=data.beri_balance;
       if(!serverPortfolio) serverPortfolio={};
       serverPortfolio[key]=data.shares_held;
-      if(data.new_beri) c.beri=data.new_beri;
+      if(data.new_beri){
+        const pct=(data.new_beri-c.beri)/c.beri*100;
+        PRICE_DELTA[c.id]={pct:Math.abs(pct).toFixed(2),up:pct>0};
+        c.beri=data.new_beri;
+      }
       const pressure=getMarketPressure();
       pressure[key]=(pressure[key]||0)+tradeQty;
       setMarketPressure(pressure);
@@ -2616,7 +2617,11 @@ document.getElementById('trade-sell-btn').addEventListener('click', async functi
       currentUser.beri_balance=data.beri_balance;
       if(!serverPortfolio) serverPortfolio={};
       if(data.shares_held===0) delete serverPortfolio[key]; else serverPortfolio[key]=data.shares_held;
-      if(data.new_beri) c.beri=data.new_beri;
+      if(data.new_beri){
+        const pct=(data.new_beri-c.beri)/c.beri*100;
+        PRICE_DELTA[c.id]={pct:Math.abs(pct).toFixed(2),up:pct>0};
+        c.beri=data.new_beri;
+      }
       const pressure=getMarketPressure();
       pressure[key]=Math.max(0,(pressure[key]||0)-qty);
       setMarketPressure(pressure);
@@ -3970,6 +3975,10 @@ init();
       for(const [id, beri] of Object.entries(msg.data)){
         const c = CHARACTERS.find(x => String(x.id) === id);
         if(!c || Math.abs(c.beri - beri) < 1) continue;
+        if(c.beri){
+          const pct=(beri-c.beri)/c.beri*100;
+          if(Math.abs(pct)>=0.01) PRICE_DELTA[c.id]={pct:Math.abs(pct).toFixed(2),up:pct>0};
+        }
         c.beri = beri;
         updateCardSharePrice(c);
         updateCardArrow(c);
