@@ -129,3 +129,54 @@ class ShareOut(BaseModel):
     quantity: int
 
     model_config = {"from_attributes": True}
+
+
+# ── Casino ────────────────────────────────────────────────────────────────────
+
+class PropositionCreate(BaseModel):
+    question: str
+    category: str = ""
+    options: List[str]                  # min 2 options
+    house_cut: float = 0.05
+    closes_at: Optional[datetime] = None
+
+
+class OptionOdds(BaseModel):
+    index: int
+    label: str
+    total_bet: float
+    implied_pct: float                  # % of pool on this option
+
+
+class PropositionOut(BaseModel):
+    id: int
+    question: str
+    category: str
+    options: List[str]
+    status: str
+    house_cut: float
+    closes_at: Optional[datetime]
+    created_at: datetime
+    resolved_at: Optional[datetime]
+    correct_option: Optional[int]
+    odds: List[OptionOdds]              # live pool breakdown
+    total_pool: float
+    user_bet_option: Optional[int]      # which option the requesting user backed
+    user_bet_amount: Optional[float]
+
+    model_config = {"from_attributes": True}
+
+
+class BetRequest(BaseModel):
+    proposition_id: int
+    option_index: int
+    amount: float
+
+
+class BetOut(BaseModel):
+    proposition_id: int
+    option_index: int
+    amount: float
+    new_balance: float
+
+    model_config = {"from_attributes": True}

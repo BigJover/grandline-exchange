@@ -13,7 +13,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 from app.database import Base, engine, SessionLocal
 from app import models
-from app.routers import auth, characters, trades, admin, users, requests as requests_router, comments as comments_router
+from app.routers import auth, characters, trades, admin, users, requests as requests_router, comments as comments_router, casino as casino_router
 from app.scheduler import scheduler
 from app.websocket_manager import manager
 from app.price_queue import updates as price_updates
@@ -163,6 +163,7 @@ app.include_router(admin.router)
 app.include_router(users.router)
 app.include_router(requests_router.router)
 app.include_router(comments_router.router)
+app.include_router(casino_router.router)
 
 
 @app.websocket("/ws")

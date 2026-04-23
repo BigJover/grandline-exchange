@@ -123,6 +123,38 @@ class CommentLike(Base):
     comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False)
 
 
+class Proposition(Base):
+    __tablename__ = "propositions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(String, nullable=False)
+    category = Column(String, default="")         # chapter / arc / slander / meta / endgame
+    options = Column(JSON, default=list)           # ["Yes", "No"] or multi-choice
+    correct_option = Column(Integer, nullable=True) # index into options; set on resolve
+    status = Column(String, default="open")        # open | closed | resolved
+    house_cut = Column(Float, default=0.05)        # fraction kept by the house
+    closes_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    bets = relationship("PropositionBet", back_populates="proposition")
+
+
+class PropositionBet(Base):
+    __tablename__ = "proposition_bets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    proposition_id = Column(Integer, ForeignKey("propositions.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    option_index = Column(Integer, nullable=False)  # which option the user backed
+    amount = Column(Float, nullable=False)
+    payout = Column(Float, nullable=True)           # filled in when proposition resolves
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    proposition = relationship("Proposition", back_populates="bets")
+    user = relationship("User")
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
 

@@ -2,10 +2,10 @@ import os
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import List, Optional
 
 from app.database import get_db
-from app import models
+from app import models, schemas
 from app.scheduler import run_beri_drop, WEEKLY_DROP
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -168,3 +168,157 @@ def trigger_beri_drop(x_admin_secret: Optional[str] = Header(None), db: Session 
         "users_paid": count,
         "total_distributed": WEEKLY_DROP * count,
     }
+
+
+# ── Casino admin ──────────────────────────────────────────────────────────────
+
+@router.post("/casino/create")
+def casino_create(
+    prop: schemas.PropositionCreate,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Create a new proposition. options must have at least 2 entries."""
+    _check_secret(x_admin_secret)
+    if len(prop.options) < 2:
+        raise HTTPException(status_code=400, detail="Need at least 2 options")
+    if not 0 < prop.house_cut < 1:
+        raise HTTPException(status_code=400, detail="house_cut must be between 0 and 1")
+    p = models.Proposition(
+        question=prop.question,
+        category=prop.category,
+        options=prop.options,
+        house_cut=prop.house_cut,
+        closes_at=prop.closes_at,
+        status="open",
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return {"status": "ok", "id": p.id, "question": p.question}
+
+
+@router.post("/casino/close/{prop_id}")
+def casino_close(
+    prop_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Lock a proposition so no new bets can be placed (status → closed)."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Proposition not found")
+    if prop.status != "open":
+        raise HTTPException(status_code=400, detail=f"Proposition is already {prop.status}")
+    prop.status = "closed"
+    db.commit()
+    return {"status": "ok", "prop_id": prop_id}
+
+
+@router.post("/casino/resolve/{prop_id}")
+def casino_resolve(
+    prop_id: int,
+    correct_option: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Resolve a proposition, pay out winners, log BeriEvents for all bettors."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Proposition not found")
+    if prop.status == "resolved":
+        raise HTTPException(status_code=400, detail="Already resolved")
+    if correct_option < 0 or correct_option >= len(prop.options):
+        raise HTTPException(status_code=400, detail="Invalid correct_option index")
+
+    bets = db.query(models.PropositionBet).filter(
+        models.PropositionBet.proposition_id == prop_id
+    ).all()
+
+    total_pool = sum(b.amount for b in bets)
+    winner_pool = sum(b.amount for b in bets if b.option_index == correct_option)
+    house_take = round(total_pool * prop.house_cut, 2)
+    prize_pool = total_pool - house_take
+
+    winners, losers, total_paid = 0, 0, 0.0
+
+    for bet in bets:
+        user = db.query(models.User).filter(models.User.id == bet.user_id).first()
+        if not user:
+            continue
+        if bet.option_index == correct_option and winner_pool > 0:
+            payout = round((bet.amount / winner_pool) * prize_pool, 2)
+            bet.payout = payout
+            user.beri_balance += payout
+            total_paid += payout
+            db.add(models.BeriEvent(
+                user_id=user.id,
+                event_type="casino_win",
+                amount=payout,
+                description=(
+                    f"Casino win — \"{prop.question}\" → "
+                    f"\"{prop.options[correct_option]}\" "
+                    f"({payout:,.0f}฿ on {bet.amount:,.0f}฿ bet)"
+                ),
+            ))
+            winners += 1
+        else:
+            bet.payout = 0.0
+            db.add(models.BeriEvent(
+                user_id=user.id,
+                event_type="casino_loss",
+                amount=0,
+                description=(
+                    f"Casino loss — \"{prop.question}\" → "
+                    f"\"{prop.options[correct_option]}\" "
+                    f"({bet.amount:,.0f}฿ lost)"
+                ),
+            ))
+            losers += 1
+
+    prop.correct_option = correct_option
+    prop.status = "resolved"
+    prop.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return {
+        "status": "ok",
+        "prop_id": prop_id,
+        "correct_option": correct_option,
+        "correct_label": prop.options[correct_option],
+        "total_pool": total_pool,
+        "house_take": house_take,
+        "prize_pool": prize_pool,
+        "winners": winners,
+        "losers": losers,
+        "total_paid_out": total_paid,
+    }
+
+
+@router.get("/casino/propositions")
+def casino_list_all(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """List all propositions with pool totals for admin review."""
+    _check_secret(x_admin_secret)
+    props = db.query(models.Proposition).order_by(models.Proposition.created_at.desc()).all()
+    result = []
+    for p in props:
+        total = sum(b.amount for b in p.bets)
+        per_option = {}
+        for b in p.bets:
+            per_option[p.options[b.option_index]] = per_option.get(p.options[b.option_index], 0) + b.amount
+        result.append({
+            "id": p.id,
+            "question": p.question,
+            "category": p.category,
+            "status": p.status,
+            "closes_at": str(p.closes_at) if p.closes_at else None,
+            "total_pool": total,
+            "pool_breakdown": per_option,
+            "correct_option": p.options[p.correct_option] if p.correct_option is not None else None,
+        })
+    return result
