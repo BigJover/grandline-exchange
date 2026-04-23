@@ -1,10 +1,15 @@
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
+
+limiter = Limiter(key_func=get_remote_address)
 
 from app.database import Base, engine, SessionLocal
 from app import models
@@ -94,6 +99,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Grand Line Stock Exchange API", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
