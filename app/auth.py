@@ -2,14 +2,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
 
 from app.database import get_db
-from app import models, schemas
+from app import models
 
 load_dotenv()
 
@@ -17,7 +16,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))  # 24 hours
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+COOKIE_NAME = "glse_session"
 
 
 def hash_password(password: str) -> str:
@@ -35,40 +34,35 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-_optional_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+def _decode_token(token: str) -> Optional[str]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload.get("sub")
+    except JWTError:
+        return None
 
 
-def get_optional_user(token: Optional[str] = Depends(_optional_scheme), db: Session = Depends(get_db)):
-    """Returns the current user if a valid token is provided, otherwise None."""
+def get_optional_user(request: Request, db: Session = Depends(get_db)) -> Optional[models.User]:
+    token = request.cookies.get(COOKIE_NAME)
     if not token:
         return None
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if not username:
-            return None
-        return db.query(models.User).filter(models.User.username == username).first()
-    except JWTError:
+    username = _decode_token(token)
+    if not username:
         return None
+    return db.query(models.User).filter(models.User.username == username).first()
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> models.User:
+    token = request.cookies.get(COOKIE_NAME)
+    username = _decode_token(token) if token else None
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
     user = db.query(models.User).filter(models.User.username == username).first()
     if user is None:
-        raise credentials_exception
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
 
 

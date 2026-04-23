@@ -1808,7 +1808,7 @@ function setPortfolio(p){
 async function fetchPortfolio(){
   if(!currentUser) return;
   try{
-    const res = await fetch(API_BASE+'/trade/portfolio', { headers: authHeaders() });
+    const res = await fetch(API_BASE+'/trade/portfolio', { credentials: 'include' });
     if(!res.ok){ serverPortfolio = {}; return; }
     const shares = await res.json();
     serverPortfolio = {};
@@ -2448,7 +2448,7 @@ async function loadComments(charId){
   document.getElementById('comments-week-label').textContent = '— week of '+iso.slice(5).replace('-','/');
 
   try {
-    const res = await fetch(API_BASE+'/characters/'+charId+'/comments', {headers:authHeaders()});
+    const res = await fetch(API_BASE+'/characters/'+charId+'/comments', {credentials:'include'});
     if(!res.ok) throw new Error('Failed');
     const comments = await res.json();
     if(!comments.length){
@@ -2475,7 +2475,7 @@ async function loadComments(charId){
 async function toggleCommentLike(id, btn){
   if(!currentUser){ openAuthModal('login'); return; }
   try {
-    const res = await fetch(API_BASE+'/comments/'+id+'/like', {method:'POST', headers:authHeaders()});
+    const res = await fetch(API_BASE+'/comments/'+id+'/like', {method:'POST', credentials:'include'});
     if(!res.ok) throw new Error();
     const data = await res.json();
     btn.classList.toggle('liked', data.liked);
@@ -2499,7 +2499,8 @@ document.getElementById('comment-submit').addEventListener('click', async functi
   try {
     const res = await fetch(API_BASE+'/characters/'+currentModalChar.id+'/comments', {
       method:'POST',
-      headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+      headers: {'Content-Type':'application/json'},
+      credentials: 'include',
       body: JSON.stringify({body}),
     });
     const data = await res.json().catch(function(){return {};});
@@ -2562,7 +2563,7 @@ document.getElementById('trade-buy-btn').addEventListener('click', async functio
     this.disabled=true; this.textContent='◈ BUYING…';
     try{
       const res=await fetch(API_BASE+'/trade/',{
-        method:'POST', headers:{'Content-Type':'application/json',...authHeaders()},
+        method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
         body:JSON.stringify({character_id:c.id,action:'buy',quantity:tradeQty})
       });
       const data=await res.json();
@@ -2606,7 +2607,7 @@ document.getElementById('trade-sell-btn').addEventListener('click', async functi
     this.disabled=true; this.textContent='SELLING…';
     try{
       const res=await fetch(API_BASE+'/trade/',{
-        method:'POST', headers:{'Content-Type':'application/json',...authHeaders()},
+        method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
         body:JSON.stringify({character_id:c.id,action:'sell',quantity:qty})
       });
       const data=await res.json();
@@ -2719,7 +2720,8 @@ document.getElementById('req-submit').addEventListener('click', async function()
   try {
     const res = await fetch(API_BASE + '/requests/character', {
       method: 'POST',
-      headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+      headers: {'Content-Type':'application/json'},
+      credentials: 'include',
       body: JSON.stringify({
         name,
         aliases:   document.getElementById('rf-aliases').value.trim(),
@@ -2861,7 +2863,8 @@ document.getElementById('price-submit').addEventListener('click', async function
   try {
     const res = await fetch(API_BASE + '/requests/price', {
       method: 'POST',
-      headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+      headers: {'Content-Type':'application/json'},
+      credentials: 'include',
       body: JSON.stringify({ character_name: name, proposed_beri: beri, reason }),
     });
     const data = await res.json().catch(function(){ return {}; });
@@ -2897,7 +2900,7 @@ async function renderAdminList(){
   const list = document.getElementById('admin-list');
   list.innerHTML = '<div class="admin-empty">Loading\u2026</div>';
   try {
-    const res = await fetch(API_BASE + '/admin/requests', { headers: authHeaders() });
+    const res = await fetch(API_BASE + '/admin/requests', { credentials: 'include' });
     if(!res.ok) throw new Error('Failed to load requests');
     const data = await res.json();
     const priceReqs = data.price_requests || [];
@@ -2958,7 +2961,7 @@ async function renderAdminList(){
 
 async function approvePriceRequest(id){
   try {
-    const res = await fetch(API_BASE + '/admin/requests/price/'+id+'/approve', { method:'POST', headers: authHeaders() });
+    const res = await fetch(API_BASE + '/admin/requests/price/'+id+'/approve', { method:'POST', credentials: 'include' });
     const data = await res.json().catch(function(){ return {}; });
     if(!res.ok) throw new Error(data.detail || 'Server error');
     const char = CHARACTERS.find(function(c){ return c.name.toLowerCase()===data.name.toLowerCase(); });
@@ -2970,7 +2973,7 @@ async function approvePriceRequest(id){
 
 async function dismissPriceRequest(id){
   try {
-    const res = await fetch(API_BASE + '/admin/requests/price/'+id+'/dismiss', { method:'POST', headers: authHeaders() });
+    const res = await fetch(API_BASE + '/admin/requests/price/'+id+'/dismiss', { method:'POST', credentials: 'include' });
     if(!res.ok) throw new Error('Dismiss failed');
     renderAdminList();
   } catch(e){ alert('\u26A0 ' + e.message); }
@@ -2978,7 +2981,7 @@ async function dismissPriceRequest(id){
 
 async function approveCharRequest(id, name){
   try {
-    const res = await fetch(API_BASE + '/admin/requests/character/'+id+'/approve', { method:'POST', headers: authHeaders() });
+    const res = await fetch(API_BASE + '/admin/requests/character/'+id+'/approve', { method:'POST', credentials: 'include' });
     if(!res.ok) throw new Error('Approve failed');
     renderAdminList();
     alert('\u2713 "'+name+'" approved. Add full data to the DB to complete the entry.');
@@ -2987,7 +2990,7 @@ async function approveCharRequest(id, name){
 
 async function dismissCharRequest(id){
   try {
-    const res = await fetch(API_BASE + '/admin/requests/character/'+id+'/dismiss', { method:'POST', headers: authHeaders() });
+    const res = await fetch(API_BASE + '/admin/requests/character/'+id+'/dismiss', { method:'POST', credentials: 'include' });
     if(!res.ok) throw new Error('Dismiss failed');
     renderAdminList();
   } catch(e){ alert('\u26A0 ' + e.message); }
@@ -3001,24 +3004,15 @@ document.addEventListener('keydown',function(e){
 const API_BASE = '';
 
 // ── AUTH STATE ────────────────────────────────────────────────────────────────
-const AUTH_TOKEN_KEY = 'glse_token';
 let currentUser = null;
 
-function getAuthToken(){ return localStorage.getItem(AUTH_TOKEN_KEY); }
-function setAuthToken(t){ localStorage.setItem(AUTH_TOKEN_KEY, t); }
-function clearAuthToken(){ localStorage.removeItem(AUTH_TOKEN_KEY); }
-
-function authHeaders(){
-  const t = getAuthToken();
-  return t ? { 'Authorization': 'Bearer ' + t } : {};
-}
+// Auth uses httpOnly cookies — no token ever stored in JS or localStorage
+function authHeaders(){ return {}; }
 
 async function fetchCurrentUser(){
-  const t = getAuthToken();
-  if(!t) return null;
   try {
-    const res = await fetch(API_BASE + '/auth/me', { headers: { 'Authorization': 'Bearer ' + t } });
-    if(!res.ok){ clearAuthToken(); return null; }
+    const res = await fetch(API_BASE + '/auth/me', { credentials: 'include' });
+    if(!res.ok) return null;
     return await res.json();
   } catch(e){ return null; }
 }
@@ -3028,26 +3022,28 @@ async function apiLogin(username, password){
   const res = await fetch(API_BASE + '/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    credentials: 'include',
     body: body.toString()
   });
   if(!res.ok){
     const err = await res.json().catch(()=>({}));
     throw new Error(err.detail || 'Login failed');
   }
-  return res.json(); // { access_token, token_type }
+  return res.json();
 }
 
 async function apiSignup(username, email, password){
   const res = await fetch(API_BASE + '/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ username, email, password })
   });
   if(!res.ok){
     const err = await res.json().catch(()=>({}));
     throw new Error(err.detail || 'Signup failed');
   }
-  return res.json(); // UserOut
+  return res.json();
 }
 
 function updateAuthUI(){
@@ -3090,8 +3086,8 @@ function updateAuthUI(){
   updateHeaderWallet();
 }
 
-function handleLogout(){
-  clearAuthToken();
+async function handleLogout(){
+  await fetch(API_BASE + '/auth/logout', { method: 'POST', credentials: 'include' }).catch(()=>{});
   currentUser = null;
   serverPortfolio = null;
   updateAuthUI();
@@ -3135,8 +3131,7 @@ document.getElementById('login-submit').addEventListener('click', async function
   }
   btn.disabled = true; btn.textContent = 'Logging in…';
   try {
-    const { access_token } = await apiLogin(username, password);
-    setAuthToken(access_token);
+    await apiLogin(username, password);
     currentUser = await fetchCurrentUser();
     await fetchPortfolio();
     updateAuthUI();
@@ -3164,9 +3159,6 @@ document.getElementById('signup-submit').addEventListener('click', async functio
   btn.disabled = true; btn.textContent = 'Creating…';
   try {
     await apiSignup(username, email, password);
-    // auto-login after signup
-    const { access_token } = await apiLogin(username, password);
-    setAuthToken(access_token);
     currentUser = await fetchCurrentUser();
     await fetchPortfolio();
     updateAuthUI();
@@ -3475,10 +3467,8 @@ async function handleFactionJoin(factionId, btn){
   try {
     const res = await fetch(API_BASE + '/users/me/faction', {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + getAuthToken(),
-      },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ faction: factionId }),
     });
     if(!res.ok){
@@ -3653,7 +3643,8 @@ async function confirmFactionJoin(factionId, btn){
   try {
     const res = await fetch(API_BASE + '/users/me/faction', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ faction: factionId }),
     });
     if(!res.ok){
@@ -3695,7 +3686,7 @@ async function subscribeWarlord(btn){
   try {
     const res = await fetch(API_BASE + '/users/me/warlord', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + getAuthToken() },
+      credentials: 'include',
     });
     if(!res.ok){
       const err = await res.json().catch(function(){ return {}; });
@@ -3769,7 +3760,7 @@ async function loadLeaderboard(){
   list.innerHTML = '<div class="leaderboard-empty">Loading\u2026</div>';
   try {
     const res = await fetch(API_BASE + '/users/leaderboard?limit=50', {
-      headers: { 'Authorization': 'Bearer ' + getAuthToken() },
+      credentials: 'include',
     });
     if(!res.ok) throw new Error('API error ' + res.status);
     const entries = await res.json();
@@ -3871,7 +3862,7 @@ async function loadLedger(){
   list.innerHTML = '<div class="ledger-empty">Loading\u2026</div>';
   try {
     const res = await fetch(API_BASE + '/users/me/ledger?limit=60', {
-      headers: { 'Authorization': 'Bearer ' + getAuthToken() },
+      credentials: 'include',
     });
     if(!res.ok) throw new Error('API error ' + res.status);
     const entries = await res.json();
