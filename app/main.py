@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import os
 
 from app.database import Base, engine, SessionLocal
@@ -128,7 +128,9 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def root():
-    return FileResponse(
-        os.path.join(STATIC_DIR, "index.html"),
+    with open(os.path.join(STATIC_DIR, "index.html"), "r") as f:
+        content = f.read()
+    return HTMLResponse(
+        content=content,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )
