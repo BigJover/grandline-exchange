@@ -547,6 +547,8 @@ function updateAuthUI(){
       block.innerHTML =
         '<button class="auth-dropdown-trigger" id="header-username">• '+esc(currentUser.username)+' •</button>'+
         '<div class="auth-dropdown-menu"><div class="auth-dropdown-menu-inner">'+
+          '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">← Exchange</button>'+
+          '<hr class="auth-dropdown-divider">'+
           '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">◈ Portfolio</button>'+
           '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">⚑ Faction</button>'+
           '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">⊟ Ledger</button>'+
