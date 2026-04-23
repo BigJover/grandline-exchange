@@ -529,6 +529,16 @@ body::after {
 .modal-bio-empty { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); font-style:italic; }
 
 /* ── Price Event Log ── */
+.event-log-toggle {
+  display:flex; align-items:center; justify-content:space-between;
+  cursor:pointer; user-select:none;
+}
+.event-log-toggle .event-log-chevron {
+  font-size:0.6rem; color:var(--text-dim); transition:transform 0.2s;
+}
+.event-log-toggle.open .event-log-chevron { transform:rotate(180deg); }
+.event-log-body { display:none; }
+.event-log-body.open { display:block; }
 .event-log {
   background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;
 }
@@ -1756,17 +1766,23 @@ body::after {
         <div class="modal-sbs-block" id="modal-sbs-entries"></div>
       </div>
 
-      <!-- ── Price Event Log ── -->
-      <div id="modal-event-log-wrap" style="display:none;">
-        <div class="modal-section-label">◈ Price Event Log</div>
-        <div class="event-log" id="modal-event-log"></div>
-      </div>
-
       <!-- ── Related Nodes ── -->
       <div id="modal-related-wrap" style="display:none;">
         <div class="modal-section-label">◈ Related Nodes</div>
         <div class="modal-related-grid" id="modal-related-grid"></div>
       </div>
+
+      <!-- ── Price Event Log (collapsible) ── -->
+      <div id="modal-event-log-wrap" style="display:none;">
+        <div class="modal-section-label event-log-toggle" id="event-log-toggle">
+          ◈ Price Event Log
+          <span class="event-log-chevron">▼</span>
+        </div>
+        <div class="event-log-body" id="event-log-body">
+          <div class="event-log" id="modal-event-log"></div>
+        </div>
+      </div>
+
       <!-- Comments -->
       <div class="modal-comments-wrap">
         <div class="modal-section-label">◈ Community Analysis <span class="comments-week-label" id="comments-week-label"></span></div>
@@ -2481,12 +2497,20 @@ function openModal(id) {
     analysisWrap.style.display = 'none';
   }
 
-  // Price Event Log
-  var logWrap = document.getElementById('modal-event-log-wrap');
-  var logEl   = document.getElementById('modal-event-log');
-  var logHtml = buildEventLog(c.price_history);
-  if(logHtml){ logEl.innerHTML = logHtml; logWrap.style.display = ''; }
-  else { logWrap.style.display = 'none'; }
+  // Price Event Log (collapsible — collapsed by default)
+  var logWrap   = document.getElementById('modal-event-log-wrap');
+  var logEl     = document.getElementById('modal-event-log');
+  var logBody   = document.getElementById('event-log-body');
+  var logToggle = document.getElementById('event-log-toggle');
+  var logHtml   = buildEventLog(c.price_history);
+  if(logHtml){
+    logEl.innerHTML = logHtml;
+    logBody.classList.remove('open');
+    logToggle.classList.remove('open');
+    logWrap.style.display = '';
+  } else {
+    logWrap.style.display = 'none';
+  }
 
   // SBS Intelligence Feed
   const sbsWrap = document.getElementById('modal-sbs-wrap');
@@ -2659,6 +2683,11 @@ document.getElementById('comment-login-prompt').addEventListener('click', functi
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', function(e){
   if(e.target===this) closeModal();
+});
+document.getElementById('event-log-toggle').addEventListener('click', function(){
+  var body = document.getElementById('event-log-body');
+  var open = body.classList.toggle('open');
+  this.classList.toggle('open', open);
 });
 document.addEventListener('keydown', function(e){
   if(e.key==='Escape') closeModal();
