@@ -67,7 +67,7 @@
     @keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
     @keyframes transmission-shimmer { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 14px rgba(224,64,251,0.5)} }
     .header-main { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:12px 24px; gap:16px; }
-    .logo-block { display:flex; align-items:center; gap:14px; }
+    .logo-block { display:flex; align-items:center; gap:14px; cursor:pointer; }
     .punk-records-logo { color:var(--punk); filter:drop-shadow(0 0 10px var(--punk-dim)) drop-shadow(0 0 24px rgba(224,64,251,0.25)); flex-shrink:0; animation:logo-pulse 5s ease-in-out infinite; }
     .logo-text { display:flex; flex-direction:column; line-height:1; }
     .logo-title { font-family:'Orbitron',sans-serif; font-size:1.05rem; font-weight:900; color:var(--punk); letter-spacing:2px; text-transform:uppercase; text-shadow:0 0 20px var(--punk-dim),0 0 40px rgba(224,64,251,0.3); }
@@ -230,7 +230,7 @@
 <!-- ── Header ── -->
 <div class="site-header">
   <div class="header-main">
-    <div class="logo-block">
+    <div class="logo-block" onclick="window.location.href='/'">
       <svg class="punk-records-logo" viewBox="0 0 72 56" width="66" height="51" xmlns="http://www.w3.org/2000/svg" aria-label="Punk Records">
         <defs>
           <radialGradient id="dome-ext" cx="50%" cy="28%" r="62%">
