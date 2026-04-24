@@ -13,11 +13,11 @@ connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite")
 pool_kwargs = {}
 if not DATABASE_URL.startswith("sqlite"):
     pool_kwargs = {
-        "pool_size": 2,
-        "max_overflow": 2,
+        "pool_size": 5,
+        "max_overflow": 5,
         "pool_pre_ping": True,
-        "pool_recycle": 1800,   # recycle connections every 30 min
-        "pool_timeout": 10,     # fail fast instead of queuing
+        "pool_recycle": 3600,   # recycle connections every 60 min
+        "pool_timeout": 15,
     }
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args, **pool_kwargs)

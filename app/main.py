@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -178,6 +179,16 @@ backfill_base_beri()
 patch_character_meta()
 backfill_referral_codes()
 
+# Cache HTML pages in memory at startup — avoids disk read on every request
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
+_html_cache: dict[str, str] = {}
+for _page in ("index.html", "community.html", "casino.html", "profile.html"):
+    try:
+        with open(os.path.join(STATIC_DIR, _page)) as _f:
+            _html_cache[_page] = _f.read()
+    except Exception:
+        pass
+
 
 async def price_broadcaster():
     """Every 5 s: drain trade-triggered updates and broadcast.
@@ -236,6 +247,8 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 _allowed_origin = os.getenv("ALLOWED_ORIGIN", "https://grandline-exchange-production.up.railway.app")
 app.add_middleware(
     CORSMiddleware,
@@ -266,45 +279,26 @@ async def ws_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+_NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate"}
 
 
 @app.get("/")
 def root():
-    with open(os.path.join(STATIC_DIR, "index.html"), "r") as f:
-        content = f.read()
-    return HTMLResponse(
-        content=content,
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-    )
+    return HTMLResponse(content=_html_cache["index.html"], headers=_NO_CACHE)
 
 
 @app.get("/community")
 def community_page():
-    with open(os.path.join(STATIC_DIR, "community.html"), "r") as f:
-        content = f.read()
-    return HTMLResponse(
-        content=content,
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-    )
+    return HTMLResponse(content=_html_cache["community.html"], headers=_NO_CACHE)
 
 
 @app.get("/casino")
 def casino_page():
-    with open(os.path.join(STATIC_DIR, "casino.html"), "r") as f:
-        content = f.read()
-    return HTMLResponse(
-        content=content,
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-    )
+    return HTMLResponse(content=_html_cache["casino.html"], headers=_NO_CACHE)
 
 
 @app.get("/profile")
 def profile_page():
-    with open(os.path.join(STATIC_DIR, "profile.html"), "r") as f:
-        content = f.read()
-    return HTMLResponse(
-        content=content,
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-    )
+    return HTMLResponse(content=_html_cache["profile.html"], headers=_NO_CACHE)
