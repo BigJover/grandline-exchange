@@ -9,7 +9,7 @@
     ],
     "faction": "Straw Hat Pirates",
     "category": "pirate",
-    "beri": 4100000000,
+    "beri": 4400000000,
     "canon_bounty": 3000000000,
     "status": "active",
     "notes": "Emperor, Captain",
@@ -65,6 +65,11 @@
         "chapter": 1180,
         "label": "Elbaf — Recovering, Crew One-shotted",
         "beri": 4100000000
+      },
+      {
+        "chapter": 1181,
+        "label": "Elbaf — Senses Imu Haki / Joy Boy Tie",
+        "beri": 4400000000
       }
     ],
     "full_name": "Monkey D. Luffy",
@@ -1179,7 +1184,7 @@
     ],
     "faction": "Cross Guild",
     "category": "pirate",
-    "beri": 3700000000,
+    "beri": 3950000000,
     "canon_bounty": 3590000000,
     "status": "active",
     "notes": "Stock: World Greatest Swordsman; polarizing community sentiment (Fraudhawk slander vs ceiling believers); yellow hawk eyes match Imu — lore premium applied",
@@ -1240,6 +1245,11 @@
         "chapter": 1180,
         "label": "Elbaf Arc — Current",
         "beri": 3700000000
+      },
+      {
+        "chapter": 1181,
+        "label": "Elbaf — Imu Sword Upscale",
+        "beri": 3950000000
       }
     ],
     "full_name": "Dracule Mihawk",
@@ -8620,7 +8630,7 @@
     ],
     "faction": "Elbaf",
     "category": "royalty",
-    "beri": 3650000000,
+    "beri": 5100000000,
     "canon_bounty": 2600000000,
     "status": "active",
     "notes": "Prince of Elbaf, legendary royal Devil Fruit, awakened Conqueror's Haki, falsely convicted of killing King Harald",
@@ -8675,6 +8685,11 @@
         "chapter": 1180,
         "label": "Elbaf Current",
         "beri": 3650000000
+      },
+      {
+        "chapter": 1181,
+        "label": "Elbaf — Nidhogg Revealed",
+        "beri": 5100000000
       }
     ],
     "title": "Prince of Elbaf"
@@ -13565,7 +13580,7 @@
     ],
     "faction": "World Government",
     "category": "royalty",
-    "beri": 5700000000,
+    "beri": 6100000000,
     "canon_bounty": 0,
     "status": "active",
     "notes": "True ruler of the world, sits on the Empty Throne, most dangerous entity alive",
@@ -13620,6 +13635,11 @@
         "chapter": 1180,
         "label": "Elbaf — Omen Revealed / One-shots Both Wings",
         "beri": 5700000000
+      },
+      {
+        "chapter": 1181,
+        "label": "Elbaf — Dominion / Joy Boy Confirmed",
+        "beri": 6100000000
       }
     ],
     "title": "King of the World",
@@ -16251,7 +16271,7 @@
     ],
     "faction": "Ancient Kingdom (Void Century)",
     "category": "royalty",
-    "beri": 5100000000,
+    "beri": 5600000000,
     "canon_bounty": null,
     "status": "deceased",
     "notes": "Legendary figure of the Void Century; left the One Piece, made a promise to Poseidon; Luffy awakened as his spiritual successor; sits above Im as the ultimate stock anchor for the series's endgame",
@@ -16306,6 +16326,11 @@
         "chapter": 1180,
         "label": "Elbaf Arc — Current",
         "beri": 5100000000
+      },
+      {
+        "chapter": 1181,
+        "label": "Elbaf — Imu Personal Flashback Confirmed",
+        "beri": 5600000000
       }
     ],
     "title": "Ancient Legend · Will of the Sea"
