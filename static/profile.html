@@ -485,10 +485,71 @@ body {
 .auth-title { font-family:'Orbitron',sans-serif; font-size:0.95rem; font-weight:700; color:var(--punk); letter-spacing:1px; margin-bottom:4px; }
 .auth-sub { font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:var(--text-dim); margin-bottom:16px; }
 
+/* ── STAT BOXES ── */
+.stat-box { text-align:right; }
+.stat-label { font-size:0.52rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px; font-family:'Orbitron',sans-serif; font-weight:400; }
+.stat-value { font-family:'Share Tech Mono',monospace; font-size:0.9rem; color:var(--gold); font-weight:600; }
+.drop-timer { color:var(--green) !important; text-shadow:0 0 14px rgba(0,208,132,0.5) !important; font-size:0.78rem !important; }
+/* ── TICKER ── */
+.ticker-wrap { background:#0a0318; border-bottom:1px solid var(--punk-dim); border-top:1px solid rgba(224,64,251,0.15); padding:5px 0; overflow:hidden; white-space:nowrap; display:flex; align-items:center; }
+.ticker-label { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; color:var(--punk); letter-spacing:2.5px; padding:0 14px; white-space:nowrap; flex-shrink:0; border-right:1px solid var(--punk-dim); opacity:0.75; text-shadow:0 0 10px var(--punk-dim); }
+.ticker-clip { flex:1; overflow:hidden; min-width:0; position:relative; }
+.ticker-inner { display:inline-flex; animation:ticker 500s linear infinite; width:max-content; }
+.ticker-item { font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0 20px; border-right:1px solid var(--border); display:inline-flex; align-items:center; gap:5px; }
+.t-name { color:var(--punk); opacity:0.7; }
+.t-up { color:var(--green); font-size:0.72rem; } .t-down { color:var(--red); font-size:0.72rem; }
+@keyframes ticker { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+/* ── WALLET CENTER ── */
+.wallet-center { display:flex; flex-direction:column; align-items:center; cursor:pointer; gap:2px; }
+.wallet-center-label { font-family:'Orbitron',sans-serif; font-size:0.46rem; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; }
+.wallet-center-val { font-family:'Share Tech Mono',monospace; font-size:1.05rem; color:var(--text-dim); font-weight:700; transition:color 0.3s; }
+.wallet-login-prompt { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); opacity:0.6; }
+/* ── TRANSMISSION / NOTIF DROPDOWN ── */
+.notif-dropdown { position:relative; display:flex; align-items:center; }
+.notif-trigger {
+  cursor:pointer; appearance:none; -webkit-appearance:none;
+  background:rgba(41,182,246,0.10) !important;
+  border:1px solid rgba(41,182,246,0.7) !important;
+  border-radius:4px; padding:6px 14px;
+  font-family:'Orbitron',sans-serif; font-weight:600; font-size:0.62rem;
+  color:var(--punk2) !important; letter-spacing:2px; text-transform:uppercase;
+  text-shadow:0 0 12px rgba(41,182,246,0.6) !important;
+  white-space:nowrap; animation:badge-pulse 3.5s ease-in-out infinite;
+}
+.notif-trigger::before { content:'●'; margin-right:7px; font-size:0.45rem; vertical-align:middle; animation:dot-blink 1.8s ease-in-out infinite; }
+.notif-trigger:hover { box-shadow:0 0 22px rgba(41,182,246,0.42); }
+.notif-menu {
+  position:absolute; top:calc(100% + 10px); right:0;
+  opacity:0; pointer-events:none; transform:translateY(-6px);
+  transition:opacity 0.18s, transform 0.18s; z-index:200; width:min(520px,94vw);
+}
+.notif-dropdown:hover .notif-menu,
+.notif-dropdown:focus-within .notif-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+.notif-menu .update-panel { margin:0 !important; border-radius:8px !important; }
+/* ── UPDATE PANEL ── */
+.update-panel { background:var(--surface); border:1px solid var(--punk-dim); border-radius:8px; padding:16px 20px; position:relative; overflow:hidden; box-shadow:0 0 40px rgba(224,64,251,0.07); }
+.update-panel::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg, var(--punk) 0%, var(--punk2) 50%, var(--punk) 100%); }
+.update-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.update-badge { background:var(--punk); color:#07040f; font-size:0.58rem; font-weight:700; letter-spacing:2px; padding:3px 10px; border-radius:3px; font-family:'Orbitron',sans-serif; animation:transmission-shimmer 4s ease-in-out infinite; }
+@keyframes transmission-shimmer { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 14px rgba(224,64,251,0.5)} }
+.update-week { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); }
+.update-text { font-family:'Share Tech Mono',monospace; font-size:0.78rem; color:var(--text); line-height:1.75; }
+.update-movers { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.mover-chip { font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:3px 10px; border-radius:4px; display:flex; align-items:center; gap:4px; }
+.mover-chip.up   { background:rgba(0,208,132,0.08); border:1px solid rgba(0,208,132,0.25); color:var(--green); }
+.mover-chip.down { background:rgba(255,68,85,0.08); border:1px solid rgba(255,68,85,0.25); color:var(--red); }
+.mover-chip.new  { background:rgba(41,182,246,0.08); border:1px solid rgba(41,182,246,0.30); color:var(--punk2); }
+@keyframes badge-pulse { 0%,100%{box-shadow:0 0 6px rgba(224,64,251,0.12)} 50%{box-shadow:0 0 20px rgba(224,64,251,0.38)} }
+@keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+@media(max-width:900px){ .header-stats { gap:12px; } .stat-box:not(:last-child) { display:none; } }
 @media(max-width:540px){
   .header-main { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; }
-  .header-center { display:none; }
+  .header-stats { gap:0; }
   .logo-sub { display:none; }
+  .ticker-label { display:none; }
+  .ticker-inner { animation:none !important; will-change:transform; }
+  .ticker-item { padding:0 14px; font-size:0.65rem; }
   .profile-hero { padding:18px 16px; }
   .profile-hero-inner { flex-wrap:wrap; gap:14px; }
   .profile-avatar-wrap { width:68px; height:68px; }
@@ -504,45 +565,102 @@ body {
 <div class="site-header">
   <div class="header-main">
     <div class="logo-block" onclick="window.location.href='/'">
-      <svg class="punk-records-logo" viewBox="0 0 72 56" width="56" height="43" xmlns="http://www.w3.org/2000/svg">
+      <svg class="punk-records-logo" viewBox="0 0 72 56" width="66" height="51" xmlns="http://www.w3.org/2000/svg" aria-label="Punk Records">
         <defs>
-          <radialGradient id="dome-ext2" cx="50%" cy="28%" r="62%">
-            <stop offset="0%" stop-color="#f0e840"/><stop offset="40%" stop-color="#29b6f6"/>
-            <stop offset="78%" stop-color="#c060e8"/><stop offset="100%" stop-color="#e040fb"/>
+          <radialGradient id="dome-ext" cx="50%" cy="28%" r="62%">
+            <stop offset="0%"   stop-color="#f0e840"/>
+            <stop offset="40%"  stop-color="#29b6f6"/>
+            <stop offset="78%"  stop-color="#c060e8"/>
+            <stop offset="100%" stop-color="#e040fb"/>
           </radialGradient>
-          <clipPath id="dome-clip2"><ellipse cx="36" cy="27" rx="29" ry="25"/></clipPath>
+          <clipPath id="dome-clip">
+            <ellipse cx="36" cy="27" rx="29" ry="25"/>
+          </clipPath>
         </defs>
-        <ellipse cx="36" cy="27" rx="29" ry="25" fill="url(#dome-ext2)"/>
+        <ellipse cx="36" cy="27" rx="29" ry="25" fill="url(#dome-ext)"/>
         <ellipse cx="36" cy="32" rx="21" ry="17" fill="#0d0520"/>
-        <g clip-path="url(#dome-clip2)" opacity="0.55">
+        <g clip-path="url(#dome-clip)" opacity="0.55">
           <line x1="15" y1="32" x2="57" y2="32" stroke="#6020a0" stroke-width="0.8"/>
           <line x1="17" y1="27" x2="55" y2="27" stroke="#6020a0" stroke-width="0.7"/>
           <line x1="21" y1="23" x2="51" y2="23" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="26" y1="19" x2="46" y2="19" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="31" y1="16" x2="41" y2="16" stroke="#6020a0" stroke-width="0.5"/>
           <line x1="36" y1="14" x2="15" y2="32" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="21" y2="33" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="29" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="36" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="43" y2="34" stroke="#6020a0" stroke-width="0.6"/>
+          <line x1="36" y1="14" x2="51" y2="33" stroke="#6020a0" stroke-width="0.6"/>
           <line x1="36" y1="14" x2="57" y2="32" stroke="#6020a0" stroke-width="0.6"/>
         </g>
         <path d="M15 32 L19 39 L23 32 L27 39 L31 32 L36 39 L41 32 L45 39 L49 32 L53 39 L57 32"
               fill="none" stroke="#e040fb" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
         <rect x="5"  y="10" width="7" height="5" rx="0.8" fill="#29b6f6" opacity="0.8" transform="rotate(-22 8.5 12.5)"/>
         <rect x="60" y="8"  width="7" height="5" rx="0.8" fill="#29b6f6" opacity="0.8" transform="rotate(22 63.5 10.5)"/>
+        <rect x="1"  y="24" width="5" height="4" rx="0.6" fill="#29b6f6" opacity="0.6" transform="rotate(-10 3.5 26)"/>
+        <rect x="66" y="22" width="5" height="4" rx="0.6" fill="#29b6f6" opacity="0.6" transform="rotate(10 68.5 24)"/>
+        <rect x="10" y="2"  width="6" height="4" rx="0.6" fill="#29b6f6" opacity="0.5" transform="rotate(-35 13 4)"/>
+        <rect x="56" y="1"  width="6" height="4" rx="0.6" fill="#29b6f6" opacity="0.5" transform="rotate(35 59 3)"/>
       </svg>
       <div class="logo-text">
-        <span class="logo-title">Grand Line Exchange</span>
+        <span class="logo-title">Grand Line Stock Exchange</span>
         <span class="logo-sub">Dr. Vegapunk's Beri Analytics Engine ◈ Punk Records Node</span>
       </div>
     </div>
-    <div class="header-center">
-      <div class="header-page-title">◈ Operator Profile</div>
+    <div class="wallet-center" id="wallet-center-block">
+      <span class="wallet-center-label">◈ Your Wallet</span>
+      <span class="wallet-center-val" id="header-wallet-val">— ฿</span>
+      <span class="wallet-login-prompt" id="wallet-login-prompt" style="display:none;">Log in to earn ฿</span>
     </div>
     <div class="header-stats">
-      <button class="header-login-btn" id="header-login-btn" style="visibility:hidden" onclick="openAuthModal()">⚡ Connect</button>
-      <!-- user block injected here by JS -->
+      <div class="stat-box">
+        <div class="stat-label">Nodes Indexed</div>
+        <div class="stat-value" id="total-count">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Last Uplink</div>
+        <div class="stat-value">Ch. 1181</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Next Beri Drop</div>
+        <div class="stat-value drop-timer" id="drop-timer">—</div>
+      </div>
+      <div class="notif-dropdown">
+        <button class="notif-trigger">TRANSMISSION</button>
+        <div class="notif-menu">
+          <div class="update-panel">
+            <div class="update-header">
+              <span class="update-badge">Vegapunk Transmission</span>
+              <span class="update-week">Uplink: Ch.1181 ◈ Elbaf Node Active</span>
+            </div>
+            <div class="update-text">
+              The Elbaf Arc continues to shake community valuations. Harald's debut as King of Elbaf saw immediate stock surges for Giant-affiliated characters,
+              while Shanks' Shamrock connection to the Gorosei keeps Red Hair Pirates at historic highs.
+              Luffy's Emperor trajectory and continued Void Century revelations push legacy characters like Joy Boy and Roger ever upward.
+              Click any card to open the full character profile.
+            </div>
+            <div class="update-movers">
+              <span class="mover-chip up">▲ Harald</span>
+              <span class="mover-chip up">▲ Shanks</span>
+              <span class="mover-chip up">▲ Joy Boy</span>
+              <span class="mover-chip up">▲ Stussy</span>
+              <span class="mover-chip down">▼ Eustass Kidd</span>
+              <span class="mover-chip down">▼ Saturn</span>
+              <span class="mover-chip down">▼ Kaido</span>
+              <span class="mover-chip new">★ Man Marked by Flames</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="header-login-btn" id="header-login-btn" style="visibility:hidden" onclick="openAuthModal()">LOG IN</button>
     </div>
   </div>
+  <div class="ticker-wrap"><span class="ticker-label">◈ LIVE FEED</span><div class="ticker-clip"><div class="ticker-inner" id="ticker"></div></div></div>
 </div>
 
 <!-- MAIN CONTENT -->
 <div class="profile-page" id="profile-page">
+  <div style="font-family:'Orbitron',sans-serif;font-size:0.6rem;font-weight:700;color:var(--text-dim);letter-spacing:4px;text-transform:uppercase;margin-bottom:18px;padding-left:2px;">◈ Operator Profile</div>
   <div class="auth-required" id="auth-required" style="display:none">
     <div class="auth-required-title">◈ Restricted Access</div>
     <div class="auth-required-sub">You must be logged in to view your profile.</div>
@@ -845,6 +963,95 @@ document.getElementById('signup-submit').addEventListener('click', async functio
   } catch(e){ showFeedback('signup-feedback','err',e.message); }
   btn.disabled = false; btn.textContent = 'Create Account';
 });
+
+// ── HEADER WALLET ─────────────────────────────────────────────────────────────
+function updateHeaderWallet(){
+  const el = document.getElementById('header-wallet-val');
+  const prompt = document.getElementById('wallet-login-prompt');
+  if(!el) return;
+  if(currentUser){
+    el.textContent = fBeri(currentUser.beri_balance);
+    el.style.color = 'var(--gold)';
+    el.style.display = '';
+    if(prompt) prompt.style.display = 'none';
+  } else {
+    el.textContent = '0 ฿';
+    el.style.color = 'var(--text-dim)';
+    if(prompt) prompt.style.display = '';
+  }
+}
+document.getElementById('wallet-center-block').addEventListener('click', function(){
+  if(!currentUser) openAuthModal('login');
+});
+
+// ── BERI DROP TIMER ────────────────────────────────────────────────────────────
+function getNextDropTime(){
+  const now = new Date();
+  const next = new Date(now);
+  const daysUntilSunday = (7 - now.getUTCDay()) % 7 || 7;
+  next.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  next.setUTCHours(0, 0, 0, 0);
+  return next;
+}
+function updateDropTimer(){
+  const el = document.getElementById('drop-timer');
+  if(!el) return;
+  const now = new Date();
+  const diff = getNextDropTime() - now;
+  if(diff <= 0){ el.textContent = 'DROP NOW'; return; }
+  const h = Math.floor(diff/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  const s = Math.floor((diff%60000)/1000);
+  const pad = function(n){ return String(n).padStart(2,'0'); };
+  const days = Math.floor(h/24);
+  const hrs = h%24;
+  el.textContent = days > 0 ? (days+'d '+pad(hrs)+'h '+pad(m)+'m') : (pad(hrs)+':'+pad(m)+':'+pad(s));
+}
+updateDropTimer();
+setInterval(updateDropTimer, 1000);
+
+// ── TICKER ─────────────────────────────────────────────────────────────────────
+let _tickerRAF = null;
+function startMobileTicker(){
+  if(_tickerRAF){ cancelAnimationFrame(_tickerRAF); _tickerRAF = null; }
+  const inner = document.getElementById('ticker');
+  if(!inner) return;
+  inner.style.transform = 'translateX(0)';
+  let pos = 0, halfWidth = 0;
+  function tick(){
+    if(!halfWidth){ halfWidth = inner.scrollWidth / 2; if(!halfWidth){ _tickerRAF = requestAnimationFrame(tick); return; } }
+    pos += 0.6;
+    if(pos >= halfWidth) pos = 0;
+    inner.style.transform = 'translateX(-' + pos + 'px)';
+    _tickerRAF = requestAnimationFrame(tick);
+  }
+  _tickerRAF = requestAnimationFrame(tick);
+}
+function chartStats(c){
+  const hist = c.price_history || [];
+  if(hist.length < 2) return { up:false, pct:null };
+  const last = hist[hist.length-1].beri;
+  const prev = hist[hist.length-2].beri;
+  if(prev === 0) return { up:false, pct:null };
+  return { up: last >= prev, pct: ((last - prev) / prev * 100).toFixed(1) };
+}
+function buildTicker(){
+  if(!allChars || !allChars.length) return;
+  const isMobile = window.innerWidth <= 600;
+  const source = isMobile ? allChars.filter(function(c){ return chartStats(c).pct !== null; }) : allChars;
+  const items = source.concat(source).map(function(c){
+    const st = chartStats(c);
+    if(st.pct !== null){
+      return '<span class="ticker-item"><span class="t-name">' + escHtml(c.name) + '</span>'
+        + '<span class="' + (st.up ? 't-up' : 't-down') + '">'
+        + (st.up ? '▲ +' : '▼ ') + parseFloat(st.pct).toFixed(1) + '%</span></span>';
+    }
+    return '<span class="ticker-item"><span class="t-name">' + escHtml(c.name) + '</span>'
+      + '<span style="color:var(--text-dim);font-size:0.65rem"> —</span></span>';
+  }).join('');
+  document.getElementById('ticker').innerHTML = items;
+  if(isMobile) startMobileTicker();
+}
 
 // ── HEADER NAV DROPDOWN (profile page — navigation only) ─────────────────────
 
@@ -1414,6 +1621,8 @@ async function subscribeWarlord(btn, panelId){
 async function init(){
   currentUser = await fetchCurrentUser();
 
+  updateHeaderWallet();
+
   if(!currentUser){
     document.getElementById('auth-required').style.display = 'block';
     document.getElementById('profile-hero').style.display = 'none';
@@ -1431,10 +1640,15 @@ async function init(){
   document.getElementById('leaderboard-section').style.display = 'block';
   document.getElementById('ledger-section').style.display = 'block';
 
-  // Load characters for profile picture picker
+  // Load characters for profile picture picker + ticker
   try {
     const r = await fetch(API_BASE+'/characters/', { credentials:'include' });
-    if(r.ok) allChars = await r.json();
+    if(r.ok){
+      allChars = await r.json();
+      const countEl = document.getElementById('total-count');
+      if(countEl) countEl.textContent = allChars.length;
+      buildTicker();
+    }
   } catch(e){}
 
   // Build header dropdown
