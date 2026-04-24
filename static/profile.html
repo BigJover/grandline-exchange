@@ -127,26 +127,28 @@ body {
 }
 .profile-settings-item:hover { background:rgba(224,64,251,0.07); color:var(--text); }
 .profile-settings-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
-.settings-referral { padding:8px 12px 10px; }
-.settings-ref-label {
-  font-family:'Orbitron',sans-serif; font-size:0.44rem; letter-spacing:2px;
-  text-transform:uppercase; color:var(--punk2); opacity:0.85; margin-bottom:6px;
+
+/* ── REFERRAL INLINE HERO ── */
+.profile-ref-hero {
+  margin-left:auto; display:flex; align-items:center; gap:8px;
+  background:var(--bg); border:1px solid var(--gold-dim); border-radius:7px;
+  padding:7px 12px; flex-shrink:0;
 }
-.settings-ref-row { display:flex; align-items:center; gap:6px; }
-.settings-ref-code {
-  font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700; color:var(--gold);
-  background:var(--bg); border:1px solid var(--gold-dim); border-radius:4px;
-  padding:5px 10px; letter-spacing:4px; flex:1; text-align:center;
-  cursor:pointer; transition:border-color 0.15s;
+.profile-ref-hero-label {
+  font-family:'Share Tech Mono',monospace; font-size:0.5rem; color:var(--text-dim);
+  letter-spacing:2px; text-transform:uppercase; white-space:nowrap;
 }
-.settings-ref-code:hover { border-color:var(--gold); }
-.settings-ref-copy {
+.profile-ref-hero-code {
+  font-family:'Orbitron',sans-serif; font-size:0.78rem; font-weight:700; color:var(--gold);
+  letter-spacing:4px; cursor:pointer; white-space:nowrap;
+  text-shadow:0 0 10px rgba(212,160,23,0.25);
+}
+.profile-ref-hero-copy {
   background:transparent; border:1px solid var(--gold-dim); border-radius:4px;
   color:var(--gold); cursor:pointer; font-family:'Share Tech Mono',monospace;
-  font-size:0.6rem; padding:5px 9px; transition:all 0.15s; white-space:nowrap;
+  font-size:0.55rem; padding:3px 8px; transition:all 0.15s; white-space:nowrap;
 }
-.settings-ref-copy:hover { border-color:var(--gold); box-shadow:0 0 8px var(--gold-glow); }
-.settings-ref-stats { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-top:5px; }
+.profile-ref-hero-copy:hover { border-color:var(--gold); box-shadow:0 0 8px var(--gold-glow); }
 
 /* ── PROFILE HEADER CARD ── */
 .profile-hero {
@@ -566,16 +568,12 @@ body {
             <div class="profile-settings-menu">
               <button class="profile-settings-item" onclick="openPicturePicker()">🖼 Change Picture</button>
               <button class="profile-settings-item" onclick="openUsernameModal()">✏ Change Username</button>
-              <hr class="profile-settings-divider">
-              <div class="settings-referral">
-                <div class="settings-ref-label">◈ Referral Code</div>
-                <div class="settings-ref-row">
-                  <div class="settings-ref-code" id="settings-ref-code" onclick="copyReferralCode()" title="Click to copy">—</div>
-                  <button class="settings-ref-copy" onclick="copyReferralCode()">Copy</button>
-                </div>
-                <div class="settings-ref-stats" id="settings-ref-stats">Share with friends · Both get +20,000฿</div>
-              </div>
             </div>
+          </div>
+          <div class="profile-ref-hero" id="hero-ref-wrap" style="display:none">
+            <span class="profile-ref-hero-label">Referral</span>
+            <span class="profile-ref-hero-code" id="hero-ref-code" onclick="copyReferralCode()" title="Click to copy">—</span>
+            <button class="profile-ref-hero-copy" id="hero-ref-copy-btn" onclick="copyReferralCode()">Copy</button>
           </div>
         </div>
         <div class="profile-faction-badge" id="profile-faction-badge" style="display:none"></div>
@@ -1030,11 +1028,11 @@ function renderFactionDisplay(user){
 
 function renderReferral(ref){
   const code = ref.referral_code || '—';
-  // Update settings dropdown on profile page
-  const codeEl = document.getElementById('settings-ref-code');
-  if(codeEl) codeEl.textContent = code;
-  const statsEl = document.getElementById('settings-ref-stats');
-  if(statsEl) statsEl.textContent = ref.referrals_count + ' referred · ' + fBeriShort(ref.beri_earned) + '฿ earned · Both get +20K฿';
+  // Inline hero referral
+  const heroWrap = document.getElementById('hero-ref-wrap');
+  const heroCode = document.getElementById('hero-ref-code');
+  if(heroCode) heroCode.textContent = code;
+  if(heroWrap) heroWrap.style.display = code !== '—' ? 'flex' : 'none';
 }
 
 function copyReferralCode(){
@@ -1042,8 +1040,8 @@ function copyReferralCode(){
   if(!code || code === '—') return;
   navigator.clipboard.writeText(code).then(function(){
     showToast('◈ Referral code copied: ' + code);
-    const copyBtn = document.querySelector('.settings-ref-copy');
-    if(copyBtn){ const orig = copyBtn.textContent; copyBtn.textContent = '✓'; setTimeout(function(){ copyBtn.textContent = orig; }, 1800); }
+    const btn = document.getElementById('hero-ref-copy-btn');
+    if(btn){ const orig = btn.textContent; btn.textContent = '✓'; setTimeout(function(){ btn.textContent = orig; }, 1800); }
   }).catch(function(){ showToast(code); });
 }
 
