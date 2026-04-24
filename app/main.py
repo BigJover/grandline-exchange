@@ -91,9 +91,13 @@ def backfill_base_beri():
 
 
 def patch_character_meta():
-    """Populate bio, events, sbs, related, full_name, title from seed files.
-    Uses ORM so JSON columns are handled correctly on both SQLite and Postgres.
-    Safe to run on every startup — skips characters that already have a bio."""
+    """Sync character data from seed files on every startup.
+    - bio: only fills if empty (set once, never overwritten)
+    - events, sbs, related: always synced from character_meta.json
+    - price_history: merges new chapter entries without overwriting existing
+    - beri: updated to latest price_history entry if a new one was added
+    - full_name, title: always synced from characters.json
+    """
     import json as _json
     meta_path = os.path.join(os.path.dirname(__file__), "..", "data", "character_meta.json")
     data_path = os.path.join(os.path.dirname(__file__), "..", "data", "characters.json")
@@ -106,13 +110,12 @@ def patch_character_meta():
         return
     db = SessionLocal()
     try:
-        chars = db.query(models.Character).filter(
-            (models.Character.bio == None) | (models.Character.bio == "")
-        ).all()
+        chars = db.query(models.Character).all()
         for char in chars:
             m = meta.get(char.name)
             if m:
-                char.bio     = m.get("bio", "")
+                if not char.bio:
+                    char.bio = m.get("bio", "")
                 char.events  = m.get("events", "")
                 char.sbs     = m.get("sbs", [])
                 char.related = m.get("related", [])
@@ -120,6 +123,23 @@ def patch_character_meta():
             if s:
                 char.full_name = s.get("full_name") or None
                 char.title     = s.get("title") or None
+                # Merge new price_history entries (identified by chapter number)
+                existing_chapters = {
+                    e["chapter"] for e in (char.price_history or [])
+                    if isinstance(e, dict) and "chapter" in e
+                }
+                new_entries = [
+                    e for e in s.get("price_history", [])
+                    if isinstance(e, dict) and e.get("chapter") not in existing_chapters
+                ]
+                if new_entries:
+                    char.price_history = (char.price_history or []) + new_entries
+                    # Update beri to match the latest entry
+                    all_entries = sorted(
+                        char.price_history,
+                        key=lambda e: e.get("chapter", 0)
+                    )
+                    char.beri = all_entries[-1]["beri"]
         db.commit()
     except Exception as e:
         db.rollback()
