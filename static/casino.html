@@ -544,17 +544,10 @@ function updateAuthUI(){
       block = document.createElement('div');
       block.id = 'header-user-block';
       block.className = 'auth-dropdown';
-      const refCode = currentUser.referral_code || '—';
       block.innerHTML =
         '<button class="auth-dropdown-trigger" id="header-username">◈ '+esc(currentUser.username)+' ▾</button>'+
         '<div class="auth-dropdown-menu"><div class="auth-dropdown-menu-inner">'+
           '<button class="auth-dropdown-item" onclick="window.location.href=\'/profile\'">◈ Profile</button>'+
-          '<hr class="auth-dropdown-divider">'+
-          '<div style="padding:6px 12px 8px;">'+
-            '<div style="font-family:Orbitron,sans-serif;font-size:0.44rem;letter-spacing:2px;text-transform:uppercase;color:#29b6f6;opacity:0.8;margin-bottom:4px;">◈ Referral Code</div>'+
-            '<div style="font-family:Orbitron,sans-serif;font-size:0.7rem;font-weight:700;color:#d4a017;background:var(--bg);border:1px solid #7a5c0a;border-radius:4px;padding:4px 8px;letter-spacing:3px;text-align:center;cursor:pointer;" onclick="navigator.clipboard.writeText(\''+esc(refCode)+'\').catch(()=>{})">'+esc(refCode)+'</div>'+
-          '</div>'+
-          '<hr class="auth-dropdown-divider">'+
           '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">← Exchange</button>'+
           '<button class="auth-dropdown-item" onclick="window.location.href=\'/community\'">◈ Community</button>'+
           '<hr class="auth-dropdown-divider">'+

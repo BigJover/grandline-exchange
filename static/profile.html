@@ -96,32 +96,57 @@ body {
 }
 .auth-dropdown-item:hover { background:rgba(255,68,85,0.08); color:var(--red); }
 .auth-dropdown-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
-.auth-dropdown-section {
-  padding:6px 12px 2px; font-family:'Orbitron',sans-serif; font-size:0.44rem;
-  color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; opacity:0.7;
-}
-
-/* ── REFERRAL COMPACT IN DROPDOWN ── */
-.referral-compact {
-  padding:8px 12px 10px; border-top:1px solid var(--border); margin-top:2px;
-}
-.referral-compact-label { font-family:'Orbitron',sans-serif; font-size:0.44rem; letter-spacing:2px; text-transform:uppercase; color:var(--punk2); opacity:0.8; margin-bottom:5px; }
-.referral-code-row { display:flex; align-items:center; gap:6px; }
-.referral-code-val {
-  font-family:'Orbitron',sans-serif; font-size:0.72rem; font-weight:700; color:var(--gold);
-  background:var(--bg); border:1px solid var(--gold-dim); border-radius:4px; padding:4px 8px;
-  letter-spacing:3px; flex:1; text-align:center;
-}
-.referral-copy-btn {
-  background:transparent; border:1px solid var(--gold-dim); border-radius:4px;
-  color:var(--gold); cursor:pointer; font-family:'Share Tech Mono',monospace;
-  font-size:0.62rem; padding:4px 8px; transition:all 0.15s; white-space:nowrap;
-}
-.referral-copy-btn:hover { border-color:var(--gold); box-shadow:0 0 8px var(--gold-glow); }
-.referral-stats-row { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-top:4px; }
 
 /* ── MAIN LAYOUT ── */
 .profile-page { max-width:1100px; margin:0 auto; padding:28px 24px 60px; }
+
+/* ── PROFILE SETTINGS DROPDOWN (inline on profile page) ── */
+.profile-username-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.profile-settings-wrap { position:relative; }
+.profile-settings-trigger {
+  background:transparent; border:1px solid var(--border); border-radius:5px;
+  color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace;
+  font-size:0.7rem; padding:5px 10px; transition:all 0.18s; line-height:1;
+}
+.profile-settings-trigger:hover,
+.profile-settings-wrap:focus-within .profile-settings-trigger { border-color:var(--punk-dim); color:var(--punk); }
+.profile-settings-menu {
+  position:absolute; top:calc(100% + 6px); left:0;
+  background:var(--surface); border:1px solid var(--punk-dim); border-radius:9px;
+  min-width:230px; padding:6px; z-index:300;
+  box-shadow:0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(224,64,251,0.08);
+  opacity:0; pointer-events:none; transform:translateY(-4px);
+  transition:opacity 0.18s, transform 0.18s;
+}
+.profile-settings-wrap:hover .profile-settings-menu,
+.profile-settings-wrap:focus-within .profile-settings-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+.profile-settings-item {
+  background:none; border:none; border-radius:5px; color:var(--text-dim);
+  cursor:pointer; display:block; font-family:'Share Tech Mono',monospace;
+  font-size:0.74rem; padding:8px 12px; text-align:left; transition:all 0.15s; width:100%;
+}
+.profile-settings-item:hover { background:rgba(224,64,251,0.07); color:var(--text); }
+.profile-settings-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
+.settings-referral { padding:8px 12px 10px; }
+.settings-ref-label {
+  font-family:'Orbitron',sans-serif; font-size:0.44rem; letter-spacing:2px;
+  text-transform:uppercase; color:var(--punk2); opacity:0.85; margin-bottom:6px;
+}
+.settings-ref-row { display:flex; align-items:center; gap:6px; }
+.settings-ref-code {
+  font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700; color:var(--gold);
+  background:var(--bg); border:1px solid var(--gold-dim); border-radius:4px;
+  padding:5px 10px; letter-spacing:4px; flex:1; text-align:center;
+  cursor:pointer; transition:border-color 0.15s;
+}
+.settings-ref-code:hover { border-color:var(--gold); }
+.settings-ref-copy {
+  background:transparent; border:1px solid var(--gold-dim); border-radius:4px;
+  color:var(--gold); cursor:pointer; font-family:'Share Tech Mono',monospace;
+  font-size:0.6rem; padding:5px 9px; transition:all 0.15s; white-space:nowrap;
+}
+.settings-ref-copy:hover { border-color:var(--gold); box-shadow:0 0 8px var(--gold-glow); }
+.settings-ref-stats { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-top:5px; }
 
 /* ── PROFILE HEADER CARD ── */
 .profile-hero {
@@ -256,24 +281,6 @@ body {
   border-radius:3px; border:1px solid var(--border); color:var(--text-dim); background:var(--surface2);
 }
 
-/* ── REFERRAL SECTION (in right col) ── */
-.referral-card {
-  background:linear-gradient(135deg, rgba(212,160,23,0.06) 0%, rgba(41,182,246,0.04) 100%);
-  border:1px solid rgba(212,160,23,0.3); border-radius:8px; padding:16px;
-}
-.referral-card-title { font-family:'Orbitron',sans-serif; font-size:0.62rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
-.referral-code-display {
-  font-family:'Orbitron',sans-serif; font-size:1.15rem; font-weight:900; color:var(--gold);
-  letter-spacing:6px; text-align:center; background:var(--bg); border:1px solid var(--gold-dim);
-  border-radius:6px; padding:10px; margin-bottom:8px; text-shadow:0 0 16px rgba(212,160,23,0.4);
-  cursor:pointer; transition:all 0.2s;
-}
-.referral-code-display:hover { border-color:var(--gold); box-shadow:0 0 12px var(--gold-glow); }
-.referral-copy-note { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); text-align:center; margin-bottom:10px; }
-.referral-stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.referral-stat { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:8px 10px; text-align:center; }
-.referral-stat-val { font-family:'Share Tech Mono',monospace; font-size:0.9rem; color:var(--punk2); font-weight:700; }
-.referral-stat-label { font-family:'Share Tech Mono',monospace; font-size:0.52rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; margin-top:2px; }
 
 /* ── FACTION CARD (used in modal grid) ── */
 .faction-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px 14px 12px; position:relative; display:flex; flex-direction:column; gap:7px; transition:border-color 0.2s; }
@@ -543,16 +550,39 @@ body {
   <!-- PROFILE HERO -->
   <div class="profile-hero" id="profile-hero" style="display:none">
     <div class="profile-hero-inner">
+      <!-- Avatar -->
       <div class="profile-avatar-wrap" id="profile-avatar-wrap" onclick="openPicturePicker()" title="Change profile picture">
         <img class="profile-avatar-img" id="profile-avatar-img" src="" alt="" style="display:none">
         <div class="profile-avatar-ph" id="profile-avatar-ph">?</div>
         <div class="profile-avatar-overlay">Change<br>Picture</div>
       </div>
+
+      <!-- Info + settings dropdown -->
       <div class="profile-info">
-        <div class="profile-username" id="profile-username">—</div>
+        <div class="profile-username-row">
+          <div class="profile-username" id="profile-username">—</div>
+          <div class="profile-settings-wrap">
+            <button class="profile-settings-trigger" title="Settings">⚙ ▾</button>
+            <div class="profile-settings-menu">
+              <button class="profile-settings-item" onclick="openPicturePicker()">🖼 Change Picture</button>
+              <button class="profile-settings-item" onclick="openUsernameModal()">✏ Change Username</button>
+              <hr class="profile-settings-divider">
+              <div class="settings-referral">
+                <div class="settings-ref-label">◈ Referral Code</div>
+                <div class="settings-ref-row">
+                  <div class="settings-ref-code" id="settings-ref-code" onclick="copyReferralCode()" title="Click to copy">—</div>
+                  <button class="settings-ref-copy" onclick="copyReferralCode()">Copy</button>
+                </div>
+                <div class="settings-ref-stats" id="settings-ref-stats">Share with friends · Both get +20,000฿</div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="profile-faction-badge" id="profile-faction-badge" style="display:none"></div>
         <div class="profile-meta-row" id="profile-meta-row"></div>
       </div>
+
+      <!-- Stats -->
       <div class="profile-stats-grid" id="profile-stats-grid">
         <div class="profile-stat">
           <div class="profile-stat-label">Net Worth</div>
@@ -590,9 +620,8 @@ body {
       </div>
     </div>
 
-    <!-- RIGHT: Faction + Referral -->
+    <!-- RIGHT: Faction -->
     <div class="right-col">
-      <!-- Faction -->
       <div class="section-card">
         <div class="section-title">⚑ Faction</div>
         <div class="faction-current-display" id="faction-display">
@@ -605,26 +634,6 @@ body {
         </div>
         <div class="faction-history-list" id="faction-history"></div>
         <div class="warlord-panel" id="warlord-panel"></div>
-      </div>
-
-      <!-- Referral -->
-      <div class="section-card">
-        <div class="section-title teal-title">⬡ Referral</div>
-        <div class="referral-card">
-          <div class="referral-card-title">◈ Your Invite Code</div>
-          <div class="referral-code-display" id="referral-code-display" onclick="copyReferralCode()" title="Click to copy">—</div>
-          <div class="referral-copy-note" id="referral-copy-note">Click to copy · Share with friends · Both get +20,000฿</div>
-          <div class="referral-stats-grid">
-            <div class="referral-stat">
-              <div class="referral-stat-val" id="referral-count">—</div>
-              <div class="referral-stat-label">Referrals</div>
-            </div>
-            <div class="referral-stat">
-              <div class="referral-stat-val" id="referral-earned">—</div>
-              <div class="referral-stat-label">฿ Earned</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -839,7 +848,7 @@ document.getElementById('signup-submit').addEventListener('click', async functio
   btn.disabled = false; btn.textContent = 'Create Account';
 });
 
-// ── HEADER DROPDOWN ────────────────────────────────────────────────────────────
+// ── HEADER NAV DROPDOWN (profile page — navigation only) ─────────────────────
 
 function buildHeaderDropdown(){
   const loginBtn = document.getElementById('header-login-btn');
@@ -851,33 +860,14 @@ function buildHeaderDropdown(){
     block.className = 'auth-dropdown';
     loginBtn.parentNode.insertBefore(block, loginBtn.nextSibling);
   }
-  const pic = currentUser ? resolveProfilePic(currentUser.profile_picture, allChars) : null;
-  const avatarHtml = pic
-    ? '<img class="trigger-avatar" src="' + escHtml(pic) + '" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">'
-    : '<div class="trigger-avatar-ph">' + (currentUser ? escHtml(currentUser.username[0].toUpperCase()) : '?') + '</div>';
   const f = currentUser ? getFactionData(currentUser.user_faction) : null;
   const fIcon = f ? f.icon + ' ' : '◈ ';
-  const refCode = currentUser && currentUser.referral_code ? currentUser.referral_code : '—';
   block.innerHTML =
     '<button class="auth-dropdown-trigger" id="header-username">' +
-      avatarHtml + fIcon + escHtml(currentUser ? currentUser.username : '—') + ' ▾' +
+      fIcon + escHtml(currentUser ? currentUser.username : '—') + ' ▾' +
     '</button>' +
     '<div class="auth-dropdown-menu"><div class="auth-dropdown-menu-inner">' +
-      '<div class="auth-dropdown-section">Account</div>' +
-      '<button class="auth-dropdown-item" onclick="openPicturePicker()">🖼 Change Picture</button>' +
-      '<button class="auth-dropdown-item" onclick="openUsernameModal()">✏ Change Username</button>' +
-      '<hr class="auth-dropdown-divider">' +
-      '<div class="referral-compact">' +
-        '<div class="referral-compact-label">◈ Referral Code</div>' +
-        '<div class="referral-code-row">' +
-          '<div class="referral-code-val" id="dropdown-ref-code">' + escHtml(refCode) + '</div>' +
-          '<button class="referral-copy-btn" onclick="copyReferralCode()">Copy</button>' +
-        '</div>' +
-        '<div class="referral-stats-row" id="dropdown-ref-stats">Loading…</div>' +
-      '</div>' +
-      '<hr class="auth-dropdown-divider">' +
-      '<div class="auth-dropdown-section">Navigate</div>' +
-      '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">◈ Exchange</button>' +
+      '<button class="auth-dropdown-item" onclick="window.location.href=\'/\'">← Exchange</button>' +
       '<button class="auth-dropdown-item" onclick="window.location.href=\'/community\'">◈ Community</button>' +
       '<button class="auth-dropdown-item" onclick="window.location.href=\'/casino\'">⚄ Casino</button>' +
       '<hr class="auth-dropdown-divider">' +
@@ -1040,14 +1030,11 @@ function renderFactionDisplay(user){
 
 function renderReferral(ref){
   const code = ref.referral_code || '—';
-  document.getElementById('referral-code-display').textContent = code;
-  document.getElementById('referral-count').textContent = ref.referrals_count;
-  document.getElementById('referral-earned').textContent = fBeriShort(ref.beri_earned) + '฿';
-  // Also update dropdown
-  const dropCode = document.getElementById('dropdown-ref-code');
-  if(dropCode) dropCode.textContent = code;
-  const dropStats = document.getElementById('dropdown-ref-stats');
-  if(dropStats) dropStats.textContent = ref.referrals_count + ' referred · ' + fBeriShort(ref.beri_earned) + '฿ earned';
+  // Update settings dropdown on profile page
+  const codeEl = document.getElementById('settings-ref-code');
+  if(codeEl) codeEl.textContent = code;
+  const statsEl = document.getElementById('settings-ref-stats');
+  if(statsEl) statsEl.textContent = ref.referrals_count + ' referred · ' + fBeriShort(ref.beri_earned) + '฿ earned · Both get +20K฿';
 }
 
 function copyReferralCode(){
@@ -1055,11 +1042,9 @@ function copyReferralCode(){
   if(!code || code === '—') return;
   navigator.clipboard.writeText(code).then(function(){
     showToast('◈ Referral code copied: ' + code);
-    const note = document.getElementById('referral-copy-note');
-    if(note){ const orig = note.textContent; note.textContent = '✓ Copied!'; setTimeout(function(){ note.textContent = orig; }, 2000); }
-  }).catch(function(){
-    showToast(code);
-  });
+    const copyBtn = document.querySelector('.settings-ref-copy');
+    if(copyBtn){ const orig = copyBtn.textContent; copyBtn.textContent = '✓'; setTimeout(function(){ copyBtn.textContent = orig; }, 1800); }
+  }).catch(function(){ showToast(code); });
 }
 
 // ── LEADERBOARD ───────────────────────────────────────────────────────────────

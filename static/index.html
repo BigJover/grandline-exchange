@@ -3249,18 +3249,6 @@ function updateAuthUI(){
         '<button class="auth-dropdown-trigger" id="header-username"></button>' +
         '<div class="auth-dropdown-menu">' +
           '<div class="auth-dropdown-menu-inner">' +
-            '<button class="auth-dropdown-item" id="header-changepic-btn">🖼 Change Picture</button>' +
-            '<button class="auth-dropdown-item" id="header-changeuser-btn">✏ Change Username</button>' +
-            '<hr class="auth-dropdown-divider">' +
-            '<div id="header-referral-compact" style="padding:6px 12px 8px;">' +
-              '<div style="font-family:Orbitron,sans-serif;font-size:0.44rem;letter-spacing:2px;text-transform:uppercase;color:var(--punk2);opacity:0.8;margin-bottom:5px;">◈ Referral Code</div>' +
-              '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<div id="dropdown-ref-code" style="font-family:Orbitron,sans-serif;font-size:0.7rem;font-weight:700;color:var(--gold);background:var(--bg);border:1px solid var(--gold-dim);border-radius:4px;padding:4px 8px;letter-spacing:3px;flex:1;text-align:center;">—</div>' +
-                '<button id="dropdown-ref-copy" style="background:transparent;border:1px solid var(--gold-dim);border-radius:4px;color:var(--gold);cursor:pointer;font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;padding:4px 8px;white-space:nowrap;" onclick="copyRefCode()">Copy</button>' +
-              '</div>' +
-              '<div id="dropdown-ref-stats" style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim);margin-top:4px;">Loading…</div>' +
-            '</div>' +
-            '<hr class="auth-dropdown-divider">' +
             '<button class="auth-dropdown-item" id="header-profile-btn">◈ Profile</button>' +
             '<button class="auth-dropdown-item" id="header-ledger-btn">⊟ Ledger</button>' +
             '<button class="auth-dropdown-item" id="header-community-btn">◈ Community</button>'+
@@ -3271,15 +3259,12 @@ function updateAuthUI(){
         '</div>';
       loginBtn.parentNode.insertBefore(block, loginBtn.nextSibling);
       document.getElementById('header-logout-btn').addEventListener('click', handleLogout);
-      document.getElementById('header-changepic-btn').addEventListener('click', function(){ window.location.href='/profile'; });
-      document.getElementById('header-changeuser-btn').addEventListener('click', function(){ window.location.href='/profile'; });
       document.getElementById('header-profile-btn').addEventListener('click', function(){ window.location.href='/profile'; });
       document.getElementById('header-ledger-btn').addEventListener('click', openLedger);
       document.getElementById('header-community-btn').addEventListener('click', function(){ window.location.href='/community'; });
       document.getElementById('header-casino-btn').addEventListener('click', function(){ window.location.href='/casino'; });
     }
     updateFactionHeaderDisplay();
-    updateDropdownReferral();
     block.style.display = 'flex';
   } else {
     loginBtn.style.visibility = 'visible';
@@ -3287,28 +3272,6 @@ function updateAuthUI(){
     if(block) block.style.display = 'none';
   }
   updateHeaderWallet();
-}
-
-function updateDropdownReferral(){
-  const codeEl  = document.getElementById('dropdown-ref-code');
-  const statsEl = document.getElementById('dropdown-ref-stats');
-  if(!codeEl || !statsEl || !currentUser) return;
-  codeEl.textContent = currentUser.referral_code || '—';
-  // Load referral stats asynchronously
-  fetch(API_BASE + '/profile/me/referral-stats', { credentials:'include' })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(data){
-      if(data && statsEl) statsEl.textContent = data.referrals_count + ' referred · ' + fBeri(data.beri_earned);
-    })
-    .catch(function(){});
-}
-
-function copyRefCode(){
-  const code = currentUser && currentUser.referral_code ? currentUser.referral_code : null;
-  if(!code) return;
-  navigator.clipboard.writeText(code).catch(function(){});
-  const el = document.getElementById('dropdown-ref-copy');
-  if(el){ const orig = el.textContent; el.textContent = '✓'; setTimeout(function(){ el.textContent = orig; }, 1500); }
 }
 
 async function handleLogout(){
