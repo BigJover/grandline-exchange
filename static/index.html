@@ -1592,6 +1592,10 @@ body::after {
         <label>Password</label>
         <input id="auth-signup-pass" type="password" placeholder="At least 8 characters" autocomplete="new-password">
       </div>
+      <div class="auth-field">
+        <label>Referral Code <span style="color:var(--text-dim);font-size:0.58rem">(optional — get +20,000฿)</span></label>
+        <input id="auth-signup-ref" type="text" placeholder="XXXXXXXX" maxlength="8" style="text-transform:uppercase">
+      </div>
       <div class="auth-feedback" id="signup-feedback"></div>
       <button class="auth-submit" id="signup-submit">Create Account</button>
     </div>
@@ -3214,12 +3218,14 @@ async function apiLogin(username, password){
   return res.json();
 }
 
-async function apiSignup(username, email, password){
+async function apiSignup(username, email, password, referralCode){
+  const body = { username, email, password };
+  if(referralCode) body.referral_code = referralCode;
   const res = await fetch(API_BASE + '/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ username, email, password })
+    body: JSON.stringify(body)
   });
   if(!res.ok){
     const err = await res.json().catch(()=>({}));
@@ -3243,10 +3249,20 @@ function updateAuthUI(){
         '<button class="auth-dropdown-trigger" id="header-username"></button>' +
         '<div class="auth-dropdown-menu">' +
           '<div class="auth-dropdown-menu-inner">' +
-            '<button class="auth-dropdown-item" id="header-portfolio-btn">◈ Portfolio</button>' +
-            '<button class="auth-dropdown-item" id="header-faction-btn">⚑ Faction</button>' +
+            '<button class="auth-dropdown-item" id="header-changepic-btn">🖼 Change Picture</button>' +
+            '<button class="auth-dropdown-item" id="header-changeuser-btn">✏ Change Username</button>' +
+            '<hr class="auth-dropdown-divider">' +
+            '<div id="header-referral-compact" style="padding:6px 12px 8px;">' +
+              '<div style="font-family:Orbitron,sans-serif;font-size:0.44rem;letter-spacing:2px;text-transform:uppercase;color:var(--punk2);opacity:0.8;margin-bottom:5px;">◈ Referral Code</div>' +
+              '<div style="display:flex;align-items:center;gap:6px;">' +
+                '<div id="dropdown-ref-code" style="font-family:Orbitron,sans-serif;font-size:0.7rem;font-weight:700;color:var(--gold);background:var(--bg);border:1px solid var(--gold-dim);border-radius:4px;padding:4px 8px;letter-spacing:3px;flex:1;text-align:center;">—</div>' +
+                '<button id="dropdown-ref-copy" style="background:transparent;border:1px solid var(--gold-dim);border-radius:4px;color:var(--gold);cursor:pointer;font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;padding:4px 8px;white-space:nowrap;" onclick="copyRefCode()">Copy</button>' +
+              '</div>' +
+              '<div id="dropdown-ref-stats" style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim);margin-top:4px;">Loading…</div>' +
+            '</div>' +
+            '<hr class="auth-dropdown-divider">' +
+            '<button class="auth-dropdown-item" id="header-profile-btn">◈ Profile</button>' +
             '<button class="auth-dropdown-item" id="header-ledger-btn">⊟ Ledger</button>' +
-            '<button class="auth-dropdown-item" id="header-leaderboard-btn">⬆ Leaderboard</button>' +
             '<button class="auth-dropdown-item" id="header-community-btn">◈ Community</button>'+
             '<button class="auth-dropdown-item" id="header-casino-btn">⚄ Casino</button>'+
             '<hr class="auth-dropdown-divider">' +
@@ -3255,14 +3271,15 @@ function updateAuthUI(){
         '</div>';
       loginBtn.parentNode.insertBefore(block, loginBtn.nextSibling);
       document.getElementById('header-logout-btn').addEventListener('click', handleLogout);
-      document.getElementById('header-portfolio-btn').addEventListener('click', openPortfolio);
-      document.getElementById('header-faction-btn').addEventListener('click', openFactionPage);
+      document.getElementById('header-changepic-btn').addEventListener('click', function(){ window.location.href='/profile'; });
+      document.getElementById('header-changeuser-btn').addEventListener('click', function(){ window.location.href='/profile'; });
+      document.getElementById('header-profile-btn').addEventListener('click', function(){ window.location.href='/profile'; });
       document.getElementById('header-ledger-btn').addEventListener('click', openLedger);
-      document.getElementById('header-leaderboard-btn').addEventListener('click', openLeaderboard);
       document.getElementById('header-community-btn').addEventListener('click', function(){ window.location.href='/community'; });
       document.getElementById('header-casino-btn').addEventListener('click', function(){ window.location.href='/casino'; });
     }
     updateFactionHeaderDisplay();
+    updateDropdownReferral();
     block.style.display = 'flex';
   } else {
     loginBtn.style.visibility = 'visible';
@@ -3270,6 +3287,28 @@ function updateAuthUI(){
     if(block) block.style.display = 'none';
   }
   updateHeaderWallet();
+}
+
+function updateDropdownReferral(){
+  const codeEl  = document.getElementById('dropdown-ref-code');
+  const statsEl = document.getElementById('dropdown-ref-stats');
+  if(!codeEl || !statsEl || !currentUser) return;
+  codeEl.textContent = currentUser.referral_code || '—';
+  // Load referral stats asynchronously
+  fetch(API_BASE + '/profile/me/referral-stats', { credentials:'include' })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(data){
+      if(data && statsEl) statsEl.textContent = data.referrals_count + ' referred · ' + fBeri(data.beri_earned);
+    })
+    .catch(function(){});
+}
+
+function copyRefCode(){
+  const code = currentUser && currentUser.referral_code ? currentUser.referral_code : null;
+  if(!code) return;
+  navigator.clipboard.writeText(code).catch(function(){});
+  const el = document.getElementById('dropdown-ref-copy');
+  if(el){ const orig = el.textContent; el.textContent = '✓'; setTimeout(function(){ el.textContent = orig; }, 1500); }
 }
 
 async function handleLogout(){
@@ -3335,9 +3374,11 @@ document.getElementById('login-submit').addEventListener('click', async function
 // Signup submit
 document.getElementById('signup-submit').addEventListener('click', async function(){
   const btn = this;
-  const username = document.getElementById('auth-signup-user').value.trim();
-  const email    = document.getElementById('auth-signup-email').value.trim();
-  const password = document.getElementById('auth-signup-pass').value;
+  const username    = document.getElementById('auth-signup-user').value.trim();
+  const email       = document.getElementById('auth-signup-email').value.trim();
+  const password    = document.getElementById('auth-signup-pass').value;
+  const refInput    = document.getElementById('auth-signup-ref');
+  const referralCode = refInput ? refInput.value.trim().toUpperCase() || null : null;
   if(!username || !email || !password){
     showAuthFeedback('signup-feedback','err','All fields are required.'); return;
   }
@@ -3346,7 +3387,7 @@ document.getElementById('signup-submit').addEventListener('click', async functio
   }
   btn.disabled = true; btn.textContent = 'Creating…';
   try {
-    await apiSignup(username, email, password);
+    await apiSignup(username, email, password, referralCode);
     currentUser = await fetchCurrentUser();
     saveHint(currentUser);
     await fetchPortfolio();

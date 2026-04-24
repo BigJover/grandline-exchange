@@ -47,6 +47,7 @@ class UserCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
+    referral_code: Optional[str] = None
 
 
 class UserOut(BaseModel):
@@ -62,8 +63,19 @@ class UserOut(BaseModel):
     creature_unlocked: bool = False
     last_faction_change: Optional[datetime] = None
     warlord_until: Optional[datetime] = None
+    profile_picture: Optional[str] = None
+    referral_code: Optional[str] = None
+    referred_by_id: Optional[int] = None
+    referral_beri_earned: float = 0
 
     model_config = {"from_attributes": True}
+
+    @field_validator("referral_beri_earned", mode="before")
+    @classmethod
+    def coerce_earned_to_float(cls, v: Any) -> float:
+        if v is None:
+            return 0.0
+        return float(v)
 
     @field_validator("faction_history", "badges", mode="before")
     @classmethod
@@ -190,3 +202,38 @@ class BetOut(BaseModel):
     new_balance: float
 
     model_config = {"from_attributes": True}
+
+
+# ── Profile ───────────────────────────────────────────────────────────────────
+
+class ProfilePictureUpdate(BaseModel):
+    profile_picture: str   # URL or "char:<id>"
+
+
+class UsernameUpdate(BaseModel):
+    username: str
+
+
+class ReferralStats(BaseModel):
+    referral_code: str
+    referrals_count: int
+    beri_earned: float
+
+
+class PortfolioEntry(BaseModel):
+    character_id: int
+    character_name: str
+    character_img: str
+    quantity: int
+    current_price: float
+    total_value: float
+
+    model_config = {"from_attributes": True}
+
+
+class ProfileFull(BaseModel):
+    user: UserOut
+    portfolio: List[PortfolioEntry]
+    leaderboard_rank: int
+    total_users: int
+    referral_stats: ReferralStats

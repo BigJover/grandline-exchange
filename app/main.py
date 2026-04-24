@@ -13,7 +13,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 from app.database import Base, engine, SessionLocal
 from app import models
-from app.routers import auth, characters, trades, admin, users, requests as requests_router, comments as comments_router, casino as casino_router
+from app.routers import auth, characters, trades, admin, users, requests as requests_router, comments as comments_router, casino as casino_router, profile as profile_router
 from app.scheduler import scheduler
 from app.websocket_manager import manager
 from app.price_queue import updates as price_updates
@@ -31,6 +31,10 @@ def run_column_migrations():
         ("last_faction_change", "TIMESTAMPTZ" if is_postgres else "DATETIME"),
         ("warlord_until",       "TIMESTAMPTZ" if is_postgres else "DATETIME"),
         ("is_admin",           "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+        ("profile_picture",    "TEXT"),
+        ("referral_code",      "TEXT"),
+        ("referred_by_id",     "INTEGER"),
+        ("referral_beri_earned", "DOUBLE PRECISION DEFAULT 0" if is_postgres else "FLOAT DEFAULT 0"),
     ]
     char_migrations = [
         ("base_beri", "DOUBLE PRECISION" if is_postgres else "FLOAT"),
@@ -148,10 +152,31 @@ def patch_character_meta():
         db.close()
 
 
+def backfill_referral_codes():
+    """Assign referral codes to any existing users who don't have one yet."""
+    import uuid as _uuid
+    db = SessionLocal()
+    try:
+        users = db.query(models.User).filter(models.User.referral_code == None).all()
+        for u in users:
+            code = _uuid.uuid4().hex[:8].upper()
+            while db.query(models.User).filter(models.User.referral_code == code).first():
+                code = _uuid.uuid4().hex[:8].upper()
+            u.referral_code = code
+        if users:
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"backfill_referral_codes error: {e}")
+    finally:
+        db.close()
+
+
 run_column_migrations()
 Base.metadata.create_all(bind=engine)
 backfill_base_beri()
 patch_character_meta()
+backfill_referral_codes()
 
 
 async def price_broadcaster():
@@ -216,7 +241,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[_allowed_origin],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "X-Admin-Secret"],
 )
 
@@ -228,6 +253,7 @@ app.include_router(users.router)
 app.include_router(requests_router.router)
 app.include_router(comments_router.router)
 app.include_router(casino_router.router)
+app.include_router(profile_router.router)
 
 
 @app.websocket("/ws")
@@ -267,6 +293,16 @@ def community_page():
 @app.get("/casino")
 def casino_page():
     with open(os.path.join(STATIC_DIR, "casino.html"), "r") as f:
+        content = f.read()
+    return HTMLResponse(
+        content=content,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/profile")
+def profile_page():
+    with open(os.path.join(STATIC_DIR, "profile.html"), "r") as f:
         content = f.read()
     return HTMLResponse(
         content=content,

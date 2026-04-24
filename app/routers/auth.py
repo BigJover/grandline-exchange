@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -28,15 +30,55 @@ def signup(request: Request, response: Response, user_in: schemas.UserCreate, db
     if db.query(models.User).filter(models.User.email == user_in.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Resolve referral code
+    referrer = None
+    REFERRAL_BONUS = 20_000
+    if user_in.referral_code:
+        referrer = db.query(models.User).filter(
+            models.User.referral_code == user_in.referral_code.upper()
+        ).first()
+        if not referrer:
+            raise HTTPException(status_code=400, detail="Invalid referral code")
+
+    # Generate unique referral code for new user
+    new_code = uuid.uuid4().hex[:8].upper()
+    while db.query(models.User).filter(models.User.referral_code == new_code).first():
+        new_code = uuid.uuid4().hex[:8].upper()
+
+    starting_balance = 100_000 + (REFERRAL_BONUS if referrer else 0)
+
     user = models.User(
         username=user_in.username,
         email=user_in.email,
         password_hash=auth.hash_password(user_in.password),
-        beri_balance=100_000,
+        beri_balance=starting_balance,
         user_faction="citizen",
         faction_history=["citizen"],
+        referral_code=new_code,
+        referred_by_id=referrer.id if referrer else None,
+        referral_beri_earned=0,
     )
     db.add(user)
+    db.flush()  # get user.id before committing
+
+    if referrer:
+        # Award referrer bonus
+        referrer.beri_balance += REFERRAL_BONUS
+        referrer.referral_beri_earned = (referrer.referral_beri_earned or 0) + REFERRAL_BONUS
+        db.add(models.BeriEvent(
+            user_id=referrer.id,
+            event_type="referral_bonus",
+            amount=REFERRAL_BONUS,
+            description=f"Referral bonus — {user_in.username} signed up with your code",
+        ))
+        # Award new user bonus event
+        db.add(models.BeriEvent(
+            user_id=user.id,
+            event_type="referral_bonus",
+            amount=REFERRAL_BONUS,
+            description=f"Welcome bonus — referred by {referrer.username}",
+        ))
+
     db.commit()
     db.refresh(user)
 

@@ -46,6 +46,11 @@ class User(Base):
     last_faction_change = Column(DateTime(timezone=True), nullable=True)
     warlord_until = Column(DateTime(timezone=True), nullable=True)
 
+    profile_picture = Column(String, nullable=True)          # URL or "char:<id>"
+    referral_code = Column(String, unique=True, nullable=True)
+    referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    referral_beri_earned = Column(Float, default=0)
+
     shares = relationship("Share", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     beri_events = relationship("BeriEvent", back_populates="user")
