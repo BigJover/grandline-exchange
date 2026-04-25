@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -8,14 +9,19 @@ from app import models, schemas
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
-_CACHE_30 = {"Cache-Control": "public, max-age=30"}
+_CACHE_60 = {"Cache-Control": "public, max-age=60"}
+_CHAR_CACHE_TTL = 60  # seconds — per-worker in-memory cache
+_char_cache: dict = {"data": None, "ts": 0.0}
 
 
 @router.get("/", response_model=List[schemas.CharacterListOut])
 def list_characters(db: Session = Depends(get_db)):
-    chars = db.query(models.Character).order_by(models.Character.beri.desc()).all()
-    data = [schemas.CharacterListOut.model_validate(c).model_dump() for c in chars]
-    return JSONResponse(content=data, headers=_CACHE_30)
+    now = time.time()
+    if _char_cache["data"] is None or now - _char_cache["ts"] > _CHAR_CACHE_TTL:
+        chars = db.query(models.Character).order_by(models.Character.beri.desc()).all()
+        _char_cache["data"] = [schemas.CharacterListOut.model_validate(c).model_dump() for c in chars]
+        _char_cache["ts"] = now
+    return JSONResponse(content=_char_cache["data"], headers=_CACHE_60)
 
 
 @router.get("/{character_id}", response_model=schemas.CharacterOut)

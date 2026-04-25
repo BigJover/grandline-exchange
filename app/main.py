@@ -173,8 +173,47 @@ def backfill_referral_codes():
         db.close()
 
 
+def run_index_migrations():
+    """Create missing indexes on FK and frequently-filtered columns. Safe on every startup."""
+    from sqlalchemy import text
+    indexes = [
+        ("ix_shares_user_id",              "shares",           "user_id"),
+        ("ix_shares_character_id",         "shares",           "character_id"),
+        ("ix_transactions_user_id",        "transactions",     "user_id"),
+        ("ix_transactions_character_id",   "transactions",     "character_id"),
+        ("ix_beri_events_user_id",         "beri_events",      "user_id"),
+        ("ix_users_beri_balance",          "users",            "beri_balance"),
+        ("ix_users_is_bot",                "users",            "is_bot"),
+        ("ix_comments_character_id",       "comments",         "character_id"),
+        ("ix_comments_week",               "comments",         "week"),
+        ("ix_comment_likes_user_id",       "comment_likes",    "user_id"),
+        ("ix_comment_likes_comment_id",    "comment_likes",    "comment_id"),
+        ("ix_prop_bets_proposition_id",    "proposition_bets", "proposition_id"),
+        ("ix_prop_bets_user_id",           "proposition_bets", "user_id"),
+    ]
+    is_postgres = str(engine.url).startswith("postgres")
+    with engine.connect() as conn:
+        for idx_name, table, col in indexes:
+            try:
+                if is_postgres:
+                    conn.execute(text(
+                        f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({col})"
+                    ))
+                else:
+                    conn.execute(text(
+                        f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({col})"
+                    ))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+
 run_column_migrations()
 Base.metadata.create_all(bind=engine)
+run_index_migrations()
 backfill_base_beri()
 patch_character_meta()
 backfill_referral_codes()
