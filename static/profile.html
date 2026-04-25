@@ -1674,37 +1674,34 @@ async function init(){
   document.getElementById('leaderboard-section').style.display = 'block';
   document.getElementById('ledger-section').style.display = 'block';
 
-  // Load characters for profile picture picker + ticker
-  try {
-    const r = await fetch(API_BASE+'/characters/', { credentials:'include' });
-    if(r.ok){
-      allChars = await r.json();
-      const countEl = document.getElementById('total-count');
-      if(countEl) countEl.textContent = allChars.length;
-      buildTicker();
-    }
-  } catch(e){}
-
-  // Build header dropdown
   buildHeaderDropdown();
 
-  // Load full profile data
-  try {
-    const r = await fetch(API_BASE+'/profile/me/full', { credentials:'include' });
-    if(!r.ok) throw new Error('profile API error');
-    const profileData = await r.json();
-    currentUser = profileData.user;
+  // Fire all data fetches in parallel — characters, profile, leaderboard, ledger
+  const [charsRes, profileRes] = await Promise.allSettled([
+    fetch(API_BASE+'/characters/', { credentials:'include' }).then(function(r){ return r.ok ? r.json() : null; }),
+    fetch(API_BASE+'/profile/me/full', { credentials:'include' }).then(function(r){ return r.ok ? r.json() : null; }),
+  ]);
+  loadLeaderboard();
+  loadLedger();
 
+  // Handle characters (ticker + avatar picker)
+  if(charsRes.status === 'fulfilled' && charsRes.value){
+    allChars = charsRes.value;
+    const countEl = document.getElementById('total-count');
+    if(countEl) countEl.textContent = allChars.length;
+    buildTicker();
+  }
+
+  // Handle profile data
+  if(profileRes.status === 'fulfilled' && profileRes.value){
+    const profileData = profileRes.value;
+    currentUser = profileData.user;
     renderProfileHero(profileData);
     renderPortfolio(profileData.portfolio, profileData.user);
     renderFactionDisplay(profileData.user);
     renderReferral(profileData.referral_stats);
-  } catch(e){
-    console.error('Profile load error:', e);
+    updateHeaderWallet();
   }
-
-  // Load leaderboard and ledger in parallel
-  await Promise.all([loadLeaderboard(), loadLedger()]);
 }
 
 // Close overlays on backdrop click
