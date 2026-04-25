@@ -216,8 +216,16 @@ body {
 .profile-stat-val.punk2 { color:var(--punk2); }
 
 /* ── TWO-COLUMN LAYOUT ── */
-.profile-cols { display:grid; grid-template-columns:1fr 380px; gap:20px; margin-bottom:20px; }
-@media(max-width:900px){ .profile-cols { grid-template-columns:1fr; } }
+.profile-cols { margin-bottom:20px; }
+
+/* ── COMBINED PORTFOLIO + FACTION CARD ── */
+.combined-card-inner { display:flex; }
+.combined-portfolio { flex:1; min-width:0; padding:24px; }
+.combined-faction { width:300px; border-left:1px solid var(--border); padding:24px; flex-shrink:0; }
+@media(max-width:900px){
+  .combined-card-inner { flex-direction:column; }
+  .combined-faction { width:auto; border-left:none; border-top:1px solid var(--border); }
+}
 
 /* ── SECTION CARD ── */
 .section-card {
@@ -721,24 +729,23 @@ body {
   </div>
 
   <!-- TWO-COLUMN MAIN -->
-  <div class="profile-cols" id="profile-cols" style="display:none">
-    <!-- LEFT: Portfolio -->
-    <div class="section-card">
-      <div class="section-title">◈ Portfolio</div>
-      <div class="portfolio-summary-grid">
-        <div class="port-stat"><div class="port-stat-label">Positions</div><div class="port-stat-val" id="port-positions">—</div></div>
-        <div class="port-stat"><div class="port-stat-label">Holdings Value</div><div class="port-stat-val gold" id="port-holdings-val">—</div></div>
-        <div class="port-stat"><div class="port-stat-label">Wallet</div><div class="port-stat-val" id="port-wallet-val">—</div></div>
-        <div class="port-stat"><div class="port-stat-label">Net Worth</div><div class="port-stat-val green" id="port-net-worth">—</div></div>
+  <div class="profile-cols section-card" id="profile-cols" style="display:none; padding:0; overflow:hidden">
+    <div class="combined-card-inner">
+      <!-- Left: Portfolio -->
+      <div class="combined-portfolio">
+        <div class="section-title">◈ Portfolio</div>
+        <div class="portfolio-summary-grid">
+          <div class="port-stat"><div class="port-stat-label">Positions</div><div class="port-stat-val" id="port-positions">—</div></div>
+          <div class="port-stat"><div class="port-stat-label">Holdings Value</div><div class="port-stat-val gold" id="port-holdings-val">—</div></div>
+          <div class="port-stat"><div class="port-stat-label">Wallet</div><div class="port-stat-val" id="port-wallet-val">—</div></div>
+          <div class="port-stat"><div class="port-stat-label">Net Worth</div><div class="port-stat-val green" id="port-net-worth">—</div></div>
+        </div>
+        <div class="portfolio-list" id="portfolio-list">
+          <div class="portfolio-empty">Loading…</div>
+        </div>
       </div>
-      <div class="portfolio-list" id="portfolio-list">
-        <div class="portfolio-empty">Loading…</div>
-      </div>
-    </div>
-
-    <!-- RIGHT: Faction -->
-    <div class="right-col">
-      <div class="section-card">
+      <!-- Right: Faction -->
+      <div class="combined-faction">
         <div class="section-title">⚑ Faction</div>
         <div class="faction-current-display" id="faction-display">
           <div class="faction-current-icon" id="faction-icon">◉</div>
@@ -1636,7 +1643,7 @@ async function init(){
 
   document.getElementById('auth-required').style.display = 'none';
   document.getElementById('profile-hero').style.display = 'block';
-  document.getElementById('profile-cols').style.display = 'grid';
+  document.getElementById('profile-cols').style.display = 'block';
   document.getElementById('leaderboard-section').style.display = 'block';
   document.getElementById('ledger-section').style.display = 'block';
 
