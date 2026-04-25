@@ -75,9 +75,10 @@ def update_profile_picture(
     pic = payload.profile_picture.strip()
     if not pic:
         raise HTTPException(status_code=400, detail="profile_picture cannot be empty")
-    # Allow: "char:<id>" references or any http/https URL
-    if not (pic.startswith("char:") or pic.startswith("http://") or pic.startswith("https://")):
-        raise HTTPException(status_code=400, detail="profile_picture must be a URL or char:<id> reference")
+    # Allow: "char:<id>" references, http/https URLs, or base64 image data URLs
+    if not (pic.startswith("char:") or pic.startswith("http://") or pic.startswith("https://")
+            or pic.startswith("data:image/jpeg;base64,") or pic.startswith("data:image/png;base64,")):
+        raise HTTPException(status_code=400, detail="profile_picture must be a URL, char:<id> reference, or uploaded image")
     current_user.profile_picture = pic
     db.add(current_user)
     db.commit()

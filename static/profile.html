@@ -100,33 +100,14 @@ body {
 /* ── MAIN LAYOUT ── */
 .profile-page { max-width:1100px; margin:0 auto; padding:28px 24px 60px; }
 
-/* ── PROFILE SETTINGS DROPDOWN (inline on profile page) ── */
+/* ── PROFILE USERNAME ROW ── */
 .profile-username-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.profile-settings-wrap { position:relative; }
-.profile-settings-trigger {
+.profile-pencil-btn {
   background:transparent; border:1px solid var(--border); border-radius:5px;
-  color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace;
-  font-size:0.7rem; padding:5px 10px; transition:all 0.18s; line-height:1;
+  color:var(--text-dim); cursor:pointer; font-size:0.75rem; padding:4px 8px;
+  transition:all 0.18s; line-height:1; flex-shrink:0;
 }
-.profile-settings-trigger:hover,
-.profile-settings-wrap:focus-within .profile-settings-trigger { border-color:var(--punk-dim); color:var(--punk); }
-.profile-settings-menu {
-  position:absolute; top:calc(100% + 6px); left:0;
-  background:var(--surface); border:1px solid var(--punk-dim); border-radius:9px;
-  min-width:230px; padding:6px; z-index:300;
-  box-shadow:0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(224,64,251,0.08);
-  opacity:0; pointer-events:none; transform:translateY(-4px);
-  transition:opacity 0.18s, transform 0.18s;
-}
-.profile-settings-wrap:hover .profile-settings-menu,
-.profile-settings-wrap:focus-within .profile-settings-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
-.profile-settings-item {
-  background:none; border:none; border-radius:5px; color:var(--text-dim);
-  cursor:pointer; display:block; font-family:'Share Tech Mono',monospace;
-  font-size:0.74rem; padding:8px 12px; text-align:left; transition:all 0.15s; width:100%;
-}
-.profile-settings-item:hover { background:rgba(224,64,251,0.07); color:var(--text); }
-.profile-settings-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
+.profile-pencil-btn:hover { border-color:var(--punk-dim); color:var(--punk); }
 
 /* ── REFERRAL INLINE HERO ── */
 .profile-ref-hero {
@@ -445,6 +426,16 @@ body {
   font-family:'Orbitron',sans-serif; font-size:1rem; color:var(--punk);
 }
 
+/* ── UPLOAD DROP AREA ── */
+.upload-drop-area {
+  border:2px dashed var(--border); border-radius:10px; padding:36px 24px;
+  text-align:center; cursor:pointer; transition:border-color 0.2s, background 0.2s;
+}
+.upload-drop-area:hover { border-color:var(--punk-dim); background:rgba(224,64,251,0.04); }
+.upload-icon { font-size:2rem; margin-bottom:8px; }
+.upload-label { font-family:'Orbitron',sans-serif; font-size:0.72rem; font-weight:700; color:var(--text); letter-spacing:1px; margin-bottom:6px; }
+.upload-hint { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); }
+
 /* ── TOAST ── */
 .toast {
   position:fixed; bottom:24px; right:24px; z-index:9999;
@@ -685,17 +676,11 @@ body {
         <div class="profile-avatar-overlay">Change<br>Picture</div>
       </div>
 
-      <!-- Info + settings dropdown -->
+      <!-- Info + settings -->
       <div class="profile-info">
         <div class="profile-username-row">
           <div class="profile-username" id="profile-username">—</div>
-          <div class="profile-settings-wrap">
-            <button class="profile-settings-trigger" title="Settings">⚙ ▾</button>
-            <div class="profile-settings-menu">
-              <button class="profile-settings-item" onclick="openPicturePicker()">🖼 Change Picture</button>
-              <button class="profile-settings-item" onclick="openUsernameModal()">✏ Change Username</button>
-            </div>
-          </div>
+          <button class="profile-pencil-btn" onclick="openUsernameModal()" title="Change username">✏</button>
           <div class="profile-ref-hero" id="hero-ref-wrap" style="display:none">
             <span class="profile-ref-hero-label">Referral</span>
             <span class="profile-ref-hero-code" id="hero-ref-code" onclick="copyReferralCode()" title="Click to copy">—</span>
@@ -781,7 +766,7 @@ body {
     <div id="picture-feedback" class="modal-feedback"></div>
     <div class="picker-tabs">
       <button class="picker-tab active" id="tab-chars" onclick="switchPickerTab('chars')">Character</button>
-      <button class="picker-tab" id="tab-url" onclick="switchPickerTab('url')">Custom URL</button>
+      <button class="picker-tab" id="tab-upload" onclick="switchPickerTab('upload')">Upload Photo</button>
     </div>
     <div class="picker-pane active" id="pane-chars">
       <input class="picker-search" id="char-search" type="text" placeholder="Search characters…" oninput="filterCharGrid()">
@@ -790,12 +775,18 @@ body {
       </div>
       <button class="modal-submit" style="margin-top:14px" id="save-char-btn" disabled onclick="saveCharPicture()">Save Selection</button>
     </div>
-    <div class="picker-pane" id="pane-url">
-      <div class="modal-field">
-        <label>Image URL</label>
-        <input id="custom-url-input" type="url" placeholder="https://example.com/your-image.jpg">
+    <div class="picker-pane" id="pane-upload">
+      <div class="upload-drop-area" id="upload-drop-area" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">📁</div>
+        <div class="upload-label">Click to choose a photo</div>
+        <div class="upload-hint">JPEG or PNG · max 5 MB · resized to 300 × 300</div>
+        <input type="file" id="file-input" accept="image/jpeg,image/png" style="display:none" onchange="handleFileSelect(this)">
       </div>
-      <button class="modal-submit" onclick="saveUrlPicture()">Save URL</button>
+      <canvas id="resize-canvas" style="display:none"></canvas>
+      <div id="upload-preview-wrap" style="display:none; text-align:center; margin-top:12px;">
+        <img id="upload-preview" style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:2px solid var(--punk);" alt="Preview">
+      </div>
+      <button class="modal-submit" id="save-upload-btn" style="margin-top:14px" disabled onclick="saveUploadPicture()">Save Photo</button>
     </div>
   </div>
 </div>
@@ -1359,7 +1350,9 @@ function openPicturePicker(){
   selectedCharId = null;
   document.getElementById('picture-feedback').className = 'modal-feedback';
   document.getElementById('save-char-btn').disabled = true;
-  document.getElementById('custom-url-input').value = '';
+  document.getElementById('save-upload-btn').disabled = true;
+  document.getElementById('upload-preview-wrap').style.display = 'none';
+  document.getElementById('file-input').value = '';
   switchPickerTab('chars');
   buildCharGrid(allChars);
   document.getElementById('picture-modal').classList.add('open');
@@ -1369,9 +1362,9 @@ function closePicturePicker(){ document.getElementById('picture-modal').classLis
 
 function switchPickerTab(t){
   document.getElementById('tab-chars').classList.toggle('active', t==='chars');
-  document.getElementById('tab-url').classList.toggle('active', t==='url');
+  document.getElementById('tab-upload').classList.toggle('active', t==='upload');
   document.getElementById('pane-chars').classList.toggle('active', t==='chars');
-  document.getElementById('pane-url').classList.toggle('active', t==='url');
+  document.getElementById('pane-upload').classList.toggle('active', t==='upload');
 }
 
 function filterCharGrid(){
@@ -1415,17 +1408,57 @@ async function saveCharPicture(){
   btn.disabled = false; btn.textContent = 'Save Selection';
 }
 
-async function saveUrlPicture(){
-  const url = document.getElementById('custom-url-input').value.trim();
-  if(!url){ const fb = document.getElementById('picture-feedback'); fb.className='modal-feedback err'; fb.textContent='⚠ Please enter a URL'; return; }
+function handleFileSelect(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(!['image/jpeg','image/png'].includes(file.type)){
+    const fb = document.getElementById('picture-feedback');
+    fb.className = 'modal-feedback err'; fb.textContent = '⚠ Only JPEG and PNG files are supported';
+    return;
+  }
+  if(file.size > 5 * 1024 * 1024){
+    const fb = document.getElementById('picture-feedback');
+    fb.className = 'modal-feedback err'; fb.textContent = '⚠ File must be under 5 MB';
+    return;
+  }
+  document.getElementById('picture-feedback').className = 'modal-feedback';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const MAX = 300;
+      const canvas = document.getElementById('resize-canvas');
+      const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      // Show preview
+      document.getElementById('upload-preview').src = dataUrl;
+      document.getElementById('upload-preview-wrap').style.display = 'block';
+      document.getElementById('save-upload-btn').disabled = false;
+      document.getElementById('save-upload-btn').dataset.dataUrl = dataUrl;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveUploadPicture(){
+  const btn = document.getElementById('save-upload-btn');
+  const dataUrl = btn.dataset.dataUrl;
+  if(!dataUrl){ return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    await savePicture(url);
+    await savePicture(dataUrl);
     closePicturePicker();
     showToast('✓ Profile picture updated');
   } catch(e){
     const fb = document.getElementById('picture-feedback');
     fb.className = 'modal-feedback err'; fb.textContent = '⚠ ' + e.message;
   }
+  btn.disabled = false; btn.textContent = 'Save Photo';
 }
 
 async function savePicture(picValue){
