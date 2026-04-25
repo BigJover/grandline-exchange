@@ -1162,7 +1162,6 @@ function renderProfileHero(profileData){
   const holdingsVal = portfolio.reduce(function(s,p){ return s + p.total_value; }, 0);
   const netWorth = (u.beri_balance || 0) + holdingsVal;
   document.getElementById('stat-net-worth').textContent = fBeriShort(netWorth) + '฿';
-  document.getElementById('stat-wallet').textContent    = fBeriShort(u.beri_balance) + '฿';
   document.getElementById('stat-holdings').textContent  = fBeriShort(holdingsVal) + '฿';
   document.getElementById('stat-rank').textContent      = '#' + rank + ' / ' + total;
 }
@@ -1174,8 +1173,6 @@ function renderPortfolio(portfolio, user){
 
   document.getElementById('port-positions').textContent    = portfolio.length;
   document.getElementById('port-holdings-val').textContent = fBeriShort(holdingsVal) + '฿';
-  document.getElementById('port-wallet-val').textContent   = fBeriShort(user.beri_balance) + '฿';
-  document.getElementById('port-net-worth').textContent    = fBeriShort(netWorth) + '฿';
 
   if(!portfolio.length){
     list.innerHTML = '<div class="portfolio-empty">No positions yet. Start trading on the Exchange.</div>';
