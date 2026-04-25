@@ -194,12 +194,12 @@ body {
 }
 .profile-meta-row { font-family:'Share Tech Mono',monospace; font-size:0.66rem; color:var(--text-dim); }
 .profile-stats-grid {
-  display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
   margin-left:auto; flex-shrink:0;
 }
 @media(max-width:800px){
   .profile-hero-inner { flex-wrap:wrap; }
-  .profile-stats-grid { grid-template-columns:repeat(2,1fr); width:100%; }
+  .profile-stats-grid { grid-template-columns:repeat(3,1fr); width:100%; }
 }
 .profile-stat {
   background:var(--bg); border:1px solid var(--border); border-radius:8px;
@@ -241,7 +241,7 @@ body {
 .section-title.teal-title { color:var(--punk2); }
 
 /* ── PORTFOLIO ── */
-.portfolio-summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px; }
+.portfolio-summary-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px; }
 @media(max-width:600px){ .portfolio-summary-grid { grid-template-columns:1fr 1fr; } }
 .port-stat {
   background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px 12px;
@@ -713,10 +713,6 @@ body {
           <div class="profile-stat-val green" id="stat-net-worth">—</div>
         </div>
         <div class="profile-stat">
-          <div class="profile-stat-label">Wallet</div>
-          <div class="profile-stat-val gold" id="stat-wallet">—</div>
-        </div>
-        <div class="profile-stat">
           <div class="profile-stat-label">Holdings</div>
           <div class="profile-stat-val punk" id="stat-holdings">—</div>
         </div>
@@ -737,8 +733,6 @@ body {
         <div class="portfolio-summary-grid">
           <div class="port-stat"><div class="port-stat-label">Positions</div><div class="port-stat-val" id="port-positions">—</div></div>
           <div class="port-stat"><div class="port-stat-label">Holdings Value</div><div class="port-stat-val gold" id="port-holdings-val">—</div></div>
-          <div class="port-stat"><div class="port-stat-label">Wallet</div><div class="port-stat-val" id="port-wallet-val">—</div></div>
-          <div class="port-stat"><div class="port-stat-label">Net Worth</div><div class="port-stat-val green" id="port-net-worth">—</div></div>
         </div>
         <div class="portfolio-list" id="portfolio-list">
           <div class="portfolio-empty">Loading…</div>
