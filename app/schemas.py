@@ -12,6 +12,32 @@ class PricePoint(BaseModel):
     beri: float
 
 
+class CharacterListOut(BaseModel):
+    """Slim schema for the list endpoint — excludes bio/events/sbs/related."""
+    id: int
+    name: str
+    aliases: List[str]
+    faction: str
+    category: str
+    beri: float
+    base_beri: Optional[float] = None
+    canon_bounty: Optional[float] = None
+    status: str
+    rank: Optional[str] = None
+    price_history: List[Any]
+    img: str
+    full_name: Optional[str] = None
+    title: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator('aliases', 'price_history', mode='before')
+    @classmethod
+    def coerce_none_to_list(cls, v):
+        return v if v is not None else []
+
+    model_config = {"from_attributes": True}
+
+
 class CharacterOut(BaseModel):
     id: int
     name: str

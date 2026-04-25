@@ -2447,19 +2447,13 @@ function openModal(id) {
     desigEl.style.display = 'none';
   }
 
-  // Bio
-  var bioEl = document.getElementById('modal-bio');
-  var bioWrap = document.getElementById('modal-bio-wrap');
-  if(c.bio){
-    bioEl.innerHTML = '';
-    bioEl.className = 'modal-bio';
-    bioEl.textContent = c.bio;
-    bioWrap.style.display = '';
-  } else {
-    bioEl.className = 'modal-bio modal-bio-empty';
-    bioEl.textContent = 'Intel pending — no file on record.';
-    bioWrap.style.display = '';
-  }
+  // Clear info pane — detail loads async in background
+  document.getElementById('modal-bio-wrap').style.display = 'none';
+  document.getElementById('modal-analysis-wrap').style.display = 'none';
+  document.getElementById('modal-sbs-wrap').style.display = 'none';
+  document.getElementById('modal-event-log-wrap').style.display = 'none';
+  document.getElementById('modal-related-wrap').style.display = 'none';
+  fetchModalDetail(c);
 
   // Stock value + change
   const beri=c.beri||0;
@@ -2498,59 +2492,6 @@ function openModal(id) {
     dot.addEventListener('mouseleave', ()=>{ tip.style.display='none'; });
   });
 
-  // Cognitive Analysis
-  var analysisWrap = document.getElementById('modal-analysis-wrap');
-  if(c.events){
-    document.getElementById('modal-events').textContent = c.events;
-    analysisWrap.style.display = '';
-  } else {
-    analysisWrap.style.display = 'none';
-  }
-
-  // Price Event Log (collapsible — collapsed by default)
-  var logWrap   = document.getElementById('modal-event-log-wrap');
-  var logEl     = document.getElementById('modal-event-log');
-  var logBody   = document.getElementById('event-log-body');
-  var logToggle = document.getElementById('event-log-toggle');
-  var logHtml   = buildEventLog(c.price_history);
-  if(logHtml){
-    logEl.innerHTML = logHtml;
-    logBody.classList.remove('open');
-    logToggle.classList.remove('open');
-    logWrap.style.display = '';
-  } else {
-    logWrap.style.display = 'none';
-  }
-
-  // SBS Intelligence Feed
-  const sbsWrap = document.getElementById('modal-sbs-wrap');
-  const sbsContainer = document.getElementById('modal-sbs-entries');
-  if(c.sbs && c.sbs.length > 0){
-    sbsContainer.innerHTML = c.sbs.map(function(s){
-      return '<div class="modal-sbs-entry"><div class="modal-sbs-vol">◈ SBS Vol.'+s.vol+'</div>'+s.text+'</div>';
-    }).join('');
-    sbsWrap.style.display = '';
-  } else {
-    sbsContainer.innerHTML = '';
-    sbsWrap.style.display = 'none';
-  }
-
-  // Related Nodes
-  const relWrap = document.getElementById('modal-related-wrap');
-  const relGrid = document.getElementById('modal-related-grid');
-  if(c.related && c.related.length > 0){
-    relGrid.innerHTML = c.related.map(function(name){
-      var rc = CHARACTERS.find(function(x){ return x.name === name; });
-      if(!rc) return '';
-      var safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return '<div class="related-chip" onclick="openModal(CHARACTERS.find(function(x){return x.name===\''+safeName+'\'}))">'+ name +'</div>';
-    }).join('');
-    relWrap.style.display = '';
-  } else {
-    relGrid.innerHTML = '';
-    relWrap.style.display = 'none';
-  }
-
   // Trading terminal
   updateTradeUI(c);
   updateModalPosition(c);
@@ -2564,6 +2505,67 @@ function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   document.body.style.overflow='';
   document.getElementById('chart-dot-tip').style.display='none';
+}
+
+// ── Lazy detail fetch (bio/events/sbs/related) ──
+async function fetchModalDetail(c) {
+  if(c._detailLoaded) { renderModalDetail(c); return; }
+  try {
+    const r = await fetch('/characters/' + c.id);
+    if(!r.ok) return;
+    const d = await r.json();
+    c.bio = d.bio; c.events = d.events; c.sbs = d.sbs || []; c.related = d.related || [];
+    c.price_history = d.price_history || c.price_history;
+    c._detailLoaded = true;
+  } catch(e) { return; }
+  if(currentModalChar && currentModalChar.id === c.id) renderModalDetail(c);
+}
+
+function renderModalDetail(c) {
+  // Bio
+  var bioEl = document.getElementById('modal-bio');
+  var bioWrap = document.getElementById('modal-bio-wrap');
+  if(c.bio){
+    bioEl.className = 'modal-bio'; bioEl.textContent = c.bio;
+  } else {
+    bioEl.className = 'modal-bio modal-bio-empty'; bioEl.textContent = 'Intel pending — no file on record.';
+  }
+  bioWrap.style.display = '';
+
+  // Cognitive Analysis
+  var analysisWrap = document.getElementById('modal-analysis-wrap');
+  if(c.events){ document.getElementById('modal-events').textContent = c.events; analysisWrap.style.display = ''; }
+  else { analysisWrap.style.display = 'none'; }
+
+  // Price Event Log
+  var logWrap = document.getElementById('modal-event-log-wrap');
+  var logEl = document.getElementById('modal-event-log');
+  var logBody = document.getElementById('event-log-body');
+  var logToggle = document.getElementById('event-log-toggle');
+  var logHtml = buildEventLog(c.price_history);
+  if(logHtml){ logEl.innerHTML = logHtml; logBody.classList.remove('open'); logToggle.classList.remove('open'); logWrap.style.display = ''; }
+  else { logWrap.style.display = 'none'; }
+
+  // SBS
+  var sbsWrap = document.getElementById('modal-sbs-wrap');
+  var sbsContainer = document.getElementById('modal-sbs-entries');
+  if(c.sbs && c.sbs.length > 0){
+    sbsContainer.innerHTML = c.sbs.map(function(s){
+      return '<div class="modal-sbs-entry"><div class="modal-sbs-vol">◈ SBS Vol.'+s.vol+'</div>'+s.text+'</div>';
+    }).join('');
+    sbsWrap.style.display = '';
+  } else { sbsContainer.innerHTML = ''; sbsWrap.style.display = 'none'; }
+
+  // Related Nodes
+  var relWrap = document.getElementById('modal-related-wrap');
+  var relGrid = document.getElementById('modal-related-grid');
+  if(c.related && c.related.length > 0){
+    relGrid.innerHTML = c.related.map(function(name){
+      var rc = CHARACTERS.find(function(x){ return x.name === name; });
+      return rc ? '<div class="related-chip" onclick="openModal('+rc.id+')">'+escHtml(name)+'</div>' : '';
+    }).join('');
+    relWrap.style.display = '';
+  } else { relGrid.innerHTML = ''; relWrap.style.display = 'none'; }
 }
 
 // ── Modal tabs ──
