@@ -266,9 +266,10 @@ scheduler.add_job(
     id="weekly_beri_drop",
     replace_existing=True,
 )
-scheduler.add_job(
-    run_comment_purge,
-    CronTrigger(day_of_week="sun", hour=0, minute=5, second=0),
-    id="weekly_comment_purge",
-    replace_existing=True,
-)
+# Comment purge disabled until there's a surplus of comments
+# scheduler.add_job(
+#     run_comment_purge,
+#     CronTrigger(day_of_week="sun", hour=0, minute=5, second=0),
+#     id="weekly_comment_purge",
+#     replace_existing=True,
+# )
