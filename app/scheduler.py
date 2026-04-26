@@ -1,7 +1,39 @@
+import os
+import fcntl
+import time
 import random
 from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+
+_BERI_LOCK = "/tmp/beri_drop.lock"
+_PURGE_LOCK = "/tmp/comment_purge.lock"
+_MIN_INTERVAL = 23 * 3600  # must be at least 23h since last run
+
+
+def _should_run(lock_path: str) -> bool:
+    """Exclusive file lock guard — only the first worker to acquire it within
+    a 23-hour window will return True. All others skip immediately."""
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)          # block until we hold the lock
+            content = os.read(fd, 32).decode().strip()
+            last_ts = float(content) if content else 0.0
+            now_ts = time.time()
+            if now_ts - last_ts < _MIN_INTERVAL:
+                return False                          # another worker already ran this cycle
+            # Claim the slot before releasing so the next worker sees it
+            os.ftruncate(fd, 0)
+            os.lseek(fd, 0, os.SEEK_SET)
+            os.write(fd, str(now_ts).encode())
+            return True
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+    except Exception as e:
+        print(f"[Scheduler] Lock check failed ({lock_path}): {e} — proceeding")
+        return True
 
 WEEKLY_DROP = 10_000        # fallback for users with no faction
 ROYALTY_LOGIN_PASSIVE = 75_000
@@ -55,6 +87,10 @@ def _pirate_plunder() -> int:
 
 
 def run_beri_drop():
+    if not _should_run(_BERI_LOCK):
+        print("[Beri Drop] Already ran this cycle (another worker) — skipping")
+        return
+
     from app.database import SessionLocal
     from app import models
 
@@ -197,6 +233,10 @@ def run_beri_drop():
 
 def run_comment_purge():
     """Delete comments from previous weeks with fewer than 2 likes."""
+    if not _should_run(_PURGE_LOCK):
+        print("[Comment Purge] Already ran this cycle (another worker) — skipping")
+        return
+
     from app.database import SessionLocal
     from app import models
 
