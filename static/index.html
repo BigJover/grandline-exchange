@@ -1765,10 +1765,6 @@ body::after {
         <div class="modal-bounty-rating" id="modal-bounty-rating"></div>
         <div class="modal-bounty-source" id="modal-bounty-src"></div>
       </div>
-      <div class="modal-designation" id="modal-designation" style="display:none;">
-        <div class="modal-title-line" id="modal-title-line"></div>
-        <div class="modal-full-name" id="modal-full-name"></div>
-      </div>
 
       <!-- ── Vegapunk Cognitive Analysis ── -->
       <div id="modal-analysis-wrap" style="display:none;">
@@ -2434,22 +2430,6 @@ function openModal(id) {
     }
   } else {
     bb.style.display='none';
-  }
-
-  // Designation block: title + full name
-  const desigEl  = document.getElementById('modal-designation');
-  const titleEl  = document.getElementById('modal-title-line');
-  const fnEl     = document.getElementById('modal-full-name');
-  const hasTitle = !!(c.title);
-  const hasFN    = !!(c.full_name);
-  if(hasTitle || hasFN){
-    titleEl.textContent = c.title || '';
-    titleEl.style.display = hasTitle ? '' : 'none';
-    fnEl.textContent = c.full_name || '';
-    fnEl.style.display = hasFN ? '' : 'none';
-    desigEl.style.display = '';
-  } else {
-    desigEl.style.display = 'none';
   }
 
   // Clear info pane — detail loads async in background
