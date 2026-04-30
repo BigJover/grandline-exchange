@@ -207,12 +207,63 @@ def run_index_migrations():
                     pass
 
 
+def seed_new_characters():
+    """Insert any characters present in characters.json but missing from the DB.
+    Safe to run on every startup — skips characters that already exist by name."""
+    import json as _json
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "characters.json")
+    try:
+        with open(data_path) as f:
+            chars = _json.load(f)
+    except Exception:
+        return
+    db = SessionLocal()
+    try:
+        existing = {r[0] for r in db.execute(models.Character.__table__.select()).fetchall()
+                    if hasattr(r, '__iter__')}
+        # Use name-based lookup to be safe
+        existing_names = {c.name for c in db.query(models.Character.name).all()}
+        added = 0
+        for c in chars:
+            if c.get("name") in existing_names:
+                continue
+            db.add(models.Character(
+                name=c.get("name", ""),
+                aliases=c.get("aliases", []),
+                faction=c.get("faction", ""),
+                category=c.get("category", ""),
+                beri=float(c.get("beri", 0)),
+                canon_bounty=c.get("canon_bounty"),
+                status=c.get("status", "active"),
+                notes=c.get("notes", ""),
+                rank=c.get("rank"),
+                price_history=c.get("price_history", []),
+                img=c.get("img", ""),
+                bio=c.get("bio", ""),
+                events=c.get("events", ""),
+                sbs=c.get("sbs", []),
+                related=c.get("related", []),
+                full_name=c.get("full_name"),
+                title=c.get("title"),
+            ))
+            added += 1
+        if added:
+            db.commit()
+            print(f"[seed_new_characters] Added {added} new character(s)")
+    except Exception as e:
+        db.rollback()
+        print(f"[seed_new_characters] Error: {e}")
+    finally:
+        db.close()
+
+
 run_column_migrations()
 Base.metadata.create_all(bind=engine)
 run_index_migrations()
 backfill_base_beri()
 patch_character_meta()
 backfill_referral_codes()
+seed_new_characters()
 
 from app.bots import seed_bots
 seed_bots()
