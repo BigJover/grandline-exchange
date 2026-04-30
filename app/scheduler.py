@@ -6,14 +6,15 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-_BERI_LOCK = "/tmp/beri_drop.lock"
+_BERI_LOCK  = "/tmp/beri_drop.lock"
 _PURGE_LOCK = "/tmp/comment_purge.lock"
+_BOT_LOCK   = "/tmp/bot_tick.lock"
 _MIN_INTERVAL = 23 * 3600  # must be at least 23h since last run
 
 
-def _should_run(lock_path: str) -> bool:
+def _should_run(lock_path: str, min_seconds: int = _MIN_INTERVAL) -> bool:
     """Exclusive file lock guard — only the first worker to acquire it within
-    a 23-hour window will return True. All others skip immediately."""
+    min_seconds will return True. All others skip immediately."""
     try:
         fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
         try:
@@ -21,7 +22,7 @@ def _should_run(lock_path: str) -> bool:
             content = os.read(fd, 32).decode().strip()
             last_ts = float(content) if content else 0.0
             now_ts = time.time()
-            if now_ts - last_ts < _MIN_INTERVAL:
+            if now_ts - last_ts < min_seconds:
                 return False                          # another worker already ran this cycle
             # Claim the slot before releasing so the next worker sees it
             os.ftruncate(fd, 0)
@@ -259,11 +260,25 @@ def run_comment_purge():
         db.close()
 
 
+def _run_bot_tick_guarded():
+    if not _should_run(_BOT_LOCK):
+        print("[BotTick] Already ran today (another worker) — skipping")
+        return
+    from app.bots import run_bot_tick
+    run_bot_tick()
+
+
 scheduler = AsyncIOScheduler(timezone="UTC")
 scheduler.add_job(
     run_beri_drop,
     CronTrigger(day_of_week="sun", hour=0, minute=0, second=0),
     id="weekly_beri_drop",
+    replace_existing=True,
+)
+scheduler.add_job(
+    _run_bot_tick_guarded,
+    CronTrigger(hour=12, minute=0, second=0),   # once daily at noon UTC
+    id="bot_market_tick",
     replace_existing=True,
 )
 # Comment purge disabled until there's a surplus of comments

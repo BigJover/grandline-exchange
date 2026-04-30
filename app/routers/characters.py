@@ -14,6 +14,12 @@ _CHAR_CACHE_TTL = 60  # seconds — per-worker in-memory cache
 _char_cache: dict = {"data": None, "ts": 0.0}
 
 
+def invalidate_char_cache():
+    """Call after any admin operation that changes character data."""
+    _char_cache["data"] = None
+    _char_cache["ts"] = 0.0
+
+
 @router.get("/", response_model=List[schemas.CharacterListOut])
 def list_characters(db: Session = Depends(get_db)):
     now = time.time()

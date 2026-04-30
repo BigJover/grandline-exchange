@@ -2183,6 +2183,8 @@ const RECENT_PCT = {
   "S-Flamingo":    { pct: "2.0", up: true  },
   // Lord of the Coast — older meme, declining (beri value DB update pending)
   "The Lord of the Coast": { pct: "20.0", up: false },
+  // Garling — value reflects confirmed role buildup, currently stable
+  "Garling": { flat: true },
   // Hype capped off
   "Kuma":    { pct: "3.5", up: false },
   "Pudding": { pct: "2.8", up: false },
@@ -2281,7 +2283,10 @@ function chartStats(c) {
   }
   // Editorial baseline for chars not yet traded this session
   const r = RECENT_PCT[c.name];
-  if (r) return { hasChart, up: r.up, pct: r.pct };
+  if (r) {
+    if (r.flat) return { hasChart: false, up: false, pct: null };
+    return { hasChart, up: r.up, pct: r.pct };
+  }
   return { hasChart, up: chartUp, pct: computedPct };
 }
 // Keep legacy helpers for modal (calls chartStats internally)
@@ -2729,6 +2734,7 @@ document.getElementById('trade-qty-val').addEventListener('input', tradeSetQtyFr
 document.getElementById('trade-qty-val').addEventListener('blur', tradeSetQtyFromInput);
 
 document.getElementById('trade-buy-btn').addEventListener('click', async function(){
+  if(!currentUser){ openAuthModal('login'); return; }
   const c=CHARACTERS.find(x=>x.id===tradeCharId);
   if(!c) return;
   const fb=document.getElementById('trade-feedback');
@@ -2774,6 +2780,7 @@ document.getElementById('trade-buy-btn').addEventListener('click', async functio
 });
 
 document.getElementById('trade-sell-btn').addEventListener('click', async function(){
+  if(!currentUser){ openAuthModal('login'); return; }
   const c=CHARACTERS.find(x=>x.id===tradeCharId);
   if(!c) return;
   const fb=document.getElementById('trade-feedback');
@@ -2821,6 +2828,7 @@ document.getElementById('trade-sell-btn').addEventListener('click', async functi
 });
 
 document.getElementById('trade-slander-btn').addEventListener('click', function(){
+  if(!currentUser){ openAuthModal('login'); return; }
   const c=CHARACTERS.find(x=>x.id===tradeCharId);
   if(!c) return;
   const sp=livePrice(c);

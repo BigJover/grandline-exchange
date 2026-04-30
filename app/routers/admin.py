@@ -7,6 +7,7 @@ from typing import List, Optional
 from app.database import get_db
 from app import models, schemas
 from app.scheduler import run_beri_drop, WEEKLY_DROP
+from app.routers.characters import invalidate_char_cache
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -45,6 +46,7 @@ def set_character_beri(name: str, beri: float, x_admin_secret: Optional[str] = H
     old = char.beri
     char.beri = beri
     db.commit()
+    invalidate_char_cache()
     return {"status": "ok", "name": char.name, "old_beri": old, "new_beri": beri}
 
 

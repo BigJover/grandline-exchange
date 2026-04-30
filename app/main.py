@@ -100,7 +100,7 @@ def patch_character_meta():
     - bio: only fills if empty (set once, never overwritten)
     - events, sbs, related: always synced from character_meta.json
     - price_history: merges new chapter entries without overwriting existing
-    - beri: updated to latest price_history entry if a new one was added
+    - beri: NOT touched — the live DB value is the source of truth
     - full_name, title: always synced from characters.json
     """
     import json as _json
@@ -139,12 +139,8 @@ def patch_character_meta():
                 ]
                 if new_entries:
                     char.price_history = (char.price_history or []) + new_entries
-                    # Update beri to match the latest entry
-                    all_entries = sorted(
-                        char.price_history,
-                        key=lambda e: e.get("chapter", 0)
-                    )
-                    char.beri = all_entries[-1]["beri"]
+                    # beri is intentionally NOT updated here — the live DB value
+                    # is the source of truth and evolves through user/bot trading.
         db.commit()
     except Exception as e:
         db.rollback()
@@ -217,6 +213,38 @@ run_index_migrations()
 backfill_base_beri()
 patch_character_meta()
 backfill_referral_codes()
+
+from app.bots import seed_bots
+seed_bots()
+
+
+def correct_beri_outliers():
+    """One-time corrections for characters whose seeded beri was miscalibrated.
+    Each entry only fires while the live value is above the correction threshold."""
+    from sqlalchemy import text
+    corrections = [
+        # (name, new_beri, only_if_above)
+        ("Lucky Roux",  2_200_000_000, 2_500_000_000),
+        ("Ben Beckman", 2_300_000_000, 2_400_000_000),
+    ]
+    with engine.connect() as conn:
+        for name, target, threshold in corrections:
+            try:
+                row = conn.execute(
+                    text("SELECT beri FROM characters WHERE name = :n"), {"n": name}
+                ).fetchone()
+                if row and row[0] > threshold:
+                    conn.execute(
+                        text("UPDATE characters SET beri = :b, base_beri = :b WHERE name = :n"),
+                        {"b": float(target), "n": name},
+                    )
+                    conn.commit()
+                    print(f"[Correction] {name}: {int(row[0]):,} → {target:,}")
+            except Exception as e:
+                print(f"[Correction] {name}: {e}")
+
+
+correct_beri_outliers()
 
 # Cache HTML pages in memory at startup — avoids disk read on every request
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
