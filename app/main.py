@@ -226,6 +226,8 @@ def correct_beri_outliers():
         # (name, new_beri, only_if_above)
         ("Lucky Roux",  2_200_000_000, 2_500_000_000),
         ("Ben Beckman", 2_300_000_000, 2_400_000_000),
+        ("Dragon",      2_850_000_000, 2_800_000_000),  # swap: Dragon above Bogard
+        ("Bogard",      2_750_000_000, 2_800_000_000),  # swap: Bogard below Dragon
     ]
     with engine.connect() as conn:
         for name, target, threshold in corrections:

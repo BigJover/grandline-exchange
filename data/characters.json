@@ -5770,7 +5770,7 @@
     "aliases": [],
     "faction": "Marines",
     "category": "marine",
-    "beri": 2850000000,
+    "beri": 2750000000,
     "canon_bounty": null,
     "status": "active",
     "notes": "Garp's aide",
@@ -5825,7 +5825,7 @@
       {
         "chapter": 1180,
         "label": "Elbaf Current",
-        "beri": 2850000000
+        "beri": 2750000000
       }
     ]
   },
@@ -13375,7 +13375,7 @@
     ],
     "faction": "Revolutionary Army",
     "category": "pirate",
-    "beri": 2750000000,
+    "beri": 2850000000,
     "canon_bounty": 0,
     "status": "active",
     "notes": "Most wanted criminal in the world, father of Luffy, leader of Revolutionary Army",
@@ -13429,7 +13429,7 @@
       {
         "chapter": 1180,
         "label": "Elbaf Current",
-        "beri": 2750000000
+        "beri": 2850000000
       }
     ],
     "full_name": "Monkey D. Dragon",
