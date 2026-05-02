@@ -16021,7 +16021,7 @@
     "aliases": [],
     "faction": "Holy Knights / World Government",
     "category": "civilian",
-    "beri": 1750000000,
+    "beri": 2300000000,
     "canon_bounty": null,
     "status": "active",
     "notes": "Holy Knight — Imu possesses her body in Elbaf arc",
@@ -16056,6 +16056,11 @@
         "chapter": 1180,
         "label": "Elbaf — Fate Uncertain After Omen",
         "beri": 1750000000
+      },
+      {
+        "chapter": 1178,
+        "beri": 2300000000,
+        "label": "Elbaf Climax — Imu Possession · Brook Thesis"
       }
     ]
   },
