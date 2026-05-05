@@ -302,6 +302,50 @@
     .c-enter-btn { width:100%; margin-top:12px; background:transparent; border:1px solid var(--border); border-radius:7px; color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.52rem; font-weight:700; letter-spacing:2px; padding:9px; text-transform:uppercase; transition:all 0.18s; }
     .c-enter-btn:hover { border-color:var(--punk); color:var(--punk); background:rgba(224,64,251,0.05); }
 
+    /* ── Trivia ── */
+    .trivia-streak-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:rgba(212,160,23,0.07); border:1px solid rgba(212,160,23,0.22); border-radius:8px; padding:10px 16px; margin-bottom:14px; }
+    .trivia-streak-val { font-family:'Orbitron',sans-serif; font-size:0.88rem; font-weight:900; color:var(--gold); text-shadow:0 0 18px rgba(212,160,23,0.45); }
+    .trivia-streak-label { font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:var(--text-dim); }
+    .trivia-mult { font-family:'Orbitron',sans-serif; font-size:0.75rem; font-weight:700; color:var(--punk); margin-left:4px; }
+    .trivia-dots { display:flex; gap:6px; margin-left:auto; }
+    .trivia-dot { width:10px; height:10px; border-radius:50%; border:1px solid var(--border); background:var(--bg); }
+    .trivia-dot.answered { background:var(--gold); border-color:var(--gold); }
+    .trivia-dot.correct  { background:var(--green); border-color:var(--green); }
+    .trivia-dot.wrong    { background:var(--red); border-color:var(--red); }
+    .trivia-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    @media(max-width:900px){ .trivia-grid { grid-template-columns:1fr; } }
+    .trivia-card { background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:12px; transition:border-color 0.15s; }
+    .trivia-card:hover { border-color:rgba(212,160,23,0.3); }
+    .trivia-card.answered-correct { border-color:rgba(0,208,132,0.4); background:rgba(0,208,132,0.04); }
+    .trivia-card.answered-wrong   { border-color:rgba(255,68,85,0.3); background:rgba(255,68,85,0.03); }
+    .trivia-card-cat { display:flex; align-items:center; gap:8px; }
+    .trivia-cat-badge { font-family:'Orbitron',sans-serif; font-size:0.46rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; border-radius:3px; padding:3px 9px; border:1px solid; white-space:nowrap; }
+    .trivia-cat-lore      { background:rgba(224,64,251,0.12); color:var(--punk);  border-color:rgba(224,64,251,0.3); }
+    .trivia-cat-geography { background:rgba(41,182,246,0.12); color:var(--punk2); border-color:rgba(41,182,246,0.3); }
+    .trivia-cat-backstory { background:rgba(212,160,23,0.12); color:var(--gold);  border-color:rgba(212,160,23,0.3); }
+    .trivia-week-tag { font-family:'Share Tech Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-left:auto; }
+    .trivia-question { font-family:'Share Tech Mono',monospace; font-size:0.78rem; color:var(--text); line-height:1.6; flex:1; }
+    .trivia-choices { display:flex; flex-direction:column; gap:7px; }
+    .trivia-choice { background:var(--bg); border:1px solid var(--border); border-radius:7px; color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:9px 12px; text-align:left; transition:all 0.15s; line-height:1.4; }
+    .trivia-choice:hover:not(:disabled) { border-color:rgba(212,160,23,0.5); color:var(--text); background:rgba(212,160,23,0.05); }
+    .trivia-choice:disabled { cursor:not-allowed; }
+    .trivia-choice.correct { background:rgba(0,208,132,0.12); border-color:rgba(0,208,132,0.6); color:var(--green); }
+    .trivia-choice.wrong   { background:rgba(255,68,85,0.10);  border-color:rgba(255,68,85,0.5);  color:var(--red); }
+    .trivia-choice.reveal-correct { background:rgba(0,208,132,0.07); border-color:rgba(0,208,132,0.35); color:var(--green); opacity:0.7; }
+    .trivia-result { font-family:'Orbitron',sans-serif; font-size:0.56rem; font-weight:700; letter-spacing:1px; padding:5px 10px; border-radius:4px; text-align:center; }
+    .trivia-result.ok  { background:rgba(0,208,132,0.15); border:1px solid rgba(0,208,132,0.4); color:var(--green); }
+    .trivia-result.bad { background:rgba(255,68,85,0.12);  border:1px solid rgba(255,68,85,0.4);  color:var(--red); }
+    .trivia-login-prompt { font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:var(--text-dim); text-align:center; padding:14px 0; }
+    .trivia-login-prompt a { color:var(--punk); text-decoration:none; }
+
+    /* ── Chapter prediction extras ── */
+    .c-pred-tag { font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:700; letter-spacing:1px; padding:2px 7px; border-radius:3px; background:rgba(41,182,246,0.14); border:1px solid rgba(41,182,246,0.45); color:var(--punk2); white-space:nowrap; }
+    .c-pred-mult { font-family:'Orbitron',sans-serif; font-size:0.52rem; font-weight:700; color:var(--gold); margin-left:2px; }
+    .c-free-play-btn { flex:1; background:transparent; border:1px dashed rgba(0,208,132,0.5); border-radius:6px; color:var(--green); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; letter-spacing:1.5px; padding:8px 10px; text-align:center; transition:all 0.18s; }
+    .c-free-play-btn:hover { background:rgba(0,208,132,0.07); border-color:var(--green); }
+    .c-double-down-toggle { display:flex; align-items:center; gap:6px; cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.66rem; color:var(--text-dim); user-select:none; margin-top:4px; }
+    .c-double-down-toggle input { cursor:pointer; accent-color:var(--punk); }
+
     /* ── Right panel ── */
     .c-right { display:flex; flex-direction:column; gap:14px; position:sticky; top:80px; }
     .c-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
@@ -514,6 +558,26 @@
           <div class="c-featured-empty">No featured challenge yet — challenges open after each chapter uplink.</div>
         </div>
       </div>
+
+      <!-- Weekly Trivia -->
+      <div id="trivia-section">
+        <div class="c-section-hdr">Weekly Trivia</div>
+        <div class="trivia-streak-bar" id="trivia-streak-bar">
+          <span class="trivia-streak-label">STREAK</span>
+          <span class="trivia-streak-val" id="trivia-streak-val">—</span>
+          <span class="trivia-mult" id="trivia-mult-val"></span>
+          <span class="trivia-streak-label" style="margin-left:6px" id="trivia-progress-label"></span>
+          <div class="trivia-dots" id="trivia-dots">
+            <div class="trivia-dot" id="td-0"></div>
+            <div class="trivia-dot" id="td-1"></div>
+            <div class="trivia-dot" id="td-2"></div>
+          </div>
+        </div>
+        <div class="trivia-grid" id="trivia-grid">
+          <div class="c-empty" style="grid-column:1/-1">Loading trivia…</div>
+        </div>
+      </div>
+
       <div>
         <div class="c-section-hdr">All Challenges</div>
         <div class="c-grid" id="c-list">
@@ -691,7 +755,7 @@ async function init(){
     else { currentUser = null; clearHint(); }
   } catch(e){ currentUser = null; clearHint(); }
   updateAuthUI();
-  await loadProps();
+  await Promise.all([loadProps(), loadTrivia()]);
 }
 
 async function loadProps(){
@@ -839,6 +903,17 @@ function renderProp(prop){
   const catStyle = 'background:'+cm.color+'22;color:'+cm.color+';border-color:'+cm.color+'55';
   const statusHtml = '<span class="c-status-'+prop.status+'">'+(prop.status==='open'?'● Open':prop.status==='closed'?'◌ Closed':'✓ Resolved')+'</span>';
 
+  const predTagHtml = prop.is_chapter_prediction
+    ? (function(){
+        const ml = prop.status==='open' ? predMultiplierLabel(prop) : null;
+        return '<span class="c-pred-tag">⏱ PREDICTION'+(ml?' <span class="c-pred-mult">'+esc(ml)+'</span>':'')+'</span>';
+      })()
+    : '';
+
+  const breakTagHtml = prop.is_break_week
+    ? '<span class="c-pred-tag" style="background:rgba(255,68,85,0.12);border-color:rgba(255,68,85,0.4);color:var(--red)">⚔ BREAK WEEK</span>'
+    : '';
+
   let closesHtml = '';
   if(prop.closes_at && prop.status==='open'){
     const diff = new Date(prop.closes_at) - Date.now();
@@ -904,7 +979,7 @@ function renderProp(prop){
   '</div>';
 
   return '<div class="c-prop" id="cp-'+prop.id+'">'+
-    '<div class="c-prop-header"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span>'+statusHtml+closesHtml+'</div>'+
+    '<div class="c-prop-header"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span>'+statusHtml+predTagHtml+breakTagHtml+closesHtml+'</div>'+
     '<div class="c-question">'+esc(prop.question)+'</div>'+
     '<div class="c-ring-area"><div class="c-ring-wrap">'+ringHtml+'</div><div class="c-ring-opts">'+optRows+'</div></div>'+
     betZoneHtml+
@@ -918,14 +993,34 @@ function selectOpt(propId, optIdx){
   const prop = allProps.find(p=>p.id===propId);
   if(!prop) return;
   const label = esc(prop.options[optIdx]);
+
+  const multLabel = predMultiplierLabel(prop);
+  const multHtml = multLabel
+    ? '<span style="font-family:\'Orbitron\',sans-serif;font-size:0.5rem;color:var(--gold);white-space:nowrap">⏱ '+esc(multLabel)+'</span>'
+    : '';
+
+  const freeBtnHtml = prop.is_chapter_prediction
+    ? '<button class="c-free-play-btn" id="bfp-'+propId+'" onclick="useFreePlay('+propId+','+optIdx+')">FREE PLAY</button>'
+    : '';
+
+  const ddHtml = prop.is_break_week
+    ? '<label class="c-double-down-toggle"><input type="checkbox" id="bdd-'+propId+'"> ⚔ Double Down (2× win/loss — break week)</label>'
+    : '';
+
   bz.style.display = 'flex';
+  bz.style.flexWrap = 'wrap';
   bz.innerHTML =
-    '<span class="c-bet-label">Bet on <strong>'+label+'</strong>:</span>' +
-    '<input type="number" class="c-bet-input" id="bi-'+propId+'" placeholder="amount ฿" min="100">' +
-    '<button class="c-confirm-btn" id="bcf-'+propId+'" onclick="submitBet('+propId+','+optIdx+')">Place Bet</button>' +
-    '<button class="c-cancel-btn" onclick="cancelBet('+propId+')">✕</button>' +
-    '<div class="c-feedback" id="bfb-'+propId+'"></div>';
-  document.getElementById('bi-'+propId).focus();
+    '<span class="c-bet-label">Bet on <strong>'+label+'</strong>:</span>'+
+    multHtml+
+    '<input type="number" class="c-bet-input" id="bi-'+propId+'" placeholder="amount ฿" min="100">'+
+    '<button class="c-confirm-btn" id="bcf-'+propId+'" onclick="submitBet('+propId+','+optIdx+',false)">Place Bet</button>'+
+    (freeBtnHtml ? freeBtnHtml : '')+
+    '<button class="c-cancel-btn" onclick="cancelBet('+propId+')">✕</button>'+
+    '<div class="c-feedback" id="bfb-'+propId+'"></div>'+
+    (ddHtml ? '<div style="width:100%;margin-top:4px">'+ddHtml+'</div>' : '');
+
+  const inp = document.getElementById('bi-'+propId);
+  if(inp) inp.focus();
 }
 
 function cancelBet(propId){
@@ -933,27 +1028,56 @@ function cancelBet(propId){
   if(bz){ bz.style.display='none'; bz.innerHTML=''; }
 }
 
-async function submitBet(propId, optIdx){
+async function useFreePlay(propId, optIdx){
+  const fb  = document.getElementById('bfb-'+propId);
+  const fpb = document.getElementById('bfp-'+propId);
+  if(fpb) { fpb.disabled=true; fpb.textContent='Placing…'; }
+  fb.className='c-feedback'; fb.textContent='';
+  try {
+    const res = await fetch(API_BASE+'/casino/bet',{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({proposition_id:propId, option_index:optIdx, amount:0, is_free_play:true}),
+    });
+    const data = await res.json();
+    if(!res.ok){
+      fb.className='c-feedback err'; fb.textContent='⚠ '+(data.detail||'Free play failed');
+      if(fpb){ fpb.disabled=false; fpb.textContent='FREE PLAY'; }
+      return;
+    }
+    fb.className='c-feedback ok'; fb.textContent='✓ Free play locked in — 5,000 ฿ credit.';
+    setTimeout(function(){ reloadProp(propId); }, 900);
+  } catch(e){
+    fb.className='c-feedback err'; fb.textContent='⚠ Connection error';
+    if(fpb){ fpb.disabled=false; fpb.textContent='FREE PLAY'; }
+  }
+}
+
+async function submitBet(propId, optIdx, isFreePlay){
   const inp = document.getElementById('bi-'+propId);
   const fb  = document.getElementById('bfb-'+propId);
   const btn = document.getElementById('bcf-'+propId);
-  const amount = parseFloat(inp.value);
-  if(!amount||amount<100){ fb.className='c-feedback err'; fb.textContent='⚠ Minimum bet is 100 ฿'; return; }
+  const ddCb = document.getElementById('bdd-'+propId);
+  const doubled = ddCb ? ddCb.checked : false;
+  const amount = parseFloat(inp ? inp.value : 0);
+  if(!isFreePlay && (!amount||amount<100)){ fb.className='c-feedback err'; fb.textContent='⚠ Minimum bet is 100 ฿'; return; }
   btn.disabled=true; btn.textContent='Placing…';
   fb.className='c-feedback'; fb.textContent='';
   try {
     const res = await fetch(API_BASE+'/casino/bet',{
       method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({proposition_id:propId, option_index:optIdx, amount}),
+      body: JSON.stringify({proposition_id:propId, option_index:optIdx, amount:isFreePlay?0:amount, is_free_play:!!isFreePlay, doubled_down:doubled}),
     });
     const data = await res.json();
     if(!res.ok){ fb.className='c-feedback err'; fb.textContent='⚠ '+(data.detail||'Bet failed'); btn.disabled=false; btn.textContent='Place Bet'; return; }
     if(currentUser){
       currentUser.beri_balance = data.new_balance;
-      document.getElementById('c-wallet-val').textContent = fB(data.new_balance);
+      updateHeaderWallet();
     }
-    fb.className='c-feedback ok'; fb.textContent='✓ Bet placed — '+fB(amount)+' locked in.';
+    const multNote = data.multiplier && data.multiplier > 1 ? ' ('+data.multiplier+'× multiplier)' : '';
+    const freeNote = data.is_free_play ? ' [free play]' : '';
+    fb.className='c-feedback ok'; fb.textContent='✓ Bet placed — '+fB(isFreePlay?5000:amount)+(freeNote||multNote)+' locked in.';
     btn.disabled=true;
     setTimeout(function(){ reloadProp(propId); }, 900);
   } catch(e){
@@ -973,6 +1097,178 @@ async function reloadProp(propId){
     if(el){ const tmp=document.createElement('div'); tmp.innerHTML=renderProp(prop); el.replaceWith(tmp.firstChild); }
   } catch(e){}
 }
+
+// ── Chapter prediction helpers ─────────────────────────────────────────────
+
+function predMultiplierLabel(prop){
+  if(!prop.is_chapter_prediction || !prop.chapter_drop_time) return null;
+  const dropTime = new Date(prop.chapter_drop_time);
+  const now = Date.now();
+  const hoursBefore = (dropTime - now) / 3600000;
+  if(hoursBefore > 72)  return '2.0×';
+  if(hoursBefore > 48)  return '1.7×';
+  if(hoursBefore > 24)  return '1.4×';
+  if(hoursBefore > 0)   return '1.2×';
+  if(hoursBefore > -24) return null;       // safe zone
+  return '⚠ +30% penalty if wrong';
+}
+
+// ── Trivia ─────────────────────────────────────────────────────────────────
+
+let triviaData = [];
+let triviaStreak = { streak:0, multiplier:1.0, this_week_answers:0, this_week_correct:0, last_week:null };
+
+const TRIVIA_CAT_META = {
+  lore:      { label:'Lore',      cls:'trivia-cat-lore'      },
+  geography: { label:'Geography', cls:'trivia-cat-geography'  },
+  backstory: { label:'Backstory', cls:'trivia-cat-backstory'  },
+};
+
+async function loadTrivia(){
+  const grid = document.getElementById('trivia-grid');
+  if(!grid) return;
+
+  // Load streak (requires auth) and week questions in parallel
+  const qRes = await fetch(API_BASE+'/trivia/week', { credentials:'include' }).catch(()=>null);
+  if(!qRes || !qRes.ok){ grid.innerHTML='<div class="c-empty" style="grid-column:1/-1;color:var(--text-dim)">Trivia unavailable this week.</div>'; return; }
+  triviaData = await qRes.json();
+
+  if(currentUser){
+    const sRes = await fetch(API_BASE+'/trivia/streak', { credentials:'include' }).catch(()=>null);
+    if(sRes && sRes.ok) triviaStreak = await sRes.json();
+  }
+
+  renderTriviaStreak();
+  renderTriviaGrid();
+}
+
+function renderTriviaStreak(){
+  const sv = document.getElementById('trivia-streak-val');
+  const mv = document.getElementById('trivia-mult-val');
+  const pl = document.getElementById('trivia-progress-label');
+  if(!sv) return;
+
+  if(currentUser){
+    sv.textContent = triviaStreak.streak;
+    mv.textContent = triviaStreak.multiplier > 1.0 ? triviaStreak.multiplier.toFixed(1)+'×' : '';
+    pl.textContent = triviaStreak.this_week_correct+'/3 correct this week';
+
+    // Dots — one per question (answered/correct/wrong)
+    triviaData.forEach(function(q, i){
+      const dot = document.getElementById('td-'+i);
+      if(!dot) return;
+      dot.classList.remove('answered','correct','wrong');
+      if(q.already_answered){
+        dot.classList.add(q.answered_correctly ? 'correct' : 'wrong');
+      }
+    });
+  } else {
+    sv.textContent = '—';
+    mv.textContent = '';
+    pl.textContent = 'Log in to track your streak';
+  }
+}
+
+function renderTriviaGrid(){
+  const grid = document.getElementById('trivia-grid');
+  if(!triviaData.length){ grid.innerHTML='<div class="c-empty" style="grid-column:1/-1">No trivia questions set for this week yet.</div>'; return; }
+  grid.innerHTML = triviaData.map(function(q){ return renderTriviaCard(q); }).join('');
+}
+
+function renderTriviaCard(q){
+  const cm = TRIVIA_CAT_META[q.category] || { label:q.category, cls:'trivia-cat-lore' };
+  const cardCls = q.already_answered ? (q.answered_correctly ? ' answered-correct' : ' answered-wrong') : '';
+
+  const choicesHtml = q.choices.map(function(choice, ci){
+    let cls = 'trivia-choice';
+    let disabled = '';
+    if(q.already_answered){
+      disabled = 'disabled';
+      // We don't know correct answer on client — just show answered state
+      cls += ' reveal-correct'; // will be coloured below when result known
+    }
+    return '<button class="'+cls+'" '+disabled+' onclick="submitTrivia('+q.id+',this)" data-choice="'+esc(choice)+'">'+esc(choice)+'</button>';
+  }).join('');
+
+  const resultHtml = q.already_answered
+    ? '<div class="trivia-result '+(q.answered_correctly?'ok':'bad')+'">'+
+        (q.answered_correctly ? '✓ CORRECT — +20,000 ฿' : '✗ WRONG — −20,000 ฿')+
+      '</div>'
+    : (!currentUser ? '<div class="trivia-login-prompt">→ <a href="/">Log in</a> to answer</div>' : '');
+
+  return '<div class="trivia-card'+cardCls+'" id="tcard-'+q.id+'">'+
+    '<div class="trivia-card-cat">'+
+      '<span class="trivia-cat-badge '+cm.cls+'">'+esc(cm.label)+'</span>'+
+      '<span class="trivia-week-tag">'+esc(q.week)+'</span>'+
+    '</div>'+
+    '<div class="trivia-question">'+esc(q.question)+'</div>'+
+    '<div class="trivia-choices" id="tchoices-'+q.id+'">'+choicesHtml+'</div>'+
+    (resultHtml ? '<div id="tres-'+q.id+'">'+resultHtml+'</div>' : '<div id="tres-'+q.id+'"></div>')+
+  '</div>';
+}
+
+async function submitTrivia(questionId, clickedBtn){
+  if(!currentUser){ window.location.href='/'; return; }
+  const choice = clickedBtn.dataset.choice;
+  const choicesEl = document.getElementById('tchoices-'+questionId);
+  const resEl     = document.getElementById('tres-'+questionId);
+  const card      = document.getElementById('tcard-'+questionId);
+
+  // Disable all choices immediately
+  choicesEl.querySelectorAll('.trivia-choice').forEach(b=>b.disabled=true);
+  clickedBtn.style.opacity='0.7';
+
+  try {
+    const res = await fetch(API_BASE+'/trivia/answer',{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ question_id:questionId, answer:choice }),
+    });
+    const data = await res.json();
+    if(!res.ok){
+      resEl.innerHTML='<div class="trivia-result bad">⚠ '+(data.detail||'Error')+'</div>';
+      choicesEl.querySelectorAll('.trivia-choice').forEach(b=>b.disabled=false);
+      return;
+    }
+
+    // Colour the clicked button
+    clickedBtn.classList.add(data.correct ? 'correct' : 'wrong');
+
+    const multNote = data.multiplier > 1.0 ? ' ('+data.multiplier.toFixed(1)+'×)' : '';
+    resEl.innerHTML = '<div class="trivia-result '+(data.correct?'ok':'bad')+'">'+(
+      data.correct
+        ? '✓ CORRECT — +'+Math.round(Math.abs(data.beri_change)).toLocaleString()+' ฿'+multNote
+        : '✗ WRONG — −'+Math.round(Math.abs(data.beri_change)).toLocaleString()+' ฿'
+    )+'</div>';
+
+    if(data.correct) card.classList.add('answered-correct');
+    else             card.classList.add('answered-wrong');
+
+    // Update streak
+    triviaStreak.streak = data.streak;
+    triviaStreak.multiplier = data.multiplier;
+
+    if(currentUser){
+      currentUser.beri_balance = data.new_balance;
+      updateHeaderWallet();
+    }
+
+    // Re-fetch streak to get updated week progress
+    const sRes = await fetch(API_BASE+'/trivia/streak', { credentials:'include' }).catch(()=>null);
+    if(sRes && sRes.ok){ triviaStreak = await sRes.json(); }
+    renderTriviaStreak();
+
+    if(data.week_complete){
+      const bar = document.getElementById('trivia-streak-bar');
+      if(bar){ bar.style.borderColor='rgba(212,160,23,0.6)'; bar.style.boxShadow='0 0 20px rgba(212,160,23,0.18)'; }
+    }
+  } catch(e){
+    resEl.innerHTML='<div class="trivia-result bad">⚠ Connection error</div>';
+    choicesEl.querySelectorAll('.trivia-choice').forEach(b=>b.disabled=false);
+  }
+}
+
+// ── Sidebar filter wiring ──────────────────────────────────────────────────
 
 // Sidebar filter wiring
 document.querySelectorAll('.c-filter-btn').forEach(function(btn){

@@ -14,7 +14,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 from app.database import Base, engine, SessionLocal
 from app import models
-from app.routers import auth, characters, trades, admin, users, requests as requests_router, comments as comments_router, casino as casino_router, profile as profile_router
+from app.routers import auth, characters, trades, admin, users, requests as requests_router, comments as comments_router, casino as casino_router, profile as profile_router, trivia as trivia_router
 from app.scheduler import scheduler
 from app.websocket_manager import manager
 from app.price_queue import updates as price_updates
@@ -36,6 +36,9 @@ def run_column_migrations():
         ("referral_code",      "TEXT"),
         ("referred_by_id",     "INTEGER"),
         ("referral_beri_earned", "DOUBLE PRECISION DEFAULT 0" if is_postgres else "FLOAT DEFAULT 0"),
+        ("trivia_streak",      "INTEGER DEFAULT 0"),
+        ("trivia_last_week",   "TEXT"),
+        ("free_play_used_at",  "TIMESTAMPTZ" if is_postgres else "DATETIME"),
     ]
     char_migrations = [
         ("base_beri", "DOUBLE PRECISION" if is_postgres else "FLOAT"),
@@ -46,6 +49,17 @@ def run_column_migrations():
     ]
     char_req_migrations = [
         ("discord_message_id", "TEXT"),
+    ]
+    proposition_migrations = [
+        ("is_chapter_prediction", "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+        ("chapter_drop_time",     "TIMESTAMPTZ" if is_postgres else "DATETIME"),
+        ("is_break_week",         "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+    ]
+    prop_bet_migrations = [
+        ("is_free_play",    "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+        ("multiplier",      "DOUBLE PRECISION DEFAULT 1.0" if is_postgres else "FLOAT DEFAULT 1.0"),
+        ("penalty_amount",  "DOUBLE PRECISION DEFAULT 0" if is_postgres else "FLOAT DEFAULT 0"),
+        ("doubled_down",    "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for col, col_type in user_migrations:
@@ -78,6 +92,30 @@ def run_column_migrations():
                     conn.execute(text(f"ALTER TABLE character_requests ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                 else:
                     conn.execute(text(f"ALTER TABLE character_requests ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+        for col, col_type in proposition_migrations:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE propositions ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE propositions ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+        for col, col_type in prop_bet_migrations:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE proposition_bets ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE proposition_bets ADD COLUMN {col} {col_type}"))
                 conn.commit()
             except Exception:
                 try:
@@ -284,6 +322,44 @@ from app.bots import seed_bots
 seed_bots()
 
 
+def seed_trivia_questions():
+    """Insert trivia questions from data/trivia_questions.json that aren't already in the DB.
+    Identified by question text — safe to run on every startup."""
+    import json as _json
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "trivia_questions.json")
+    try:
+        with open(data_path) as f:
+            questions = _json.load(f)
+    except Exception:
+        return
+    db = SessionLocal()
+    try:
+        existing = {r[0] for r in db.query(models.TriviaQuestion.question).all()}
+        added = 0
+        for q in questions:
+            if q.get("question") in existing:
+                continue
+            db.add(models.TriviaQuestion(
+                category=q.get("category", "lore"),
+                question=q.get("question", ""),
+                correct_answer=q.get("correct", ""),
+                wrong_answers=q.get("wrong", []),
+                active=q.get("active", True),
+            ))
+            added += 1
+        if added:
+            db.commit()
+            print(f"[seed_trivia_questions] Added {added} new question(s)")
+    except Exception as e:
+        db.rollback()
+        print(f"[seed_trivia_questions] Error: {e}")
+    finally:
+        db.close()
+
+
+seed_trivia_questions()
+
+
 def correct_beri_outliers():
     """One-time corrections for characters whose seeded beri was miscalibrated.
     Each entry only fires while the live value is above the correction threshold."""
@@ -402,6 +478,7 @@ app.include_router(requests_router.router)
 app.include_router(comments_router.router)
 app.include_router(casino_router.router)
 app.include_router(profile_router.router)
+app.include_router(trivia_router.router)
 
 
 @app.websocket("/ws")

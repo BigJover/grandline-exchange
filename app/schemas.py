@@ -187,6 +187,9 @@ class PropositionCreate(BaseModel):
     options: List[str]                  # min 2 options
     house_cut: float = 0.05
     closes_at: Optional[datetime] = None
+    is_chapter_prediction: bool = False
+    chapter_drop_time: Optional[datetime] = None
+    is_break_week: bool = False
 
 
 class OptionOdds(BaseModel):
@@ -211,6 +214,10 @@ class PropositionOut(BaseModel):
     total_pool: float
     user_bet_option: Optional[int]      # which option the requesting user backed
     user_bet_amount: Optional[float]
+    is_chapter_prediction: bool = False
+    chapter_drop_time: Optional[datetime] = None
+    is_break_week: bool = False
+    user_bet_multiplier: Optional[float] = None
 
     model_config = {"from_attributes": True}
 
@@ -219,6 +226,8 @@ class BetRequest(BaseModel):
     proposition_id: int
     option_index: int
     amount: float
+    is_free_play: bool = False
+    doubled_down: bool = False
 
 
 class BetOut(BaseModel):
@@ -226,8 +235,46 @@ class BetOut(BaseModel):
     option_index: int
     amount: float
     new_balance: float
+    multiplier: float = 1.0
+    is_free_play: bool = False
 
     model_config = {"from_attributes": True}
+
+
+# ── Trivia ────────────────────────────────────────────────────────────────────
+
+class TriviaQuestionOut(BaseModel):
+    id: int
+    category: str
+    question: str
+    choices: List[str]                  # shuffled list of 4 options, no labels
+    week: str
+    already_answered: bool = False
+    answered_correctly: Optional[bool] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TriviaAnswerRequest(BaseModel):
+    question_id: int
+    answer: str                         # must match one of the shuffled choices exactly
+
+
+class TriviaAnswerOut(BaseModel):
+    correct: bool
+    beri_change: float
+    new_balance: float
+    streak: int
+    multiplier: float
+    week_complete: bool
+
+
+class TriviaStreakOut(BaseModel):
+    streak: int
+    multiplier: float
+    last_week: Optional[str]
+    this_week_answers: int              # 0-3 answered so far this week
+    this_week_correct: int              # 0-3 correct so far
 
 
 # ── Profile ───────────────────────────────────────────────────────────────────

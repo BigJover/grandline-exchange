@@ -51,6 +51,11 @@ class User(Base):
     referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     referral_beri_earned = Column(Float, default=0)
 
+    # Trivia
+    trivia_streak = Column(Integer, default=0)               # consecutive full-week completions
+    trivia_last_week = Column(String, nullable=True)         # ISO week of last full-correct week, e.g. "2026-W18"
+    free_play_used_at = Column(DateTime(timezone=True), nullable=True)  # last chapter prediction free play
+
     shares = relationship("Share", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     beri_events = relationship("BeriEvent", back_populates="user")
@@ -146,6 +151,11 @@ class Proposition(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Chapter prediction fields
+    is_chapter_prediction = Column(Boolean, default=False)
+    chapter_drop_time = Column(DateTime(timezone=True), nullable=True)  # when chapter releases
+    is_break_week = Column(Boolean, default=False)
+
     bets = relationship("PropositionBet", back_populates="proposition")
 
 
@@ -160,7 +170,43 @@ class PropositionBet(Base):
     payout = Column(Float, nullable=True)           # filled in when proposition resolves
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Chapter prediction bet metadata
+    is_free_play = Column(Boolean, default=False)   # free daily prediction, no stake deducted
+    multiplier = Column(Float, default=1.0)         # early prediction bonus multiplier
+    penalty_amount = Column(Float, default=0)       # extra loss if wrong (late bets)
+    doubled_down = Column(Boolean, default=False)   # break week 2× stake toggle
+
     proposition = relationship("Proposition", back_populates="bets")
+    user = relationship("User")
+
+
+class TriviaQuestion(Base):
+    __tablename__ = "trivia_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String, nullable=False)       # lore | geography | backstory
+    question = Column(String, nullable=False)
+    correct_answer = Column(String, nullable=False)
+    wrong_answers = Column(JSON, default=list)       # list of 3 strings
+    active = Column(Boolean, default=True)
+    week_assigned = Column(String, nullable=True)   # "2026-W18" — set when selected for a week
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    answers = relationship("TriviaAnswer", back_populates="question")
+
+
+class TriviaAnswer(Base):
+    __tablename__ = "trivia_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("trivia_questions.id"), nullable=False)
+    week = Column(String, nullable=False)           # "2026-W18"
+    is_correct = Column(Boolean, nullable=False)
+    beri_change = Column(Float, nullable=False)     # positive = earned, negative = lost
+    answered_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    question = relationship("TriviaQuestion", back_populates="answers")
     user = relationship("User")
 
 

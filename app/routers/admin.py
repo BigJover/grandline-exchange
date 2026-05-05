@@ -193,6 +193,9 @@ def casino_create(
         house_cut=prop.house_cut,
         closes_at=prop.closes_at,
         status="open",
+        is_chapter_prediction=prop.is_chapter_prediction,
+        chapter_drop_time=prop.chapter_drop_time,
+        is_break_week=prop.is_break_week,
     )
     db.add(p)
     db.commit()
@@ -239,8 +242,20 @@ def casino_resolve(
         models.PropositionBet.proposition_id == prop_id
     ).all()
 
-    total_pool = sum(b.amount for b in bets)
-    winner_pool = sum(b.amount for b in bets if b.option_index == correct_option)
+    # For chapter predictions, use effective_amount = amount × multiplier for pool math
+    is_prediction = bool(prop.is_chapter_prediction)
+
+    def _effective_amount(b: models.PropositionBet) -> float:
+        if is_prediction and not b.is_free_play:
+            return b.amount * (b.multiplier or 1.0)
+        return b.amount
+
+    total_pool = sum(b.amount for b in bets if not b.is_free_play)
+    winner_pool = sum(
+        _effective_amount(b)
+        for b in bets
+        if b.option_index == correct_option
+    )
     house_take = round(total_pool * prop.house_cut, 2)
     prize_pool = total_pool - house_take
 
@@ -250,34 +265,62 @@ def casino_resolve(
         user = db.query(models.User).filter(models.User.id == bet.user_id).first()
         if not user:
             continue
+
+        multiplier = float(bet.multiplier or 1.0)
+
         if bet.option_index == correct_option and winner_pool > 0:
-            payout = round((bet.amount / winner_pool) * prize_pool, 2)
+            eff = _effective_amount(bet)
+            base_payout = round((eff / winner_pool) * prize_pool, 2)
+            # Free play winnings are capped at 2× the free play credit to limit house exposure
+            if bet.is_free_play:
+                base_payout = min(base_payout, bet.amount * 2)
+            payout = base_payout
             bet.payout = payout
             user.beri_balance += payout
             total_paid += payout
+
+            extra = f" {multiplier}×" if multiplier > 1.0 and not bet.is_free_play else ""
+            free_tag = " [free play]" if bet.is_free_play else ""
             db.add(models.BeriEvent(
                 user_id=user.id,
                 event_type="casino_win",
                 amount=payout,
                 description=(
-                    f"Casino win — \"{prop.question}\" → "
-                    f"\"{prop.options[correct_option]}\" "
+                    f"Prediction win{free_tag} — \"{prop.question}\" → "
+                    f"\"{prop.options[correct_option]}\"{extra} "
                     f"({payout:,.0f}฿ on {bet.amount:,.0f}฿ bet)"
                 ),
             ))
             winners += 1
         else:
             bet.payout = 0.0
-            db.add(models.BeriEvent(
-                user_id=user.id,
-                event_type="casino_loss",
-                amount=0,
-                description=(
-                    f"Casino loss — \"{prop.question}\" → "
-                    f"\"{prop.options[correct_option]}\" "
-                    f"({bet.amount:,.0f}฿ lost)"
-                ),
-            ))
+            penalty = float(bet.penalty_amount or 0)
+            if penalty > 0 and not bet.is_free_play:
+                actual_penalty = min(penalty, user.beri_balance)
+                user.beri_balance -= actual_penalty
+                db.add(models.BeriEvent(
+                    user_id=user.id,
+                    event_type="casino_penalty",
+                    amount=-actual_penalty,
+                    description=(
+                        f"Late prediction penalty — \"{prop.question}\" → "
+                        f"\"{prop.options[correct_option]}\" "
+                        f"({actual_penalty:,.0f}฿ penalty)"
+                    ),
+                ))
+
+            if not bet.is_free_play:
+                free_tag = ""
+                db.add(models.BeriEvent(
+                    user_id=user.id,
+                    event_type="casino_loss",
+                    amount=0,
+                    description=(
+                        f"Prediction loss — \"{prop.question}\" → "
+                        f"\"{prop.options[correct_option]}\" "
+                        f"({bet.amount:,.0f}฿ lost)"
+                    ),
+                ))
             losers += 1
 
     prop.correct_option = correct_option

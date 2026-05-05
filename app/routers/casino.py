@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +9,34 @@ from app import models, schemas, auth
 
 router = APIRouter(prefix="/casino", tags=["casino"])
 
-MIN_BET = 100  # minimum beri per bet
+MIN_BET = 100          # minimum beri per real bet
+FREE_PLAY_CREDIT = 5_000  # nominal stake for free play bets (funded by house)
+
+
+def _prediction_multiplier(chapter_drop_time: datetime, now: datetime) -> tuple[float, float]:
+    """Return (multiplier, penalty_amount_fraction) based on when the bet is placed
+    relative to the chapter drop time.
+
+    Multiplier tiers (hours_before_drop):
+      > 72h  → 2.0×
+      > 48h  → 1.7×
+      > 24h  → 1.4×
+      > 0h   → 1.2×
+       0–24h after → 1.0× (safe zone, no penalty)
+      > 24h after  → 1.0× with 30% penalty on loss
+    """
+    hours_before = (chapter_drop_time - now).total_seconds() / 3600
+    if hours_before > 72:
+        return 2.0, 0.0
+    if hours_before > 48:
+        return 1.7, 0.0
+    if hours_before > 24:
+        return 1.4, 0.0
+    if hours_before > 0:
+        return 1.2, 0.0
+    if hours_before > -24:
+        return 1.0, 0.0       # safe zone after drop
+    return 1.0, 0.30           # late bet: 30% penalty if wrong
 
 
 def _build_odds(prop: models.Proposition, user_id: Optional[int] = None) -> schemas.PropositionOut:
@@ -49,6 +76,10 @@ def _build_odds(prop: models.Proposition, user_id: Optional[int] = None) -> sche
         total_pool=total_pool,
         user_bet_option=user_bet.option_index if user_bet else None,
         user_bet_amount=user_bet.amount if user_bet else None,
+        is_chapter_prediction=bool(prop.is_chapter_prediction),
+        chapter_drop_time=prop.chapter_drop_time,
+        is_break_week=bool(prop.is_break_week),
+        user_bet_multiplier=user_bet.multiplier if user_bet else None,
     )
 
 
@@ -95,10 +126,6 @@ def place_bet(
         raise HTTPException(status_code=400, detail="Betting period has ended")
     if req.option_index < 0 or req.option_index >= len(prop.options):
         raise HTTPException(status_code=400, detail="Invalid option")
-    if req.amount < MIN_BET:
-        raise HTTPException(status_code=400, detail=f"Minimum bet is {MIN_BET:,}฿")
-    if current_user.beri_balance < req.amount:
-        raise HTTPException(status_code=400, detail="Insufficient beri")
 
     # One bet per user per proposition — no changing sides after placing
     existing = db.query(models.PropositionBet).filter(
@@ -108,18 +135,69 @@ def place_bet(
     if existing:
         raise HTTPException(status_code=400, detail="You have already placed a bet on this proposition")
 
-    current_user.beri_balance -= req.amount
-    db.add(models.BeriEvent(
-        user_id=current_user.id,
-        event_type="casino_bet",
-        amount=-req.amount,
-        description=f"Casino bet — {req.amount:,.0f}฿ on \"{prop.options[req.option_index]}\"",
-    ))
+    now = datetime.now(timezone.utc)
+
+    # ── Free play handling ────────────────────────────────────────────────────
+    use_free_play = req.is_free_play and bool(prop.is_chapter_prediction)
+    if use_free_play:
+        # One free play per 24 hours across all chapter predictions
+        if current_user.free_play_used_at:
+            cooldown_ends = current_user.free_play_used_at + timedelta(hours=24)
+            if now < cooldown_ends:
+                remaining = int((cooldown_ends - now).total_seconds() / 3600)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Free play recharges in ~{remaining}h"
+                )
+        bet_amount = float(FREE_PLAY_CREDIT)
+        current_user.free_play_used_at = now
+        # No beri deducted — house covers the free play credit
+    else:
+        if req.amount < MIN_BET:
+            raise HTTPException(status_code=400, detail=f"Minimum bet is {MIN_BET:,}฿")
+        if current_user.beri_balance < req.amount:
+            raise HTTPException(status_code=400, detail="Insufficient beri")
+        bet_amount = float(req.amount)
+
+    # ── Chapter prediction multiplier ─────────────────────────────────────────
+    multiplier = 1.0
+    penalty_fraction = 0.0
+    if prop.is_chapter_prediction and prop.chapter_drop_time:
+        multiplier, penalty_fraction = _prediction_multiplier(prop.chapter_drop_time, now)
+
+    penalty_amount = round(bet_amount * penalty_fraction) if not use_free_play else 0
+
+    # ── Break-week double down ────────────────────────────────────────────────
+    doubled_down = req.doubled_down and bool(prop.is_break_week) and not use_free_play
+    if doubled_down:
+        multiplier = max(multiplier, 2.0)
+        penalty_amount = int(bet_amount)    # lose extra if wrong
+
+    # ── Deduct stake and log event ────────────────────────────────────────────
+    if not use_free_play:
+        current_user.beri_balance -= bet_amount
+        label = prop.options[req.option_index]
+        extra = ""
+        if multiplier > 1.0:
+            extra = f" ({multiplier}× multiplier)"
+        if doubled_down:
+            extra = " (doubled down)"
+        db.add(models.BeriEvent(
+            user_id=current_user.id,
+            event_type="casino_bet",
+            amount=-bet_amount,
+            description=f"Prediction bet — {bet_amount:,.0f}฿ on \"{label}\"{extra}",
+        ))
+
     bet = models.PropositionBet(
         proposition_id=prop.id,
         user_id=current_user.id,
         option_index=req.option_index,
-        amount=req.amount,
+        amount=bet_amount,
+        is_free_play=use_free_play,
+        multiplier=multiplier,
+        penalty_amount=penalty_amount,
+        doubled_down=doubled_down,
     )
     db.add(bet)
     db.commit()
@@ -128,6 +206,8 @@ def place_bet(
     return schemas.BetOut(
         proposition_id=prop.id,
         option_index=req.option_index,
-        amount=req.amount,
+        amount=bet_amount,
         new_balance=current_user.beri_balance,
+        multiplier=multiplier,
+        is_free_play=use_free_play,
     )
