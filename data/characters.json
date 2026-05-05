@@ -18979,5 +18979,297 @@
     "sbs": [],
     "related": [],
     "img": "/static/img/characters/jaguar_d_saul.png"
+  },
+  {
+    "id": 344,
+    "name": "Gerd",
+    "full_name": "Gerd",
+    "title": "New Giant Warrior Pirates · Ship's Doctor",
+    "aliases": [],
+    "faction": "New Giant Warrior Pirates",
+    "category": "giant",
+    "beri": 700000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "rank": null,
+    "notes": "Doctor of New Giant Warrior Pirates; former S-class Buggy mercenary; Straw Hat ally in Elbaf",
+    "price_history": [
+      {
+        "chapter": 1130,
+        "beri": 200000000,
+        "label": "Elbaf Arc Debut"
+      },
+      {
+        "chapter": 1132,
+        "beri": 500000000,
+        "label": "Road Defeated — Straw Hat Ally Confirmed"
+      },
+      {
+        "chapter": 1155,
+        "beri": 650000000,
+        "label": "Elbaf Mid"
+      },
+      {
+        "chapter": 1180,
+        "beri": 700000000,
+        "label": "Elbaf Current"
+      }
+    ],
+    "img": "",
+    "bio": "",
+    "events": "",
+    "sbs": [],
+    "related": []
+  },
+  {
+    "id": 345,
+    "name": "Goldberg",
+    "full_name": "Goldberg",
+    "title": "New Giant Warrior Pirates · Ship's Cook",
+    "aliases": [],
+    "faction": "New Giant Warrior Pirates",
+    "category": "giant",
+    "beri": 600000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "rank": null,
+    "notes": "Cook of New Giant Warrior Pirates; former S-rank Buggy mercenary; paired with Gerd",
+    "price_history": [
+      {
+        "chapter": 1130,
+        "beri": 200000000,
+        "label": "Elbaf Arc Debut"
+      },
+      {
+        "chapter": 1132,
+        "beri": 420000000,
+        "label": "Road Defeated — Straw Hat Ally Confirmed"
+      },
+      {
+        "chapter": 1155,
+        "beri": 570000000,
+        "label": "Elbaf Mid"
+      },
+      {
+        "chapter": 1180,
+        "beri": 600000000,
+        "label": "Elbaf Current"
+      }
+    ],
+    "img": "",
+    "bio": "",
+    "events": "",
+    "sbs": [],
+    "related": []
+  },
+  {
+    "id": 346,
+    "name": "Road",
+    "full_name": "Road",
+    "title": "The Sun God · Former S-Rank Mercenary",
+    "aliases": [],
+    "faction": "Elbaf Giants",
+    "category": "giant",
+    "beri": 450000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "rank": null,
+    "notes": "Former S-rank Buggy mercenary; played Sun God role in Elbaf; kidnapped Straw Hats, defeated by Gerd and Goldberg",
+    "price_history": [
+      {
+        "chapter": 1130,
+        "beri": 350000000,
+        "label": "Elbaf Debut — Sun God"
+      },
+      {
+        "chapter": 1132,
+        "beri": 280000000,
+        "label": "Defeated by Gerd & Goldberg"
+      },
+      {
+        "chapter": 1180,
+        "beri": 450000000,
+        "label": "S-Rank Legacy Floor"
+      }
+    ],
+    "img": "",
+    "bio": "",
+    "events": "",
+    "sbs": [],
+    "related": []
+  },
+  {
+    "id": 347,
+    "name": "Oimo",
+    "full_name": "Oimo",
+    "title": "Giant Warrior Pirates · Enies Lobby Veteran",
+    "aliases": [],
+    "faction": "Giant Warrior Pirates",
+    "category": "giant",
+    "beri": 650000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "rank": null,
+    "notes": "Former Enies Lobby guard; Giant Warrior Pirates member; returned to Elbaf",
+    "price_history": [
+      {
+        "chapter": 386,
+        "beri": 200000000,
+        "label": "Enies Lobby Debut"
+      },
+      {
+        "chapter": 430,
+        "beri": 350000000,
+        "label": "Enies Lobby — Switched Sides"
+      },
+      {
+        "chapter": 1000,
+        "beri": 400000000,
+        "label": "Wano Era — Legacy Hold"
+      },
+      {
+        "chapter": 1130,
+        "beri": 550000000,
+        "label": "Elbaf Arc — Active Participant"
+      },
+      {
+        "chapter": 1180,
+        "beri": 650000000,
+        "label": "Elbaf Current"
+      }
+    ],
+    "img": "",
+    "bio": "",
+    "events": "",
+    "sbs": [],
+    "related": []
+  },
+  {
+    "id": 348,
+    "name": "Kashii",
+    "full_name": "Kashii",
+    "title": "Giant Warrior Pirates · Enies Lobby Veteran",
+    "aliases": [],
+    "faction": "Giant Warrior Pirates",
+    "category": "giant",
+    "beri": 600000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "rank": null,
+    "notes": "Former Enies Lobby guard alongside Oimo; Giant Warrior Pirates member",
+    "price_history": [
+      {
+        "chapter": 386,
+        "beri": 150000000,
+        "label": "Enies Lobby Debut"
+      },
+      {
+        "chapter": 430,
+        "beri": 300000000,
+        "label": "Enies Lobby — Switched Sides"
+      },
+      {
+        "chapter": 1000,
+        "beri": 350000000,
+        "label": "Wano Era — Legacy Hold"
+      },
+      {
+        "chapter": 1130,
+        "beri": 500000000,
+        "label": "Elbaf Arc — Active Participant"
+      },
+      {
+        "chapter": 1180,
+        "beri": 600000000,
+        "label": "Elbaf Current"
+      }
+    ],
+    "img": "",
+    "bio": "",
+    "events": "",
+    "sbs": [],
+    "related": []
+  },
+  {
+    "id": 349,
+    "name": "Colon",
+    "full_name": "Colon",
+    "title": "Son of the Left Hand · Elbaf",
+    "aliases": [],
+    "faction": "Elbaf",
+    "category": "giant",
+    "beri": 550000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "rank": null,
+    "notes": "Half-giant, half-human; son of Scopper Gaban and Ripley; taken hostage by Holy Knights in Elbaf arc",
+    "price_history": [
+      {
+        "chapter": 1130,
+        "beri": 200000000,
+        "label": "Elbaf Debut — Gaban's Son Revealed"
+      },
+      {
+        "chapter": 1133,
+        "beri": 350000000,
+        "label": "Holy Knights Hostage — Emotional Arc Center"
+      },
+      {
+        "chapter": 1155,
+        "beri": 450000000,
+        "label": "Elbaf Mid"
+      },
+      {
+        "chapter": 1180,
+        "beri": 550000000,
+        "label": "Lineage Premium Building"
+      }
+    ],
+    "img": "",
+    "bio": "",
+    "events": "",
+    "sbs": [],
+    "related": []
+  },
+  {
+    "id": 350,
+    "name": "Ripley",
+    "full_name": "Ripley",
+    "title": "Elbaf · Giant Biology Teacher",
+    "aliases": [],
+    "faction": "Elbaf",
+    "category": "giant",
+    "beri": 600000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "rank": null,
+    "notes": "Giant biology teacher at Walrus School; Scopper Gaban's partner; Colon's mother",
+    "price_history": [
+      {
+        "chapter": 1130,
+        "beri": 150000000,
+        "label": "Elbaf Debut — Gaban's Partner"
+      },
+      {
+        "chapter": 1133,
+        "beri": 350000000,
+        "label": "Walrus School Burned — Holy Knights Crisis"
+      },
+      {
+        "chapter": 1155,
+        "beri": 500000000,
+        "label": "Elbaf Mid"
+      },
+      {
+        "chapter": 1180,
+        "beri": 600000000,
+        "label": "Elbaf Current"
+      }
+    ],
+    "img": "",
+    "bio": "",
+    "events": "",
+    "sbs": [],
+    "related": []
   }
 ]
