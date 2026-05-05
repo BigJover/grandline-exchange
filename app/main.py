@@ -44,6 +44,9 @@ def run_column_migrations():
         ("full_name", "TEXT"),
         ("title",     "TEXT"),
     ]
+    char_req_migrations = [
+        ("discord_message_id", "TEXT"),
+    ]
     with engine.connect() as conn:
         for col, col_type in user_migrations:
             try:
@@ -63,6 +66,18 @@ def run_column_migrations():
                     conn.execute(text(f"ALTER TABLE characters ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                 else:
                     conn.execute(text(f"ALTER TABLE characters ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+        for col, col_type in char_req_migrations:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE character_requests ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE character_requests ADD COLUMN {col} {col_type}"))
                 conn.commit()
             except Exception:
                 try:

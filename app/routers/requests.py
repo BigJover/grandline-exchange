@@ -1,4 +1,6 @@
 import os
+import json as _json
+import urllib.request as _urllib
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -8,6 +10,56 @@ from app.database import get_db
 from app import models, auth
 
 router = APIRouter(tags=["requests"])
+
+
+def _post_to_discord(req: "models.CharacterRequest") -> Optional[str]:
+    """Post a character request to Discord via webhook.
+    Returns Discord message ID on success, None if webhook not configured or failed.
+    Gracefully no-ops when DISCORD_CHARACTER_REQUEST_WEBHOOK is not set."""
+    webhook_url = os.getenv("DISCORD_CHARACTER_REQUEST_WEBHOOK", "").strip()
+    if not webhook_url:
+        return None
+
+    beri_str = f"{int(req.proposed_beri):,}฿" if req.proposed_beri else "Not specified"
+
+    payload = {
+        "embeds": [{
+            "title": f"📋 Character Request: {req.name}",
+            "description": req.reason or "No reason provided.",
+            "color": 0x6A0DAD,
+            "fields": [
+                {"name": "Faction",    "value": req.faction or "Unknown",  "inline": True},
+                {"name": "Category",   "value": req.category or "Unknown", "inline": True},
+                {"name": "Suggested",  "value": beri_str,                  "inline": True},
+                {"name": "Requested by", "value": req.username,            "inline": True},
+            ],
+            "footer": {"text": "Grand Line Exchange · Character Request System"},
+        }],
+        "poll": {
+            "question": {"text": f"Add {req.name} to the Exchange?"},
+            "answers": [
+                {"answer_id": 1, "poll_media": {"text": "Add them", "emoji": {"name": "✅"}}},
+                {"answer_id": 2, "poll_media": {"text": "Not yet",  "emoji": {"name": "❌"}}},
+            ],
+            "allow_multiselect": False,
+            "duration": 48,
+        },
+    }
+
+    try:
+        data = _json.dumps(payload).encode()
+        http_req = _urllib.Request(
+            webhook_url + "?wait=true",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with _urllib.urlopen(http_req, timeout=5) as resp:
+            body = _json.loads(resp.read())
+            return str(body.get("id"))
+    except Exception as e:
+        print(f"[Discord] Character request webhook failed: {e}")
+        return None
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -54,6 +106,12 @@ def submit_character_request(
     )
     db.add(req)
     db.commit()
+    db.refresh(req)
+
+    discord_id = _post_to_discord(req)
+    if discord_id:
+        req.discord_message_id = discord_id
+        db.commit()
 
     count = db.query(models.CharacterRequest).filter(
         models.CharacterRequest.name.ilike(payload.name.strip()),
