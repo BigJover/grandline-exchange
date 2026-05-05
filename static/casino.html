@@ -552,14 +552,8 @@
 
     <!-- Center content -->
     <div class="c-center">
-      <div>
-        <div class="c-section-hdr">Featured Challenge</div>
-        <div id="c-featured">
-          <div class="c-featured-empty">No featured challenge yet — challenges open after each chapter uplink.</div>
-        </div>
-      </div>
 
-      <!-- Weekly Trivia -->
+      <!-- Weekly Trivia — top of page -->
       <div id="trivia-section">
         <div class="c-section-hdr">Weekly Trivia</div>
         <div class="trivia-streak-bar" id="trivia-streak-bar">
@@ -575,6 +569,14 @@
         </div>
         <div class="trivia-grid" id="trivia-grid">
           <div class="c-empty" style="grid-column:1/-1">Loading trivia…</div>
+        </div>
+      </div>
+
+      <!-- Featured Chapter Prediction -->
+      <div>
+        <div class="c-section-hdr">Featured Prediction</div>
+        <div id="c-featured">
+          <div class="c-featured-empty">No active chapter prediction yet — opens after each uplink.</div>
         </div>
       </div>
 
@@ -792,11 +794,14 @@ function renderFiltered(){
     document.getElementById('stat-resolve').textContent = '—';
   }
 
-  // Featured = open prop with largest pool
+  // Featured Prediction = open chapter predictions first (most recent), then fall back to largest pool
   const featEl = document.getElementById('c-featured');
-  const featProp = openProps.sort((a,b) => (b.total_pool||0) - (a.total_pool||0))[0];
+  const predProps = openProps.filter(p => p.is_chapter_prediction);
+  const featProp = predProps.length
+    ? predProps.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0]
+    : openProps.sort((a,b) => (b.total_pool||0) - (a.total_pool||0))[0];
   if(featProp) featEl.innerHTML = renderFeatured(featProp);
-  else featEl.innerHTML = '<div class="c-featured-empty">No featured challenge yet — challenges open after each chapter uplink.</div>';
+  else featEl.innerHTML = '<div class="c-featured-empty">No active chapter prediction yet — opens after each uplink.</div>';
 
   // Right panel — your bets
   const myBets = allProps.filter(p => p.user_bet_option !== null && p.user_bet_option !== undefined);
@@ -846,6 +851,7 @@ function renderFeatured(prop){
   const yes = prop.odds[0], no = prop.odds[1] || { total_bet:0, label:'No' };
   const yesPct = total > 0 ? (yes.total_bet/total*100).toFixed(1) : '50.0';
   const noPct  = total > 0 ? (no.total_bet /total*100).toFixed(1) : '50.0';
+
   let closesHtml = '';
   if(prop.closes_at){
     const diff = new Date(prop.closes_at) - Date.now();
@@ -854,11 +860,34 @@ function renderFeatured(prop){
       closesHtml = '<span class="c-feat-info c-feat-info-b">Ends in <span>'+(h>0?h+'h ':'')+m+'m</span></span>';
     }
   }
-  const placeBtnHtml = prop.user_bet_option === null && currentUser
-    ? '<button class="c-place-btn" onclick="selectOpt('+prop.id+',0)">Place Call</button>'
+
+  // Multiplier info for predictions
+  const multLabel = predMultiplierLabel(prop);
+  const multInfoHtml = prop.is_chapter_prediction && multLabel
+    ? '<span style="font-family:\'Orbitron\',sans-serif;font-size:0.58rem;font-weight:700;color:var(--gold);white-space:nowrap">⏱ '+esc(multLabel)+' now</span>'
     : '';
-  return '<div class="c-featured-card">'+
-    '<div class="c-feat-meta"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span><span class="c-status-open">● Open</span></div>'+
+
+  // Break week badge
+  const breakHtml = prop.is_break_week
+    ? '<span class="c-pred-tag" style="background:rgba(255,68,85,0.12);border-color:rgba(255,68,85,0.4);color:var(--red)">⚔ BREAK WEEK</span>'
+    : '';
+
+  // Featured card label: prediction vs general
+  const featLabel = prop.is_chapter_prediction ? '⏱ PREDICTION' : '★ FEATURED';
+
+  // Place call — show free play option for predictions
+  let placeBtnHtml = '';
+  if(prop.user_bet_option === null || prop.user_bet_option === undefined){
+    if(currentUser){
+      placeBtnHtml = '<button class="c-place-btn" onclick="selectOpt('+prop.id+',0)">Place Call</button>';
+    }
+  } else {
+    placeBtnHtml = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.7rem;color:var(--text-dim)">Call locked in — '+fB(prop.user_bet_amount)+(prop.user_bet_multiplier&&prop.user_bet_multiplier>1?' ('+prop.user_bet_multiplier+'×)':'')+'</span>';
+  }
+
+  return '<div class="c-featured-card" style="'+(prop.is_chapter_prediction?'border-color:rgba(41,182,246,0.45);background:linear-gradient(135deg,rgba(41,182,246,0.06) 0%,rgba(224,64,251,0.05) 100%)':'')+'">'+
+    '<div style="position:absolute;top:14px;right:18px;font-family:\'Orbitron\',sans-serif;font-size:0.44rem;font-weight:700;letter-spacing:2px;color:'+(prop.is_chapter_prediction?'var(--punk2)':'var(--punk)')+';opacity:0.65">'+featLabel+'</div>'+
+    '<div class="c-feat-meta"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span><span class="c-status-open">● Open</span>'+breakHtml+'</div>'+
     '<div class="c-feat-question">'+esc(prop.question)+'</div>'+
     '<div class="c-feat-odds">'+
       '<div class="c-feat-side yes"><div class="c-feat-side-label">YES</div><div class="c-feat-side-pct">'+yesPct+'%</div></div>'+
@@ -868,7 +897,7 @@ function renderFeatured(prop){
     '<div class="c-feat-bar"><div class="c-feat-bar-yes" style="width:'+yesPct+'%"></div><div class="c-feat-bar-no" style="width:'+noPct+'%"></div></div>'+
     '<div class="c-feat-footer">'+
       '<span class="c-feat-info">Total Pool <span>'+fB(total)+'</span></span>'+
-      closesHtml+
+      (multInfoHtml || closesHtml)+
       placeBtnHtml+
     '</div>'+
     '<div class="c-bet-zone" id="bz-'+prop.id+'" style="display:none"></div>'+
