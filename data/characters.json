@@ -9,7 +9,7 @@
     ],
     "faction": "Straw Hat Pirates",
     "category": "pirate",
-    "beri": 4400000000,
+    "beri": 4500000000,
     "canon_bounty": 3000000000,
     "status": "active",
     "notes": "Emperor, Captain",
@@ -68,8 +68,8 @@
       },
       {
         "chapter": 1181,
-        "label": "Elbaf — Senses Imu Haki / Joy Boy Tie",
-        "beri": 4400000000
+        "label": "Monster Trio / Fighting Seriously",
+        "beri": 4500000000
       }
     ],
     "full_name": "Monkey D. Luffy",
@@ -3953,7 +3953,7 @@
     ],
     "faction": "Arlong Pirates",
     "category": "pirate",
-    "beri": 20000000,
+    "beri": 1000000000,
     "canon_bounty": 20000000,
     "status": "captured",
     "notes": "Nami arc villain, imprisoned",
@@ -4009,6 +4009,11 @@
         "chapter": 1180,
         "label": "Elbaf Arc — Current",
         "beri": 20000000
+      },
+      {
+        "chapter": 1181,
+        "label": "ZaZa Meme Catalyst",
+        "beri": 1000000000
       }
     ],
     "title": "Former Captain · Arlong Pirates"
@@ -8688,7 +8693,7 @@
       },
       {
         "chapter": 1181,
-        "label": "Elbaf — Nidhogg Revealed",
+        "label": "Nidhogg + Monster Trio",
         "beri": 5100000000
       }
     ],
@@ -13375,7 +13380,7 @@
     ],
     "faction": "Revolutionary Army",
     "category": "pirate",
-    "beri": 2850000000,
+    "beri": 3050000000,
     "canon_bounty": 0,
     "status": "active",
     "notes": "Most wanted criminal in the world, father of Luffy, leader of Revolutionary Army",
@@ -13430,6 +13435,11 @@
         "chapter": 1180,
         "label": "Elbaf Current",
         "beri": 2850000000
+      },
+      {
+        "chapter": 1181,
+        "label": "Elbaf — DF Theory Fueled",
+        "beri": 3050000000
       }
     ],
     "full_name": "Monkey D. Dragon",
@@ -19271,5 +19281,85 @@
     "events": "",
     "sbs": [],
     "related": []
+  },
+  {
+    "id": 351,
+    "name": "Ragnir",
+    "aliases": [],
+    "faction": "Ancient / Elbaf",
+    "category": "pirate",
+    "beri": 4000000000,
+    "base_beri": 4000000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "notes": "Ancient being, recognized by World Government as a genuine threat",
+    "rank": null,
+    "price_history": [
+      {
+        "chapter": 900,
+        "label": "WCI End",
+        "beri": 1200000000
+      },
+      {
+        "chapter": 956,
+        "label": "Reverie",
+        "beri": 1350000000
+      },
+      {
+        "chapter": 1000,
+        "label": "Wano Peak",
+        "beri": 1600000000
+      },
+      {
+        "chapter": 1052,
+        "label": "Wano End",
+        "beri": 1900000000
+      },
+      {
+        "chapter": 1058,
+        "label": "Egghead",
+        "beri": 2100000000
+      },
+      {
+        "chapter": 1100,
+        "label": "Egghead Mid",
+        "beri": 2400000000
+      },
+      {
+        "chapter": 1120,
+        "label": "Egghead End",
+        "beri": 2700000000
+      },
+      {
+        "chapter": 1130,
+        "label": "Elbaf Arc — Arrival",
+        "beri": 3000000000
+      },
+      {
+        "chapter": 1155,
+        "label": "Elbaf Arc — Escalation",
+        "beri": 3300000000
+      },
+      {
+        "chapter": 1180,
+        "label": "Elbaf Arc — Current",
+        "beri": 3600000000
+      },
+      {
+        "chapter": 1181,
+        "label": "Elbaf — Monster Trio Confirmed",
+        "beri": 4000000000
+      }
+    ],
+    "img": "https://static.wikia.nocookie.net/onepiece/images/3/3f/Nidhogg_Infobox.png",
+    "full_name": "Ragnir",
+    "title": "Ancient Threat",
+    "sbs": [],
+    "related": [
+      "Loki",
+      "Luffy"
+    ],
+    "bio": "An ancient being whose existence predates the current world order. What separates Ragnir from most threats on this exchange is simple: the World Government knows exactly what he is. He is not misclassified, not overlooked, not filed away as a talking animal or mascot. He is catalogued, recognized, and treated as a genuine danger — a distinction that places him in a very short list of entities the WG takes seriously on their own terms.",
+    "events": "Ch.1181 leaker spoilers (unverified) imply Ragnir is being framed alongside Luffy and Loki as the arc's monster trio — three figures whose combined presence defines the ceiling of current active power in Elbaf. Stock has been climbing on ancient-lore speculation since Elbaf began. The monster trio framing, if confirmed, would mark the first time an ancient being has been placed in direct peer comparison with a sitting Emperor and the Prince of Elbaf. Priced ahead of confirmation."
   }
 ]

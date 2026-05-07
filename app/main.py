@@ -368,8 +368,10 @@ def correct_beri_outliers():
         # (name, new_beri, only_if_above)
         ("Lucky Roux",  2_200_000_000, 2_500_000_000),
         ("Ben Beckman", 2_300_000_000, 2_400_000_000),
-        ("Dragon",      2_850_000_000, 2_800_000_000),  # swap: Dragon above Bogard
+        ("Dragon",      3_050_000_000, 2_800_000_000),  # ch.1181 DF theory bump
         ("Bogard",      2_750_000_000, 2_800_000_000),  # swap: Bogard below Dragon
+        ("Arlong",      1_000_000_000,        19_000_000),  # ch.1181 ZaZa meme pump
+        ("Luffy",       4_500_000_000, 4_300_000_000),  # ch.1181 monster trio
     ]
     with engine.connect() as conn:
         for name, target, threshold in corrections:
@@ -389,6 +391,42 @@ def correct_beri_outliers():
 
 
 correct_beri_outliers()
+
+
+def patch_ch1181_price_history():
+    """One-time patch to update ch.1181 price_history labels for Luffy and Loki."""
+    label_patches = {
+        "Luffy": {"chapter": 1181, "new_label": "Monster Trio / Fighting Seriously", "new_beri": 4_500_000_000},
+        "Loki":  {"chapter": 1181, "new_label": "Nidhogg + Monster Trio"},
+    }
+    db = SessionLocal()
+    try:
+        for name, patch in label_patches.items():
+            char = db.query(models.Character).filter(models.Character.name == name).first()
+            if not char or not char.price_history:
+                continue
+            ph = list(char.price_history)
+            changed = False
+            for entry in ph:
+                if isinstance(entry, dict) and entry.get("chapter") == patch["chapter"]:
+                    if entry.get("label") != patch["new_label"]:
+                        entry["label"] = patch["new_label"]
+                        changed = True
+                    if "new_beri" in patch and entry.get("beri") != patch["new_beri"]:
+                        entry["beri"] = patch["new_beri"]
+                        changed = True
+            if changed:
+                char.price_history = ph
+                db.commit()
+                print(f"[patch_ch1181] Updated {name} ch.1181 label")
+    except Exception as e:
+        db.rollback()
+        print(f"[patch_ch1181] Error: {e}")
+    finally:
+        db.close()
+
+
+patch_ch1181_price_history()
 
 # Cache HTML pages in memory at startup — avoids disk read on every request
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
