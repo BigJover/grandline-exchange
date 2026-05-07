@@ -447,12 +447,16 @@
     </div>
     <div class="header-stats">
       <div class="stat-box">
-        <div class="stat-label">Next Beri Drop</div>
-        <div class="stat-value drop-timer" id="drop-timer">—</div>
+        <div class="stat-label">Active Challenges</div>
+        <div class="stat-value" id="hdr-active-count">—</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Last Uplink</div>
         <div class="stat-value">Ch. 1181</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Next Beri Drop</div>
+        <div class="stat-value drop-timer" id="drop-timer">—</div>
       </div>
       <div class="notif-dropdown">
         <button class="notif-trigger">TRANSMISSION</button>
@@ -584,6 +588,62 @@
         <div class="c-section-hdr">All Challenges</div>
         <div class="c-grid" id="c-list">
           <div class="c-empty">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Admin Panel — only shown when currentUser.is_admin -->
+      <div id="admin-panel" style="display:none;margin-top:32px">
+        <div class="c-section-hdr" style="color:var(--red)">⚙ Admin — Create Prediction</div>
+        <div style="background:var(--surface);border:1px solid rgba(255,68,85,0.3);border-radius:12px;padding:22px 24px;display:flex;flex-direction:column;gap:12px;font-family:'Share Tech Mono',monospace;font-size:0.72rem">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">Admin Secret</label>
+            <input id="adm-secret" type="password" placeholder="X-Admin-Secret" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">Question</label>
+            <input id="adm-question" type="text" placeholder="Will Luffy use Gear 5 this chapter?" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+              <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">Option A</label>
+              <input id="adm-opt0" type="text" placeholder="Yes" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+              <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">Option B</label>
+              <input id="adm-opt1" type="text" placeholder="No" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+              <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">Category</label>
+              <select id="adm-cat" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+                <option value="chapter">Chapter</option>
+                <option value="arc">Arc</option>
+                <option value="slander">Slander</option>
+                <option value="meta">Meta</option>
+              </select>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+              <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">House Cut</label>
+              <input id="adm-house" type="number" value="0.05" step="0.01" min="0.01" max="0.30" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">Closes At</label>
+            <input id="adm-closes" type="datetime-local" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--punk2)"><input id="adm-is-pred" type="checkbox" style="accent-color:var(--punk2)"> Chapter Prediction</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--red)"><input id="adm-break" type="checkbox" style="accent-color:var(--red)"> ⚔ Break Week</label>
+          </div>
+          <div id="adm-drop-row" style="display:none;flex-direction:column;gap:4px">
+            <label style="color:var(--text-dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase">Chapter Drop Time</label>
+            <input id="adm-drop-time" type="datetime-local" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none">
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button id="adm-submit" onclick="adminCreatePrediction()" style="background:rgba(255,68,85,0.12);border:1px solid rgba(255,68,85,0.4);border-radius:6px;color:var(--red);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:0.5rem;font-weight:700;letter-spacing:1.5px;padding:10px 18px;transition:all 0.18s">Create Prediction</button>
+            <span id="adm-feedback" style="font-size:0.68rem"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -728,6 +788,7 @@ function updateAuthUI(){
       });
     }
     block.style.display = 'flex';
+    if(currentUser.is_admin) showAdminPanel();
   } else {
     loginBtn.style.visibility = 'visible';
     const block = document.getElementById('header-user-block');
@@ -782,6 +843,8 @@ function renderFiltered(){
   const totalLocked = allProps.reduce((s,p) => s + (p.total_pool||0), 0);
   document.getElementById('stat-locked').textContent  = fB(totalLocked);
   document.getElementById('stat-active').textContent  = openProps.length || '—';
+  const hdrCount = document.getElementById('hdr-active-count');
+  if(hdrCount) hdrCount.textContent = openProps.length || '0';
   const nextResolve = openProps.reduce((min,p) => {
     if(!p.closes_at) return min;
     const t = new Date(p.closes_at) - Date.now();
@@ -1028,12 +1091,25 @@ function selectOpt(propId, optIdx){
     ? '<span style="font-family:\'Orbitron\',sans-serif;font-size:0.5rem;color:var(--gold);white-space:nowrap">⏱ '+esc(multLabel)+'</span>'
     : '';
 
-  const freeBtnHtml = prop.is_chapter_prediction
-    ? '<button class="c-free-play-btn" id="bfp-'+propId+'" onclick="useFreePlay('+propId+','+optIdx+')">FREE PLAY</button>'
-    : '';
+  // Free play button — show cooldown state proactively
+  let freeBtnHtml = '';
+  if(prop.is_chapter_prediction){
+    const fp24h = 24 * 60 * 60 * 1000;
+    const fpUsed = currentUser && currentUser.free_play_used_at ? new Date(currentUser.free_play_used_at) : null;
+    const fpRemMs = fpUsed ? (fpUsed.getTime() + fp24h) - Date.now() : 0;
+    if(fpRemMs > 0){
+      const fpRemH = Math.floor(fpRemMs / 3600000);
+      const fpRemM = Math.floor((fpRemMs % 3600000) / 60000);
+      const fpRemStr = fpRemH > 0 ? fpRemH+'h '+fpRemM+'m' : fpRemM+'m';
+      freeBtnHtml = '<button class="c-free-play-btn" id="bfp-'+propId+'" disabled style="opacity:0.4;cursor:not-allowed">⟳ FREE PLAY — '+fpRemStr+'</button>';
+    } else {
+      freeBtnHtml = '<button class="c-free-play-btn" id="bfp-'+propId+'" onclick="useFreePlay('+propId+','+optIdx+')">FREE PLAY</button>';
+    }
+  }
 
   const ddHtml = prop.is_break_week
-    ? '<label class="c-double-down-toggle"><input type="checkbox" id="bdd-'+propId+'"> ⚔ Double Down (2× win/loss — break week)</label>'
+    ? '<label class="c-double-down-toggle"><input type="checkbox" id="bdd-'+propId+'" onchange="updateDdWarn('+propId+')"> ⚔ Double Down (2× win/loss — break week)</label>'+
+      '<div id="bdd-warn-'+propId+'" style="display:none;width:100%;margin-top:4px;font-size:0.65rem;color:var(--red);font-family:\'Share Tech Mono\',monospace">⚠ Max loss: stake + stake penalty = 2× your bet</div>'
     : '';
 
   bz.style.display = 'flex';
@@ -1041,7 +1117,7 @@ function selectOpt(propId, optIdx){
   bz.innerHTML =
     '<span class="c-bet-label">Bet on <strong>'+label+'</strong>:</span>'+
     multHtml+
-    '<input type="number" class="c-bet-input" id="bi-'+propId+'" placeholder="amount ฿" min="100">'+
+    '<input type="number" class="c-bet-input" id="bi-'+propId+'" placeholder="amount ฿" min="100" oninput="updateDdWarn('+propId+')">'+
     '<button class="c-confirm-btn" id="bcf-'+propId+'" onclick="submitBet('+propId+','+optIdx+',false)">Place Bet</button>'+
     (freeBtnHtml ? freeBtnHtml : '')+
     '<button class="c-cancel-btn" onclick="cancelBet('+propId+')">✕</button>'+
@@ -1126,6 +1202,86 @@ async function reloadProp(propId){
     if(el){ const tmp=document.createElement('div'); tmp.innerHTML=renderProp(prop); el.replaceWith(tmp.firstChild); }
   } catch(e){}
 }
+
+function updateDdWarn(propId){
+  const warn = document.getElementById('bdd-warn-'+propId);
+  if(!warn) return;
+  const cb = document.getElementById('bdd-'+propId);
+  const inp = document.getElementById('bi-'+propId);
+  const amt = inp ? parseFloat(inp.value) : 0;
+  if(cb && cb.checked && amt >= 100){
+    const maxLoss = (amt * 2).toLocaleString('en-US', {maximumFractionDigits:0});
+    warn.textContent = '⚠ Double down: if wrong you lose your bet + equal penalty = '+maxLoss+'฿ total';
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+// ── Admin Panel ───────────────────────────────────────────────────────────────
+
+function showAdminPanel(){
+  const el = document.getElementById('admin-panel');
+  if(el) el.style.display = 'block';
+}
+
+async function adminCreatePrediction(){
+  const secret = document.getElementById('adm-secret').value.trim();
+  if(!secret){ adminFeedback('⚠ Enter admin secret', true); return; }
+  const question = document.getElementById('adm-question').value.trim();
+  if(!question){ adminFeedback('⚠ Enter a question', true); return; }
+  const opt0 = document.getElementById('adm-opt0').value.trim();
+  const opt1 = document.getElementById('adm-opt1').value.trim();
+  if(!opt0 || !opt1){ adminFeedback('⚠ Both options required', true); return; }
+  const category = document.getElementById('adm-cat').value;
+  const house_cut = parseFloat(document.getElementById('adm-house').value) || 0.05;
+  const closes_at = document.getElementById('adm-closes').value;
+  const isChapter = document.getElementById('adm-is-pred').checked;
+  const chapter_drop_time = document.getElementById('adm-drop-time').value;
+  const is_break_week = document.getElementById('adm-break').checked;
+
+  const body = {
+    question, category,
+    options: [opt0, opt1],
+    house_cut,
+    closes_at: closes_at ? new Date(closes_at).toISOString() : null,
+    is_chapter_prediction: isChapter,
+    chapter_drop_time: (isChapter && chapter_drop_time) ? new Date(chapter_drop_time).toISOString() : null,
+    is_break_week,
+  };
+
+  const btn = document.getElementById('adm-submit');
+  btn.disabled = true; btn.textContent = 'Creating…';
+  try {
+    const res = await fetch(API_BASE+'/admin/casino/create', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': secret },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if(!res.ok){ adminFeedback('⚠ '+(data.detail||'Failed'), true); btn.disabled=false; btn.textContent='Create Prediction'; return; }
+    adminFeedback('✓ Created — ID '+data.id, false);
+    btn.disabled = false; btn.textContent = 'Create Prediction';
+    await loadProps();
+  } catch(e){
+    adminFeedback('⚠ Connection error', true);
+    btn.disabled = false; btn.textContent = 'Create Prediction';
+  }
+}
+
+function adminFeedback(msg, isErr){
+  const el = document.getElementById('adm-feedback');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--green)';
+}
+
+document.addEventListener('change', function(e){
+  if(e.target && e.target.id === 'adm-is-pred'){
+    const row = document.getElementById('adm-drop-row');
+    if(row) row.style.display = e.target.checked ? 'flex' : 'none';
+  }
+});
 
 // ── Chapter prediction helpers ─────────────────────────────────────────────
 

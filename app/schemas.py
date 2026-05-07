@@ -93,6 +93,7 @@ class UserOut(BaseModel):
     referral_code: Optional[str] = None
     referred_by_id: Optional[int] = None
     referral_beri_earned: float = 0
+    free_play_used_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
