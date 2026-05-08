@@ -184,9 +184,11 @@
     .ticker-wrap { background:#0a0318; border-bottom:1px solid var(--punk-dim); border-top:1px solid rgba(41,182,246,0.22); padding:5px 0; overflow:hidden; white-space:nowrap; display:flex; align-items:center; }
     .ticker-label { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; color:var(--punk); letter-spacing:2.5px; padding:0 14px; white-space:nowrap; flex-shrink:0; border-right:1px solid var(--punk-dim); opacity:0.75; text-shadow:0 0 10px var(--punk-dim); }
     .ticker-clip  { flex:1; overflow:hidden; min-width:0; }
-    .ticker-inner { display:inline-flex; animation:ticker 80s linear infinite; width:max-content; }
-    .ticker-item  { font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0 20px; border-right:1px solid var(--border); display:inline-flex; align-items:center; gap:5px; color:var(--text-dim); }
-    .ticker-item span { color:var(--punk); opacity:0.8; }
+    .ticker-inner { display:inline-flex; animation:ticker 500s linear infinite; width:max-content; }
+    .ticker-item  { font-family:'Share Tech Mono',monospace; font-size:0.72rem; padding:0 20px; border-right:1px solid var(--border); display:inline-flex; align-items:center; gap:5px; }
+    .t-name { color:var(--punk); opacity:0.7; }
+    .t-up   { color:var(--green); font-size:0.72rem; }
+    .t-down { color:var(--red);   font-size:0.72rem; }
     @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
 
     /* ── Layout ── */
@@ -486,22 +488,7 @@
   <div class="ticker-wrap">
     <span class="ticker-label">⚔ DAVY BACK</span>
     <div class="ticker-clip">
-      <div class="ticker-inner">
-        <span class="ticker-item"><span>ENTER THE CHALLENGE</span> — pick your side</span>
-        <span class="ticker-item"><span>ONE CALL PER CHALLENGE</span> — no take-backs</span>
-        <span class="ticker-item"><span>POOL RAKE</span> — 5% of each pool returned to the exchange</span>
-        <span class="ticker-item"><span>CHAPTER CHALLENGES</span> — open after each uplink</span>
-        <span class="ticker-item"><span>ARC CHALLENGES</span> — long-run predictions</span>
-        <span class="ticker-item"><span>COMMUNITY SLANDER</span> — pick your side</span>
-        <span class="ticker-item"><span>ENDGAME CHALLENGES</span> — the final island awaits</span>
-        <span class="ticker-item"><span>ENTER THE CHALLENGE</span> — pick your side</span>
-        <span class="ticker-item"><span>ONE CALL PER CHALLENGE</span> — no take-backs</span>
-        <span class="ticker-item"><span>POOL RAKE</span> — 5% of each pool returned to the exchange</span>
-        <span class="ticker-item"><span>CHAPTER CHALLENGES</span> — open after each uplink</span>
-        <span class="ticker-item"><span>ARC CHALLENGES</span> — long-run predictions</span>
-        <span class="ticker-item"><span>COMMUNITY SLANDER</span> — pick your side</span>
-        <span class="ticker-item"><span>ENDGAME CHALLENGES</span> — the final island awaits</span>
-      </div>
+      <div class="ticker-inner" id="ticker"></div>
     </div>
   </div>
 </div>
@@ -809,6 +796,120 @@ function saveHint(u){ if(u) localStorage.setItem(HINT_KEY, JSON.stringify({usern
 function clearHint(){ localStorage.removeItem(HINT_KEY); }
 function loadHint(){ try{ return JSON.parse(localStorage.getItem(HINT_KEY)); }catch(e){ return null; } }
 
+// ── Live stock ticker ─────────────────────────────────────────────────────
+let CHARACTERS = [];
+const PRICE_DELTA = {};
+
+const RECENT_PCT = {
+  "Luffy":    { pct: "5.0", up: false },
+  "Zoro":     { pct: "7.8", up: false },
+  "Sanji":    { pct: "2.2", up: false },
+  "Nami":     { pct: "1.5", up: false },
+  "Usopp":    { pct: "1.8", up: false },
+  "Chopper":  { pct: "1.0", up: false },
+  "Robin":    { pct: "1.2", up: false },
+  "Franky":   { pct: "1.1", up: false },
+  "Brook":    { pct: "0.9", up: false },
+  "Jinbe":    { pct: "1.8", up: false },
+  "Imu":                     { pct: "6.5", up: true  },
+  "Loki":                    { pct: "3.2", up: true  },
+  "Harald":                  { pct: "9.4", up: true  },
+  "The Man Marked by Flames":{ pct: "5.5", up: true  },
+  "Joy Boy":                 { pct: "4.1", up: true  },
+  "Stussy":                  { pct: "2.8", up: true  },
+  "Shanks":   { pct: "4.8", up: true  },
+  "Arlong":   { pct: "4900.0", up: true },
+  "Dragon":   { pct: "7.0", up: true  },
+  "Ragnir":   { pct: "15.0", up: true },
+  "Kidd":     { pct: "8.5", up: false },
+  "Killer":   { pct: "3.8", up: false },
+  "Saturn":   { pct: "5.2", up: false },
+  "Kaido":    { pct: "4.1", up: false },
+  "Mihawk":   { pct: "2.4", up: false },
+  "Roger":    { pct: "3.5", up: false },
+  "Rayleigh": { pct: "3.2", up: true  },
+  "Scopper Gaban": { pct: "4.5", up: true },
+  "Buggy":    { pct: "2.1", up: true  },
+  "Bartolomeo":{ pct: "8.8", up: true },
+  "Urouge":   { pct: "6.2", up: true  },
+  "Garling":  { pct: "13.8", up: false },
+  "Kuma":     { pct: "3.5", up: false },
+};
+
+function fPct(p) {
+  const n = parseFloat(p);
+  if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.?0+$/,'') + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1).replace(/\.?0+$/,'') + 'K';
+  return p;
+}
+
+function chartStats(c) {
+  const hist = c.price_history;
+  const beri = c.beri || 0;
+  let hasChart = false, chartUp = false, computedPct = null;
+  if (hist && hist.length >= 2) {
+    const vals = hist.map(p => p.beri || 0);
+    const first = vals[0], last = vals[vals.length-1];
+    const mn = Math.min(...vals), mx = Math.max(...vals);
+    const hasVariation = mn !== mx;
+    chartUp = last > first;
+    if (first === last && hasVariation) chartUp = mx > first;
+    hasChart = hasVariation;
+    if (hasVariation && first > 0 && first !== last)
+      computedPct = Math.abs((last-first)/first*100).toFixed(1);
+  }
+  const delta = PRICE_DELTA[c.id];
+  if (delta) return { hasChart, up: delta.up, pct: delta.pct };
+  const base = c.base_beri;
+  if (base && base > 0 && Math.abs(c.beri - base) / base > 0.0001) {
+    return { hasChart, up: c.beri > base, pct: Math.abs((c.beri - base) / base * 100).toFixed(2) };
+  }
+  const r = RECENT_PCT[c.name];
+  if (r) return { hasChart, up: r.up, pct: r.pct };
+  return { hasChart, up: chartUp, pct: computedPct };
+}
+
+let _tickerRAF = null;
+function startMobileTicker() {
+  if (_tickerRAF) { cancelAnimationFrame(_tickerRAF); _tickerRAF = null; }
+  const inner = document.getElementById('ticker');
+  if (!inner) return;
+  inner.style.transform = 'translateX(0)';
+  let pos = 0, halfWidth = 0;
+  function tick() {
+    if (!halfWidth) { halfWidth = inner.scrollWidth / 2; if (!halfWidth) { _tickerRAF = requestAnimationFrame(tick); return; } }
+    pos += 0.6;
+    if (pos >= halfWidth) pos = 0;
+    inner.style.transform = 'translateX(-' + pos + 'px)';
+    _tickerRAF = requestAnimationFrame(tick);
+  }
+  _tickerRAF = requestAnimationFrame(tick);
+}
+
+function buildTicker() {
+  const isMobile = window.innerWidth <= 600;
+  const source = isMobile ? CHARACTERS.filter(c => chartStats(c).pct !== null) : CHARACTERS;
+  const items = [...source, ...source].map(c => {
+    const { up, pct } = chartStats(c);
+    if (pct !== null) {
+      return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
+        + '<span class="' + (up ? 't-up' : 't-down') + '">'
+        + (up ? '▲ +' : '▼ ') + fPct(pct) + '%</span></span>';
+    }
+    return '<span class="ticker-item"><span class="t-name">' + c.name + '</span>'
+      + '<span style="color:var(--text-dim);font-size:0.65rem"> —</span></span>';
+  }).join('');
+  document.getElementById('ticker').innerHTML = items;
+  if (isMobile) startMobileTicker();
+}
+
+async function loadCharacters() {
+  try {
+    const res = await fetch(API_BASE + '/characters', { credentials: 'include' });
+    if (res.ok) { CHARACTERS = await res.json(); buildTicker(); }
+  } catch(e) { /* ticker stays empty */ }
+}
+
 async function init(){
   const hint = loadHint();
   if(hint){ currentUser = hint; updateAuthUI(); }
@@ -818,7 +919,7 @@ async function init(){
     else { currentUser = null; clearHint(); }
   } catch(e){ currentUser = null; clearHint(); }
   updateAuthUI();
-  await Promise.all([loadProps(), loadTrivia()]);
+  await Promise.all([loadProps(), loadTrivia(), loadCharacters()]);
 }
 
 async function loadProps(){
