@@ -19292,7 +19292,7 @@
     "base_beri": 4000000000,
     "canon_bounty": 0,
     "status": "active",
-    "notes": "Ancient being, recognized by World Government as a genuine threat",
+    "notes": "Giant squirrel, Ratatoskr fruit, Hammer of the War God, ancient traitor to Imu, fought with original Joy Boy/Nika",
     "rank": null,
     "price_history": [
       {
@@ -19359,7 +19359,77 @@
       "Loki",
       "Luffy"
     ],
-    "bio": "An ancient being whose existence predates the current world order. What separates Ragnir from most threats on this exchange is simple: the World Government knows exactly what he is. He is not misclassified, not overlooked, not filed away as a talking animal or mascot. He is catalogued, recognized, and treated as a genuine danger — a distinction that places him in a very short list of entities the WG takes seriously on their own terms.",
+    "bio": "An ancient being whose existence predates the current world order — confirmed as a giant squirrel, roughly the scale of Luffy in his current giant Gear Fifth form. Wields the Risu Risu no Mi, Model: Ratatoskr. Title: The Hammer — herald of the War God, historically fought alongside the original Joy Boy and Nika. Imu names him a traitor.",
     "events": "Ch.1181 leaker spoilers (unverified) imply Ragnir is being framed alongside Luffy and Loki as the arc's monster trio — three figures whose combined presence defines the ceiling of current active power in Elbaf. Stock has been climbing on ancient-lore speculation since Elbaf began. The monster trio framing, if confirmed, would mark the first time an ancient being has been placed in direct peer comparison with a sitting Emperor and the Prince of Elbaf. Priced ahead of confirmation."
+  },
+  {
+    "id": 352,
+    "name": "ZaZa",
+    "aliases": [
+      "The Rain God"
+    ],
+    "faction": "Ancient / Elbaf",
+    "category": "creature",
+    "beri": 3500000000,
+    "base_beri": 3500000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "notes": "The Rain God — colossal four-armed water entity, towers over giant village, triggers heavy rain by presence alone, feared by Celestial Dragons",
+    "rank": null,
+    "price_history": [
+      {
+        "chapter": 1181,
+        "label": "ZaZa Meme Introduced",
+        "beri": 500000000
+      },
+      {
+        "chapter": 1182,
+        "label": "Rain God Confirmed Canon",
+        "beri": 3500000000
+      }
+    ],
+    "img": "",
+    "full_name": "ZaZa",
+    "title": "The Rain God",
+    "bio": "The Rain God. Not a meme. A colossal four-armed entity composed entirely of water, whose sheer presence triggers sustained heavy rainfall across entire regions. Towers completely over the giant village at Elbaf. The Celestial Dragons who live 'above the clouds' grew up hearing stories about the D. Clan, Nika, and ZaZa — and of the three, the Rain God is the one that frightens them most.",
+    "events": "Introduced in ch.1181 spoilers as 'a god of nature/forest,' triggering the Za Water Haki meme universe. Ch.1182: confirmed fully real — summoned by Killingham (his own worst nightmare), arrives as a massive four-armed water entity dwarfing the giants of Elbaf, capturing giant children with ease, triggering heavy rainfall by presence alone. Sanji heading to its location.",
+    "sbs": [],
+    "related": [
+      "Arlong",
+      "Sanji",
+      "Rimoshifu Killingham",
+      "Dragon"
+    ]
+  },
+  {
+    "id": 353,
+    "name": "Biblo",
+    "aliases": [
+      "Biblo the Owl"
+    ],
+    "faction": "Elbaf",
+    "category": "creature",
+    "beri": 80000000,
+    "base_beri": 80000000,
+    "canon_bounty": 0,
+    "status": "active",
+    "notes": "Owl of the Elbaf Owl Library; knew of a secret room Saul did not; independently saved all the books",
+    "rank": null,
+    "price_history": [
+      {
+        "chapter": 1182,
+        "label": "Elbaf — Library Guardian Revealed",
+        "beri": 80000000
+      }
+    ],
+    "img": "",
+    "full_name": "Biblo",
+    "title": "Guardian of the Owl Library",
+    "bio": "The owl of the Owl Library at Elbaf — and its most quietly capable guardian. Biblo possessed knowledge of a secret underground room that even Jaguar D. Saul, the library's keeper, did not know existed. When danger came, Biblo acted independently and moved the entire collection before anyone thought to ask.",
+    "events": "Ch.1182: revealed to have moved all books to a secret underground room before the God Knights reached the library — a room Saul was unaware of. Saul is grateful but openly puzzled why Biblo never mentioned it. Minor scene, but establishes independent judgment and deeper institutional knowledge than the library's official keeper.",
+    "sbs": [],
+    "related": [
+      "Jaguar D. Saul"
+    ]
   }
 ]
