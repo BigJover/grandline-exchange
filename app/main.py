@@ -239,6 +239,7 @@ def run_index_migrations():
         ("ix_comment_likes_comment_id",    "comment_likes",    "comment_id"),
         ("ix_prop_bets_proposition_id",    "proposition_bets", "proposition_id"),
         ("ix_prop_bets_user_id",           "proposition_bets", "user_id"),
+        ("ix_characters_beri",             "characters",       "beri"),
     ]
     is_postgres = str(engine.url).startswith("postgres")
     with engine.connect() as conn:

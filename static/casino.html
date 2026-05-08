@@ -905,7 +905,7 @@ function buildTicker() {
 
 async function loadCharacters() {
   try {
-    const res = await fetch(API_BASE + '/characters', { credentials: 'include' });
+    const res = await fetch(API_BASE + '/characters/ticker', { credentials: 'include' });
     if (res.ok) { CHARACTERS = await res.json(); buildTicker(); }
   } catch(e) { /* ticker stays empty */ }
 }

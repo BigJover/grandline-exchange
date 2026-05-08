@@ -5,6 +5,7 @@ from typing import List
 from app.database import get_db
 from app import models, schemas, auth
 from app.price_queue import updates as price_updates
+from app.routers.characters import invalidate_detail
 
 router = APIRouter(prefix="/trade", tags=["trade"])
 
@@ -90,11 +91,12 @@ def execute_trade(
     if share:
         db.refresh(share)
 
-    # Enqueue price update for WebSocket broadcast
+    # Enqueue price update for WebSocket broadcast and bust detail cache
     try:
         price_updates.put_nowait({"id": character.id, "beri": character.beri})
     except Exception:
         pass
+    invalidate_detail(character.id)
 
     shares_held = share.quantity if share else 0
 
