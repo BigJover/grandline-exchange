@@ -3953,7 +3953,7 @@
     ],
     "faction": "Arlong Pirates",
     "category": "pirate",
-    "beri": 1000000000,
+    "beri": 750000000,
     "canon_bounty": 20000000,
     "status": "captured",
     "notes": "Nami arc villain, imprisoned",
@@ -4014,6 +4014,11 @@
         "chapter": 1181,
         "label": "ZaZa Meme Catalyst",
         "beri": 1000000000
+      },
+      {
+        "chapter": 1182,
+        "label": "ZaZa Real — Meme Correction",
+        "beri": 750000000
       }
     ],
     "title": "Former Captain · Arlong Pirates"
@@ -13380,7 +13385,7 @@
     ],
     "faction": "Revolutionary Army",
     "category": "pirate",
-    "beri": 3050000000,
+    "beri": 3200000000,
     "canon_bounty": 0,
     "status": "active",
     "notes": "Most wanted criminal in the world, father of Luffy, leader of Revolutionary Army",
@@ -13440,6 +13445,11 @@
         "chapter": 1181,
         "label": "Elbaf — DF Theory Fueled",
         "beri": 3050000000
+      },
+      {
+        "chapter": 1182,
+        "label": "Elbaf — ZaZa Rain Confirms DF Theory",
+        "beri": 3200000000
       }
     ],
     "full_name": "Monkey D. Dragon",
@@ -16031,7 +16041,7 @@
     "aliases": [],
     "faction": "Holy Knights / World Government",
     "category": "civilian",
-    "beri": 2300000000,
+    "beri": 1800000000,
     "canon_bounty": null,
     "status": "active",
     "notes": "Holy Knight — Imu possesses her body in Elbaf arc",
@@ -16071,6 +16081,11 @@
         "chapter": 1178,
         "beri": 2300000000,
         "label": "Elbaf Climax — Imu Possession · Brook Thesis"
+      },
+      {
+        "chapter": 1182,
+        "label": "Elbaf — Presumed Dead",
+        "beri": 1800000000
       }
     ]
   },
@@ -19361,45 +19376,6 @@
     ],
     "bio": "An ancient being whose existence predates the current world order — confirmed as a giant squirrel, roughly the scale of Luffy in his current giant Gear Fifth form. Wields the Risu Risu no Mi, Model: Ratatoskr. Title: The Hammer — herald of the War God, historically fought alongside the original Joy Boy and Nika. Imu names him a traitor.",
     "events": "Ch.1181 leaker spoilers (unverified) imply Ragnir is being framed alongside Luffy and Loki as the arc's monster trio — three figures whose combined presence defines the ceiling of current active power in Elbaf. Stock has been climbing on ancient-lore speculation since Elbaf began. The monster trio framing, if confirmed, would mark the first time an ancient being has been placed in direct peer comparison with a sitting Emperor and the Prince of Elbaf. Priced ahead of confirmation."
-  },
-  {
-    "id": 352,
-    "name": "ZaZa",
-    "aliases": [
-      "The Rain God"
-    ],
-    "faction": "Ancient / Elbaf",
-    "category": "creature",
-    "beri": 3500000000,
-    "base_beri": 3500000000,
-    "canon_bounty": 0,
-    "status": "active",
-    "notes": "The Rain God — colossal four-armed water entity, towers over giant village, triggers heavy rain by presence alone, feared by Celestial Dragons",
-    "rank": null,
-    "price_history": [
-      {
-        "chapter": 1181,
-        "label": "ZaZa Meme Introduced",
-        "beri": 500000000
-      },
-      {
-        "chapter": 1182,
-        "label": "Rain God Confirmed Canon",
-        "beri": 3500000000
-      }
-    ],
-    "img": "",
-    "full_name": "ZaZa",
-    "title": "The Rain God",
-    "bio": "The Rain God. Not a meme. A colossal four-armed entity composed entirely of water, whose sheer presence triggers sustained heavy rainfall across entire regions. Towers completely over the giant village at Elbaf. The Celestial Dragons who live 'above the clouds' grew up hearing stories about the D. Clan, Nika, and ZaZa — and of the three, the Rain God is the one that frightens them most.",
-    "events": "Introduced in ch.1181 spoilers as 'a god of nature/forest,' triggering the Za Water Haki meme universe. Ch.1182: confirmed fully real — summoned by Killingham (his own worst nightmare), arrives as a massive four-armed water entity dwarfing the giants of Elbaf, capturing giant children with ease, triggering heavy rainfall by presence alone. Sanji heading to its location.",
-    "sbs": [],
-    "related": [
-      "Arlong",
-      "Sanji",
-      "Rimoshifu Killingham",
-      "Dragon"
-    ]
   },
   {
     "id": 353,

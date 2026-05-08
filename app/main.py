@@ -369,10 +369,11 @@ def correct_beri_outliers():
         # (name, new_beri, only_if_above)
         ("Lucky Roux",  2_200_000_000, 2_500_000_000),
         ("Ben Beckman", 2_300_000_000, 2_400_000_000),
-        ("Dragon",      3_050_000_000, 2_800_000_000),  # ch.1181 DF theory bump
+        ("Dragon",      3_200_000_000, 2_800_000_000),  # ch.1182 ZaZa rain = DF theory confirmed
         ("Bogard",      2_750_000_000, 2_800_000_000),  # swap: Bogard below Dragon
-        ("Arlong",      1_000_000_000,        19_000_000),  # ch.1181 ZaZa meme pump
+        ("Arlong",        750_000_000,        19_000_000),  # ch.1182 meme correction (ZaZa real but separate)
         ("Luffy",       4_500_000_000, 4_300_000_000),  # ch.1181 monster trio
+        ("Manmayer Gunko", 1_800_000_000, 2_200_000_000),  # ch.1182 presumed dead
     ]
     with engine.connect() as conn:
         for name, target, threshold in corrections:
