@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+
+SALE_WINDOW_HOURS = 12   # hours after chapter drop where sale is active
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -39,6 +41,17 @@ def _prediction_multiplier(chapter_drop_time: datetime, now: datetime) -> tuple[
     return 1.0, 0.30           # late bet: 30% penalty if wrong
 
 
+def _active_sale_discount(prop: models.Proposition, now: datetime) -> float:
+    """Return the active sale discount fraction for bets placed right now.
+    0.20 during the 12h window after chapter drop; 0.50 during break week."""
+    if not prop.is_chapter_prediction or not prop.chapter_drop_time:
+        return 0.0
+    drop = prop.chapter_drop_time
+    if drop <= now <= drop + timedelta(hours=SALE_WINDOW_HOURS):
+        return 0.50 if prop.is_break_week else 0.20
+    return 0.0
+
+
 def _build_odds(prop: models.Proposition, user_id: Optional[int] = None) -> schemas.PropositionOut:
     """Compute live pool breakdown and attach user's current bet if any."""
     bets = prop.bets or []
@@ -61,6 +74,7 @@ def _build_odds(prop: models.Proposition, user_id: Optional[int] = None) -> sche
 
     user_bet = next((b for b in bets if b.user_id == user_id), None) if user_id else None
 
+    now = datetime.now(timezone.utc)
     return schemas.PropositionOut(
         id=prop.id,
         question=prop.question,
@@ -80,6 +94,7 @@ def _build_odds(prop: models.Proposition, user_id: Optional[int] = None) -> sche
         chapter_drop_time=prop.chapter_drop_time,
         is_break_week=bool(prop.is_break_week),
         user_bet_multiplier=user_bet.multiplier if user_bet else None,
+        sale_discount=_active_sale_discount(prop, now),
     )
 
 
@@ -189,6 +204,8 @@ def place_bet(
             description=f"Prediction bet — {bet_amount:,.0f}฿ on \"{label}\"{extra}",
         ))
 
+    sale_discount = _active_sale_discount(prop, now) if not use_free_play else 0.0
+
     bet = models.PropositionBet(
         proposition_id=prop.id,
         user_id=current_user.id,
@@ -198,6 +215,7 @@ def place_bet(
         multiplier=multiplier,
         penalty_amount=penalty_amount,
         doubled_down=doubled_down,
+        sale_discount=sale_discount,
     )
     db.add(bet)
     db.commit()

@@ -348,6 +348,11 @@
     .c-double-down-toggle { display:flex; align-items:center; gap:6px; cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.66rem; color:var(--text-dim); user-select:none; margin-top:4px; }
     .c-double-down-toggle input { cursor:pointer; accent-color:var(--punk); }
 
+    /* ── Sale window ── */
+    .c-sale-tag { font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:700; letter-spacing:1px; padding:2px 8px; border-radius:3px; background:rgba(255,68,85,0.14); border:1px solid rgba(255,68,85,0.45); color:var(--red); white-space:nowrap; }
+    .c-sale-strike { text-decoration:line-through; color:var(--text-dim); font-size:0.85em; margin-right:3px; }
+    .c-sale-price { color:var(--red); font-weight:700; }
+
     /* ── Prediction Archive ── */
     .c-archive-card { background:var(--surface2); border:1px solid rgba(42,30,66,0.7); border-radius:8px; padding:11px 14px; display:flex; flex-direction:column; gap:5px; }
     .c-archive-question { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text); line-height:1.4; }
@@ -1078,7 +1083,7 @@ function renderFeatured(prop){
 
   return '<div class="c-featured-card" style="'+(prop.is_chapter_prediction?'border-color:rgba(41,182,246,0.45);background:linear-gradient(135deg,rgba(41,182,246,0.06) 0%,rgba(224,64,251,0.05) 100%)':'')+'">'+
     '<div style="position:absolute;top:14px;right:18px;font-family:\'Orbitron\',sans-serif;font-size:0.44rem;font-weight:700;letter-spacing:2px;color:'+(prop.is_chapter_prediction?'var(--punk2)':'var(--punk)')+';opacity:0.65">'+featLabel+'</div>'+
-    '<div class="c-feat-meta"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span><span class="c-status-open">● Open</span>'+breakHtml+'</div>'+
+    '<div class="c-feat-meta"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span><span class="c-status-open">● Open</span>'+breakHtml+saleBadgeHtml(prop)+'</div>'+
     '<div class="c-feat-question">'+esc(prop.question)+'</div>'+
     '<div class="c-feat-odds">'+
       '<div class="c-feat-side yes"><div class="c-feat-side-label">YES</div><div class="c-feat-side-pct">'+yesPct+'%</div></div>'+
@@ -1088,6 +1093,7 @@ function renderFeatured(prop){
     '<div class="c-feat-bar"><div class="c-feat-bar-yes" style="width:'+yesPct+'%"></div><div class="c-feat-bar-no" style="width:'+noPct+'%"></div></div>'+
     '<div class="c-feat-footer">'+
       '<span class="c-feat-info">Total Pool <span>'+fB(total)+'</span></span>'+
+      (prop.is_chapter_prediction ? '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">'+saleHouseCutHtml(prop)+'</span>' : '')+
       (multInfoHtml || closesHtml)+
       placeBtnHtml+
     '</div>'+
@@ -1195,11 +1201,12 @@ function renderProp(prop){
 
   const footer = '<div class="c-pool-footer">'+
     '<span>Pool: '+fB(total)+'</span>'+
+    (isOpen && prop.is_chapter_prediction ? '<span>'+saleHouseCutHtml(prop)+'</span>' : '')+
     (isResolved && prop.correct_option!==null ? '<span style="color:#00d084">Answer: <strong>'+esc(prop.options[prop.correct_option])+'</strong></span>' : '')+
   '</div>';
 
   return '<div class="c-prop" id="cp-'+prop.id+'">'+
-    '<div class="c-prop-header"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span>'+statusHtml+predTagHtml+breakTagHtml+closesHtml+'</div>'+
+    '<div class="c-prop-header"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span>'+statusHtml+predTagHtml+breakTagHtml+saleBadgeHtml(prop)+closesHtml+'</div>'+
     '<div class="c-question">'+esc(prop.question)+'</div>'+
     '<div class="c-ring-area"><div class="c-ring-wrap">'+ringHtml+'</div><div class="c-ring-opts">'+optRows+'</div></div>'+
     betZoneHtml+
@@ -1242,6 +1249,11 @@ function selectOpt(propId, optIdx){
 
   bz.style.display = 'flex';
   bz.style.flexWrap = 'wrap';
+  const sale = saleMeta(prop);
+  const saleZoneHtml = sale
+    ? '<div style="width:100%;margin-top:4px;font-family:\'Share Tech Mono\',monospace;font-size:0.65rem;color:var(--red)">'+saleBadgeHtml(prop)+' house cut reduced by '+(sale.discount*100)+'% on this bet</div>'
+    : '';
+
   bz.innerHTML =
     '<span class="c-bet-label">Bet on <strong>'+label+'</strong>:</span>'+
     multHtml+
@@ -1250,6 +1262,7 @@ function selectOpt(propId, optIdx){
     (freeBtnHtml ? freeBtnHtml : '')+
     '<button class="c-cancel-btn" onclick="cancelBet('+propId+')">✕</button>'+
     '<div class="c-feedback" id="bfb-'+propId+'"></div>'+
+    (saleZoneHtml ? saleZoneHtml : '')+
     (ddHtml ? '<div style="width:100%;margin-top:4px">'+ddHtml+'</div>' : '');
 
   const inp = document.getElementById('bi-'+propId);
@@ -1481,6 +1494,41 @@ document.addEventListener('change', function(e){
     if(row) row.style.display = e.target.checked ? 'flex' : 'none';
   }
 });
+
+// ── Sale window helpers ───────────────────────────────────────────────────────
+
+function saleMeta(prop) {
+  // Returns { discount: 0.20|0.50, endsMs: timestamp } or null if no active sale
+  if (!prop.is_chapter_prediction || !prop.chapter_drop_time || prop.status !== 'open') return null;
+  const drop = new Date(prop.chapter_drop_time).getTime();
+  const now  = Date.now();
+  const end  = drop + 12 * 3600000;
+  if (now >= drop && now <= end) {
+    return { discount: prop.is_break_week ? 0.50 : 0.20, endsMs: end };
+  }
+  return null;
+}
+
+function saleHouseCutHtml(prop) {
+  const sale = saleMeta(prop);
+  const base = ((prop.house_cut || 0.05) * 100).toFixed(0);
+  if (!sale) return base + '% cut';
+  const discounted = ((prop.house_cut || 0.05) * (1 - sale.discount) * 100).toFixed(1).replace(/\.0$/, '');
+  const timeRemMs = sale.endsMs - Date.now();
+  const h = Math.floor(timeRemMs / 3600000);
+  const m = Math.floor((timeRemMs % 3600000) / 60000);
+  const countdown = h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+  return '<span class="c-sale-strike">' + base + '%</span>'
+    + '<span class="c-sale-price"> ' + discounted + '%</span>'
+    + ' cut · sale ends ' + countdown;
+}
+
+function saleBadgeHtml(prop) {
+  const sale = saleMeta(prop);
+  if (!sale) return '';
+  const label = sale.discount === 0.50 ? '🔥 ' + (sale.discount * 100) + '% SALE' : '⚡ ' + (sale.discount * 100) + '% SALE';
+  return '<span class="c-sale-tag">' + label + '</span>';
+}
 
 // ── Chapter prediction helpers ─────────────────────────────────────────────
 

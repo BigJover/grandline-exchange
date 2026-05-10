@@ -175,6 +175,7 @@ class PropositionBet(Base):
     multiplier = Column(Float, default=1.0)         # early prediction bonus multiplier
     penalty_amount = Column(Float, default=0)       # extra loss if wrong (late bets)
     doubled_down = Column(Boolean, default=False)   # break week 2× stake toggle
+    sale_discount = Column(Float, default=0.0)      # house cut discount: 0.20 normal sale, 0.50 break week sale
 
     proposition = relationship("Proposition", back_populates="bets")
     user = relationship("User")

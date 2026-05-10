@@ -60,6 +60,7 @@ def run_column_migrations():
         ("multiplier",      "DOUBLE PRECISION DEFAULT 1.0" if is_postgres else "FLOAT DEFAULT 1.0"),
         ("penalty_amount",  "DOUBLE PRECISION DEFAULT 0" if is_postgres else "FLOAT DEFAULT 0"),
         ("doubled_down",    "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+        ("sale_discount",   "DOUBLE PRECISION DEFAULT 0.0" if is_postgres else "FLOAT DEFAULT 0.0"),
     ]
     with engine.connect() as conn:
         for col, col_type in user_migrations:

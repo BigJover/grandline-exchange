@@ -274,19 +274,27 @@ def casino_resolve(
             # Free play winnings are capped at 2× the free play credit to limit house exposure
             if bet.is_free_play:
                 base_payout = min(base_payout, bet.amount * 2)
-            payout = base_payout
+
+            # Sale bonus: house refunds a portion of its cut to sale bettors
+            sale_discount = float(getattr(bet, 'sale_discount', 0.0) or 0.0)
+            sale_bonus = 0.0
+            if sale_discount > 0 and not bet.is_free_play and winner_pool > 0:
+                sale_bonus = round((eff / winner_pool) * house_take * sale_discount, 2)
+
+            payout = base_payout + sale_bonus
             bet.payout = payout
             user.beri_balance += payout
             total_paid += payout
 
             extra = f" {multiplier}×" if multiplier > 1.0 and not bet.is_free_play else ""
             free_tag = " [free play]" if bet.is_free_play else ""
+            sale_tag = f" [{int(sale_discount*100)}% sale]" if sale_bonus > 0 else ""
             db.add(models.BeriEvent(
                 user_id=user.id,
                 event_type="casino_win",
                 amount=payout,
                 description=(
-                    f"Prediction win{free_tag} — \"{prop.question}\" → "
+                    f"Prediction win{free_tag}{sale_tag} — \"{prop.question}\" → "
                     f"\"{prop.options[correct_option]}\"{extra} "
                     f"({payout:,.0f}฿ on {bet.amount:,.0f}฿ bet)"
                 ),
