@@ -348,6 +348,11 @@
     .c-double-down-toggle { display:flex; align-items:center; gap:6px; cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.66rem; color:var(--text-dim); user-select:none; margin-top:4px; }
     .c-double-down-toggle input { cursor:pointer; accent-color:var(--punk); }
 
+    /* ── Prediction Archive ── */
+    .c-archive-card { background:var(--surface2); border:1px solid rgba(42,30,66,0.7); border-radius:8px; padding:11px 14px; display:flex; flex-direction:column; gap:5px; }
+    .c-archive-question { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text); line-height:1.4; }
+    .c-archive-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:2px; }
+
     /* ── Right panel ── */
     .c-right { display:flex; flex-direction:column; gap:14px; position:sticky; top:80px; }
     .c-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
@@ -522,6 +527,13 @@
         <div class="c-stat-pill-val" id="stat-resolve">—</div>
       </div>
     </div>
+    <div class="c-stat-pill" id="fp-stat-pill" style="display:none">
+      <span class="c-stat-pill-icon" id="fp-stat-icon" style="font-size:0.9rem">◎</span>
+      <div>
+        <div class="c-stat-pill-label">Free Play</div>
+        <div class="c-stat-pill-val" id="stat-freeplay">—</div>
+      </div>
+    </div>
   </div>
 
   <div class="c-layout">
@@ -576,6 +588,12 @@
         <div class="c-grid" id="c-list">
           <div class="c-empty">Loading…</div>
         </div>
+      </div>
+
+      <!-- Prediction Archive — resolved chapter predictions -->
+      <div id="pred-archive-section" style="display:none">
+        <div class="c-section-hdr">Prediction Archive</div>
+        <div style="display:flex;flex-direction:column;gap:8px" id="archive-list"></div>
       </div>
 
       <!-- Admin Panel — only shown when currentUser.is_admin -->
@@ -650,6 +668,10 @@
         <div class="c-panel-row">
           <span class="c-panel-row-label">Potential Winnings</span>
           <span class="c-panel-row-val green" id="rp-potential">— ฿</span>
+        </div>
+        <div class="c-panel-row" id="rp-freeplay-row" style="display:none">
+          <span class="c-panel-row-label">Free Play</span>
+          <span class="c-panel-row-val" id="rp-freeplay">—</span>
         </div>
         <button class="c-view-btn">View All Bets</button>
       </div>
@@ -782,6 +804,7 @@ function updateAuthUI(){
     if(block) block.style.display = 'none';
   }
   updateHeaderWallet();
+  updateFreePlayStatus();
 }
 
 document.getElementById('header-login-btn').addEventListener('click', function(){
@@ -919,6 +942,7 @@ async function init(){
     else { currentUser = null; clearHint(); }
   } catch(e){ currentUser = null; clearHint(); }
   updateAuthUI();
+  updateFreePlayStatus();
   await Promise.all([loadProps(), loadTrivia(), loadCharacters()]);
 }
 
@@ -998,6 +1022,9 @@ function renderFiltered(){
     rpResults.className = 'c-panel-empty';
     rpResults.innerHTML = 'No results yet';
   }
+
+  // Prediction archive
+  renderArchive();
 
   // Props grid
   const list = document.getElementById('c-list');
@@ -1317,6 +1344,77 @@ function updateDdWarn(propId){
   } else {
     warn.style.display = 'none';
   }
+}
+
+// ── Free play cooldown status ─────────────────────────────────────────────────
+
+function updateFreePlayStatus(){
+  const pill     = document.getElementById('fp-stat-pill');
+  const pillVal  = document.getElementById('stat-freeplay');
+  const pillIcon = document.getElementById('fp-stat-icon');
+  const row      = document.getElementById('rp-freeplay-row');
+  const rowVal   = document.getElementById('rp-freeplay');
+
+  if(!currentUser){
+    if(pill) pill.style.display = 'none';
+    if(row)  row.style.display  = 'none';
+    return;
+  }
+
+  const fp24h   = 24 * 60 * 60 * 1000;
+  const fpUsed  = currentUser.free_play_used_at ? new Date(currentUser.free_play_used_at) : null;
+  const fpRemMs = fpUsed ? (fpUsed.getTime() + fp24h) - Date.now() : 0;
+
+  if(fpRemMs > 0){
+    const fpRemH   = Math.floor(fpRemMs / 3600000);
+    const fpRemM   = Math.floor((fpRemMs % 3600000) / 60000);
+    const timeStr  = (fpRemH > 0 ? fpRemH+'h ' : '') + fpRemM+'m';
+    if(pill)     pill.style.display = 'flex';
+    if(pillVal)  { pillVal.textContent = timeStr; pillVal.style.color = 'var(--text-dim)'; }
+    if(pillIcon) pillIcon.textContent = '⟳';
+    if(row)      row.style.display = 'flex';
+    if(rowVal)   { rowVal.textContent = '⟳ '+timeStr; rowVal.style.color = 'var(--text-dim)'; }
+  } else {
+    if(pill)     pill.style.display = 'flex';
+    if(pillVal)  { pillVal.textContent = 'READY'; pillVal.style.color = 'var(--green)'; }
+    if(pillIcon) pillIcon.textContent = '●';
+    if(row)      row.style.display = 'flex';
+    if(rowVal)   { rowVal.innerHTML = '<span style="color:var(--green)">● READY</span>'; rowVal.style.color = ''; }
+  }
+}
+setInterval(updateFreePlayStatus, 60000);
+
+// ── Prediction Archive ────────────────────────────────────────────────────────
+
+function renderArchive(){
+  const resolved = allProps.filter(function(p){ return p.status==='resolved' && p.is_chapter_prediction; });
+  const section = document.getElementById('pred-archive-section');
+  const list = document.getElementById('archive-list');
+  if(!section || !list) return;
+  if(!resolved.length){ section.style.display='none'; return; }
+  section.style.display='block';
+
+  list.innerHTML = resolved.map(function(p){
+    const correct = p.correct_option !== null && p.correct_option !== undefined ? p.options[p.correct_option] : null;
+    const userBet = p.user_bet_option !== null && p.user_bet_option !== undefined;
+    const userWon = userBet && p.user_bet_option === p.correct_option;
+
+    const userBadge = userBet
+      ? (userWon ? '<span class="c-result-chip win">WIN</span>' : '<span class="c-result-chip loss">LOSS</span>')
+      : '';
+    const answerHtml = correct
+      ? '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.65rem;color:var(--green)">✓ '+esc(correct)+'</span>'
+      : '';
+    const poolHtml = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.62rem;color:var(--text-dim)">'+fB(p.total_pool)+' pool</span>';
+    const dateHtml = p.resolved_at
+      ? '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim)">'+new Date(p.resolved_at).toLocaleDateString()+'</span>'
+      : '';
+
+    return '<div class="c-archive-card">'+
+      '<div class="c-archive-question">'+esc(p.question)+'</div>'+
+      '<div class="c-archive-meta">'+userBadge+answerHtml+poolHtml+dateHtml+'</div>'+
+    '</div>';
+  }).join('');
 }
 
 // ── Admin Panel ───────────────────────────────────────────────────────────────
