@@ -655,6 +655,21 @@
             <span id="adm-feedback" style="font-size:0.68rem"></span>
           </div>
         </div>
+
+        <!-- Reddit Suggestion Feed -->
+        <div style="margin-top:20px">
+          <div class="c-section-hdr" style="color:var(--punk2)">◈ Reddit — Community Predictions</div>
+          <div style="background:var(--surface);border:1px solid rgba(41,182,246,0.25);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--text-dim)">Pulls from r/OnePiece · r/OnePieceLeaks · r/OnePieceSpoilers · r/Piratefolk — cached 1h</span>
+              <button id="adm-reddit-fetch" onclick="fetchRedditSuggestions(false)" style="margin-left:auto;background:rgba(41,182,246,0.10);border:1px solid rgba(41,182,246,0.45);border-radius:6px;color:var(--punk2);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:0.48rem;font-weight:700;letter-spacing:1.5px;padding:8px 14px;transition:all 0.18s">Fetch Suggestions</button>
+              <button onclick="fetchRedditSuggestions(true)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:0.44rem;font-weight:700;letter-spacing:1px;padding:8px 10px;transition:all 0.18s">↺ Refresh</button>
+            </div>
+            <div id="adm-reddit-list" style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--text-dim)">Click "Fetch Suggestions" to load community predictions from Reddit.</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1494,6 +1509,91 @@ document.addEventListener('change', function(e){
     if(row) row.style.display = e.target.checked ? 'flex' : 'none';
   }
 });
+
+// ── Reddit suggestion feed ────────────────────────────────────────────────────
+
+const SUB_COLORS = {
+  OnePiece:         '#e040fb',
+  OnePieceLeaks:    '#ff4455',
+  OnePieceSpoilers: '#ffa726',
+  Piratefolk:       '#29b6f6',
+};
+
+async function fetchRedditSuggestions(forceRefresh){
+  const secret = document.getElementById('adm-secret') ? document.getElementById('adm-secret').value.trim() : '';
+  if(!secret){ adminFeedback('⚠ Enter admin secret first', true); return; }
+
+  const fetchBtn = document.getElementById('adm-reddit-fetch');
+  const list = document.getElementById('adm-reddit-list');
+  if(!list) return;
+
+  if(fetchBtn){ fetchBtn.disabled = true; fetchBtn.textContent = 'Loading…'; }
+  list.innerHTML = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim);padding:6px 0">Fetching Reddit…</span>';
+
+  try {
+    const url = API_BASE + '/admin/reddit-suggestions' + (forceRefresh ? '?refresh=true' : '');
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: { 'X-Admin-Secret': secret },
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      list.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ '+(err.detail||'Failed to load suggestions')+'</span>';
+      if(fetchBtn){ fetchBtn.disabled=false; fetchBtn.textContent='Fetch Suggestions'; }
+      return;
+    }
+    const data = await res.json();
+    const results = data.results || [];
+
+    if(!results.length){
+      list.innerHTML = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">No relevant posts found right now.</span>';
+      if(fetchBtn){ fetchBtn.disabled=false; fetchBtn.textContent='Fetch Suggestions'; }
+      return;
+    }
+
+    const cacheNote = data.cached
+      ? '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim);margin-bottom:4px">↺ Cached result · click Refresh to force new fetch</div>'
+      : '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--green);margin-bottom:4px">✓ Fresh from Reddit</div>';
+
+    const cards = results.map(function(r){
+      const subColor = SUB_COLORS[r.subreddit] || '#888';
+      const preview = r.selftext_preview
+        ? '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.60rem;color:var(--text-dim);margin-top:4px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(r.selftext_preview)+'</div>'
+        : '';
+      return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px">'
+        + '<div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">'
+        +   '<span style="font-family:\'Orbitron\',sans-serif;font-size:0.44rem;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:4px;background:'+subColor+'22;color:'+subColor+';border:1px solid '+subColor+'55;white-space:nowrap;flex-shrink:0">r/'+esc(r.subreddit)+'</span>'
+        +   '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text);flex:1;min-width:0">'+esc(r.title)+'</span>'
+        + '</div>'
+        + preview
+        + '<div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">'
+        +   '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim)">▲ '+r.score.toLocaleString()+' · '+r.num_comments+' comments</span>'
+        +   '<a href="'+esc(r.url)+'" target="_blank" rel="noopener" style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--punk2);text-decoration:none;margin-left:auto">↗ source</a>'
+        +   '<button onclick="useRedditSuggestion('+JSON.stringify(esc(r.title))+')" style="background:rgba(224,64,251,0.10);border:1px solid rgba(224,64,251,0.40);border-radius:5px;color:var(--punk);cursor:pointer;font-family:\'Orbitron\',sans-serif;font-size:0.42rem;font-weight:700;letter-spacing:1px;padding:5px 10px;transition:all 0.18s">→ Use</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    list.innerHTML = cacheNote + cards;
+  } catch(e){
+    list.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ Connection error</span>';
+  }
+
+  if(fetchBtn){ fetchBtn.disabled=false; fetchBtn.textContent='Fetch Suggestions'; }
+}
+
+function useRedditSuggestion(title){
+  const qField = document.getElementById('adm-question');
+  if(!qField) return;
+  // Strip surrounding quotes if esc() wrapped them
+  qField.value = title;
+  qField.focus();
+  qField.scrollIntoView({ behavior:'smooth', block:'center' });
+  // Briefly highlight the field
+  qField.style.transition = 'box-shadow 0.2s';
+  qField.style.boxShadow = '0 0 0 2px var(--punk)';
+  setTimeout(function(){ qField.style.boxShadow = ''; }, 1200);
+}
 
 // ── Sale window helpers ───────────────────────────────────────────────────────
 
