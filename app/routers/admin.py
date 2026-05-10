@@ -1,5 +1,10 @@
 import os
-from datetime import datetime, timezone
+import re as _re
+import json as _json
+import time as _time
+import urllib.request
+import urllib.parse
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -375,3 +380,361 @@ def casino_list_all(
             "correct_option": p.options[p.correct_option] if p.correct_option is not None else None,
         })
     return result
+
+
+# ── Reddit prediction suggestions ─────────────────────────────────────────────
+
+REDDIT_SUBS = ["OnePiece", "OnePieceLeaks", "OnePieceSpoilers", "Piratefolk"]
+REDDIT_QUERIES = ["prediction", "theory", "spoilers"]
+REDDIT_KEYWORDS = ["predict", "theory", "theor", "will ", "chapter", "spoil", "who will", "what if", "oda"]
+_reddit_cache: dict = {"data": [], "fetched_at": 0.0}
+REDDIT_CACHE_TTL = 3600  # 1 hour
+
+
+@router.get("/reddit-suggestions")
+def reddit_suggestions(
+    x_admin_secret: Optional[str] = Header(None),
+    refresh: bool = False,
+):
+    """Fetch top prediction/theory posts from One Piece subreddits.
+    Results are cached for 1 hour. Pass ?refresh=true to force a fresh fetch."""
+    _check_secret(x_admin_secret)
+
+    now = _time.time()
+    if not refresh and now - _reddit_cache["fetched_at"] < REDDIT_CACHE_TTL and _reddit_cache["data"]:
+        return {"cached": True, "results": _reddit_cache["data"]}
+
+    combined_subs = "+".join(REDDIT_SUBS)
+    seen_ids: set = set()
+    results = []
+
+    headers = {
+        "User-Agent": "GrandLineExchange:PredictionReader:v1.0 (prediction aggregator for fan site)",
+        "Accept": "application/json",
+    }
+
+    # 1. Search each query term across all subs combined
+    for query in REDDIT_QUERIES:
+        url = (
+            "https://www.reddit.com/r/" + combined_subs +
+            "/search.json?q=" + urllib.parse.quote(query) +
+            "&sort=top&t=week&limit=20&restrict_sr=1"
+        )
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = _json.loads(resp.read())
+                for post in data.get("data", {}).get("children", []):
+                    p = post.get("data", {})
+                    pid = p.get("id", "")
+                    if pid in seen_ids:
+                        continue
+                    seen_ids.add(pid)
+                    title = p.get("title", "").strip()
+                    title_lower = title.lower()
+                    if not any(kw in title_lower for kw in REDDIT_KEYWORDS):
+                        continue
+                    # Skip pure meme/image posts with no text
+                    if p.get("post_hint") in ("image", "rich:video", "video") and not p.get("selftext"):
+                        continue
+                    results.append({
+                        "id": pid,
+                        "title": title,
+                        "url": "https://reddit.com" + p.get("permalink", ""),
+                        "subreddit": p.get("subreddit", ""),
+                        "score": p.get("score", 0),
+                        "num_comments": p.get("num_comments", 0),
+                        "selftext_preview": (p.get("selftext", "") or "")[:200],
+                    })
+        except Exception as e:
+            print(f"[Reddit] query '{query}' failed: {e}")
+
+    # 2. Also pull hot posts from OnePieceLeaks specifically — everything there is relevant
+    leaks_url = "https://www.reddit.com/r/OnePieceLeaks/hot.json?limit=20"
+    try:
+        req = urllib.request.Request(leaks_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = _json.loads(resp.read())
+            for post in data.get("data", {}).get("children", []):
+                p = post.get("data", {})
+                pid = p.get("id", "")
+                if pid in seen_ids:
+                    continue
+                seen_ids.add(pid)
+                title = p.get("title", "").strip()
+                if not title:
+                    continue
+                results.append({
+                    "id": pid,
+                    "title": title,
+                    "url": "https://reddit.com" + p.get("permalink", ""),
+                    "subreddit": p.get("subreddit", "OnePieceLeaks"),
+                    "score": p.get("score", 0),
+                    "num_comments": p.get("num_comments", 0),
+                    "selftext_preview": (p.get("selftext", "") or "")[:200],
+                })
+    except Exception as e:
+        print(f"[Reddit] OnePieceLeaks hot fetch failed: {e}")
+
+    # Sort by score descending, cap at 40
+    results.sort(key=lambda x: x["score"], reverse=True)
+    results = results[:40]
+
+    _reddit_cache["data"] = results
+    _reddit_cache["fetched_at"] = now
+
+    return {"cached": False, "results": results}
+
+
+# ── Character name index (shared by pulse + discord-ingest) ───────────────────
+
+_char_index_cache: dict = {"index": {}, "ids": {}, "prices": {}, "built_at": 0.0}
+_CHAR_INDEX_TTL = 600  # rebuild every 10 minutes
+
+
+def _load_char_index(db: Session) -> "tuple[dict, dict, dict]":
+    """Return (name_lower→canonical, canonical→id, canonical→price). Rebuilt every 10min."""
+    now = _time.time()
+    if now - _char_index_cache["built_at"] < _CHAR_INDEX_TTL and _char_index_cache["index"]:
+        return _char_index_cache["index"], _char_index_cache["ids"], _char_index_cache["prices"]
+
+    chars = db.query(
+        models.Character.id, models.Character.name,
+        models.Character.aliases, models.Character.beri
+    ).all()
+    index: dict = {}
+    ids: dict = {}
+    prices: dict = {}
+    for char_id, name, aliases, beri in chars:
+        index[name.lower()] = name
+        ids[name] = char_id
+        prices[name] = beri
+        if aliases:
+            for alias in (aliases if isinstance(aliases, list) else []):
+                if alias and len(alias) >= 3:
+                    index[alias.lower()] = name
+    _char_index_cache.update({"index": index, "ids": ids, "prices": prices, "built_at": now})
+    return index, ids, prices
+
+
+def _extract_chars(text: str, char_index: dict) -> list:
+    """Return list of canonical character names mentioned in text (word-boundary match)."""
+    text_lower = text.lower()
+    found: list = []
+    for name_lower, canonical in char_index.items():
+        if _re.search(r'\b' + _re.escape(name_lower) + r'\b', text_lower):
+            if canonical not in found:
+                found.append(canonical)
+    return found
+
+
+# ── Chapter Pulse ─────────────────────────────────────────────────────────────
+
+_pulse_cache: dict = {"data": {}, "fetched_at": 0.0}
+PULSE_CACHE_TTL = 3600
+
+
+@router.get("/chapter-pulse")
+def chapter_pulse(
+    x_admin_secret: Optional[str] = Header(None),
+    refresh: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Fetch latest chapter discussion from Reddit and extract character mentions.
+    Pulls from OnePieceLeaks, OnePieceSpoilers, OnePiece, and Piratefolk hot feeds."""
+    _check_secret(x_admin_secret)
+
+    now = _time.time()
+    if not refresh and now - _pulse_cache["fetched_at"] < PULSE_CACHE_TTL and _pulse_cache["data"]:
+        return {**_pulse_cache["data"], "cached": True}
+
+    char_index, char_ids, char_prices = _load_char_index(db)
+
+    headers = {
+        "User-Agent": "GrandLineExchange:ChapterPulse:v1.0 (chapter intelligence for fan site)",
+        "Accept": "application/json",
+    }
+
+    posts = []
+    seen_ids: set = set()
+
+    sources = [
+        "https://www.reddit.com/r/OnePieceLeaks/hot.json?limit=25",
+        "https://www.reddit.com/r/OnePieceSpoilers/hot.json?limit=25",
+        "https://www.reddit.com/r/OnePiece/search.json?q=chapter&sort=new&t=week&limit=25&restrict_sr=1",
+        "https://www.reddit.com/r/OnePiece/hot.json?limit=20",
+        "https://www.reddit.com/r/Piratefolk/hot.json?limit=15",
+    ]
+
+    for url in sources:
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = _json.loads(resp.read())
+                for post in data.get("data", {}).get("children", []):
+                    p = post.get("data", {})
+                    pid = p.get("id", "")
+                    if pid in seen_ids:
+                        continue
+                    seen_ids.add(pid)
+                    title = p.get("title", "").strip()
+                    if not title:
+                        continue
+                    selftext = (p.get("selftext", "") or "")
+                    full_text = title + " " + selftext[:500]
+                    mentioned = _extract_chars(full_text, char_index)
+                    posts.append({
+                        "id": pid,
+                        "title": title,
+                        "url": "https://reddit.com" + p.get("permalink", ""),
+                        "subreddit": p.get("subreddit", ""),
+                        "score": p.get("score", 0),
+                        "num_comments": p.get("num_comments", 0),
+                        "selftext_preview": selftext[:200],
+                        "characters": mentioned,
+                    })
+        except Exception as e:
+            print(f"[ChapterPulse] {url} failed: {e}")
+
+    # Aggregate character mention scores weighted by post score
+    char_scores: dict = {}
+    for post in posts:
+        weight = max(1, post["score"])
+        for char_name in post["characters"]:
+            if char_name not in char_scores:
+                char_scores[char_name] = {"score": 0.0, "post_count": 0}
+            char_scores[char_name]["score"] += weight
+            char_scores[char_name]["post_count"] += 1
+
+    char_list = [
+        {
+            "name": name,
+            "character_id": char_ids.get(name),
+            "current_price": char_prices.get(name),
+            "mention_score": round(d["score"]),
+            "post_count": d["post_count"],
+        }
+        for name, d in char_scores.items()
+    ]
+    char_list.sort(key=lambda x: x["mention_score"], reverse=True)
+
+    result = {
+        "posts": sorted(posts, key=lambda x: x["score"], reverse=True)[:40],
+        "characters": char_list[:30],
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _pulse_cache["data"] = result
+    _pulse_cache["fetched_at"] = now
+    return {**result, "cached": False}
+
+
+# ── Community Signal ──────────────────────────────────────────────────────────
+
+@router.get("/community-signal")
+def community_signal(
+    x_admin_secret: Optional[str] = Header(None),
+    days: int = 7,
+    db: Session = Depends(get_db),
+):
+    """Return per-character buy/sell pressure from recent site trading activity."""
+    _check_secret(x_admin_secret)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    txns = db.query(
+        models.Transaction.character_id,
+        models.Transaction.action,
+        models.Transaction.quantity,
+    ).filter(models.Transaction.timestamp >= cutoff).all()
+
+    signal: dict = {}
+    for char_id, action, qty in txns:
+        if char_id not in signal:
+            signal[char_id] = {"buys": 0, "sells": 0, "buy_qty": 0, "sell_qty": 0}
+        if action == "buy":
+            signal[char_id]["buys"] += 1
+            signal[char_id]["buy_qty"] += qty
+        elif action == "sell":
+            signal[char_id]["sells"] += 1
+            signal[char_id]["sell_qty"] += qty
+
+    if not signal:
+        return {"days": days, "characters": []}
+
+    chars = db.query(
+        models.Character.id, models.Character.name, models.Character.beri
+    ).filter(models.Character.id.in_(list(signal.keys()))).all()
+
+    result = []
+    for char_id, name, beri in chars:
+        s = signal[char_id]
+        net = s["buy_qty"] - s["sell_qty"]
+        result.append({
+            "character_id": char_id,
+            "name": name,
+            "current_price": beri,
+            "buys": s["buys"],
+            "sells": s["sells"],
+            "buy_qty": s["buy_qty"],
+            "sell_qty": s["sell_qty"],
+            "net_qty": net,
+        })
+
+    result.sort(key=lambda x: abs(x["net_qty"]), reverse=True)
+    return {"days": days, "characters": result[:30]}
+
+
+# ── Discord bridge ────────────────────────────────────────────────────────────
+
+@router.post("/discord-ingest")
+def discord_ingest(
+    event: schemas.DiscordEventIn,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Ingest a Discord message for character intelligence. Called by the Discord bot."""
+    _check_secret(x_admin_secret)
+
+    char_index, _, _ = _load_char_index(db)
+    mentioned = _extract_chars(event.content, char_index)
+
+    chapter_num = None
+    ch_match = _re.search(r'chapter\s*#?(\d{3,4})', event.content.lower())
+    if ch_match:
+        chapter_num = int(ch_match.group(1))
+
+    db.add(models.DiscordEvent(
+        channel=event.channel or "",
+        author=event.author or "",
+        content=event.content,
+        characters_detected=mentioned,
+        chapter_num=chapter_num,
+        source_url=event.source_url or "",
+    ))
+    db.commit()
+    return {"stored": True, "characters_detected": mentioned, "chapter_num": chapter_num}
+
+
+@router.get("/discord-events")
+def discord_events_list(
+    x_admin_secret: Optional[str] = Header(None),
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    """Return recent Discord-ingested events for the Chapter Intelligence panel."""
+    _check_secret(x_admin_secret)
+    events = db.query(models.DiscordEvent).order_by(
+        models.DiscordEvent.created_at.desc()
+    ).limit(min(limit, 100)).all()
+    return [
+        {
+            "id": e.id,
+            "channel": e.channel,
+            "author": e.author,
+            "content": (e.content or "")[:500],
+            "characters_detected": e.characters_detected or [],
+            "chapter_num": e.chapter_num,
+            "source_url": e.source_url,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        }
+        for e in events
+    ]

@@ -295,6 +295,13 @@ class ReferralStats(BaseModel):
     beri_earned: float
 
 
+class DiscordEventIn(BaseModel):
+    channel: str = ""
+    author: str = ""
+    content: str
+    source_url: Optional[str] = None
+
+
 class PortfolioEntry(BaseModel):
     character_id: int
     character_name: str

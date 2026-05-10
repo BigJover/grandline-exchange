@@ -358,6 +358,22 @@
     .c-archive-question { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text); line-height:1.4; }
     .c-archive-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:2px; }
 
+    /* ── Chapter Intelligence ── */
+    .ci-tab { background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--text-dim); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:700; letter-spacing:1px; padding:6px 12px; transition:all 0.18s; }
+    .ci-tab:hover { border-color:var(--green); color:var(--green); }
+    .ci-tab.active { background:rgba(0,208,132,0.10); border-color:rgba(0,208,132,0.55); color:var(--green); }
+    .ci-char-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+    .ci-char-name { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text); }
+    .ci-char-meta { font-family:'Share Tech Mono',monospace; font-size:0.60rem; color:var(--text-dim); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .ci-price-form { display:none; align-items:center; gap:6px; flex-wrap:wrap; margin-top:2px; }
+    .ci-price-form input { background:var(--surface); border:1px solid var(--border); border-radius:5px; color:var(--text); font-family:'Share Tech Mono',monospace; font-size:0.68rem; padding:5px 8px; outline:none; width:110px; }
+    .ci-price-form input:focus { border-color:var(--green); }
+    .ci-set-btn { background:rgba(0,208,132,0.10); border:1px solid rgba(0,208,132,0.45); border-radius:5px; color:var(--green); cursor:pointer; font-family:'Orbitron',sans-serif; font-size:0.42rem; font-weight:700; letter-spacing:1px; padding:5px 10px; transition:all 0.18s; }
+    .ci-set-btn:hover { background:rgba(0,208,132,0.20); }
+    .ci-toggle-btn { background:transparent; border:1px solid var(--border); border-radius:5px; color:var(--text-dim); cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:0.60rem; padding:4px 8px; transition:all 0.18s; margin-left:auto; }
+    .ci-toggle-btn:hover { color:var(--green); border-color:var(--green); }
+    .ci-bar { height:5px; border-radius:3px; min-width:3px; }
+
     /* ── Right panel ── */
     .c-right { display:flex; flex-direction:column; gap:14px; position:sticky; top:80px; }
     .c-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
@@ -670,6 +686,61 @@
             </div>
           </div>
         </div>
+
+        <!-- Chapter Intelligence Panel -->
+        <div style="margin-top:20px">
+          <div class="c-section-hdr" style="color:var(--green)">◈ Chapter Intelligence</div>
+          <div style="background:var(--surface);border:1px solid rgba(0,208,132,0.22);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+            <!-- Tab switcher -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="ci-tab active" id="ci-tab-pulse"   onclick="ciTab('pulse')">Reddit Pulse</button>
+              <button class="ci-tab"        id="ci-tab-signal"  onclick="ciTab('signal')">Community Signal</button>
+              <button class="ci-tab"        id="ci-tab-discord" onclick="ciTab('discord')">Discord Bridge</button>
+            </div>
+
+            <!-- Reddit Pulse Panel -->
+            <div id="ci-panel-pulse" style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.64rem;color:var(--text-dim)">Character mentions extracted from r/OnePieceLeaks · r/OnePieceSpoilers · r/OnePiece · r/Piratefolk — cached 1h</span>
+                <button id="ci-pulse-fetch" onclick="fetchChapterPulse(false)" style="margin-left:auto;background:rgba(0,208,132,0.10);border:1px solid rgba(0,208,132,0.45);border-radius:6px;color:var(--green);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:0.48rem;font-weight:700;letter-spacing:1.5px;padding:8px 14px;transition:all 0.18s">Fetch Pulse</button>
+                <button onclick="fetchChapterPulse(true)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:0.44rem;font-weight:700;letter-spacing:1px;padding:8px 10px;transition:all 0.18s">↺ Refresh</button>
+              </div>
+              <div id="ci-pulse-chars" style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--text-dim)">Fetch to see which characters the community is currently discussing.</span>
+              </div>
+              <div id="ci-pulse-posts" style="display:none;flex-direction:column;gap:4px;margin-top:4px"></div>
+            </div>
+
+            <!-- Community Signal Panel -->
+            <div id="ci-panel-signal" style="display:none;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.64rem;color:var(--text-dim)">Buy/sell pressure from site trading activity — last 7 days</span>
+                <button onclick="fetchCommunitySignal()" style="margin-left:auto;background:rgba(0,208,132,0.10);border:1px solid rgba(0,208,132,0.45);border-radius:6px;color:var(--green);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:0.48rem;font-weight:700;letter-spacing:1.5px;padding:8px 14px;transition:all 0.18s">Load Signal</button>
+              </div>
+              <div id="ci-signal-list" style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--text-dim)">Load to see which characters users are buying and selling.</span>
+              </div>
+            </div>
+
+            <!-- Discord Bridge Panel -->
+            <div id="ci-panel-discord" style="display:none;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.64rem;color:var(--text-dim)">Messages ingested via Discord bot (POST /admin/discord-ingest)</span>
+                <button onclick="fetchDiscordEvents()" style="margin-left:auto;background:rgba(41,182,246,0.10);border:1px solid rgba(41,182,246,0.45);border-radius:6px;color:var(--punk2);cursor:pointer;font-family:'Orbitron',sans-serif;font-size:0.48rem;font-weight:700;letter-spacing:1.5px;padding:8px 14px;transition:all 0.18s">Check Events</button>
+              </div>
+              <div id="ci-discord-list" style="display:flex;flex-direction:column;gap:6px">
+                <div style="background:var(--surface2);border:1px solid rgba(41,182,246,0.18);border-radius:8px;padding:14px 16px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;line-height:1.7;color:var(--text-dim)">
+                  <div style="color:var(--punk2);font-family:'Orbitron',sans-serif;font-size:0.52rem;font-weight:700;letter-spacing:1px;margin-bottom:8px">◌ Discord bridge not yet connected</div>
+                  Once the bot is live, it will call:<br>
+                  <span style="color:var(--text)">POST /admin/discord-ingest</span><br>
+                  with <span style="color:var(--text)">X-Admin-Secret</span> on every relevant message.<br><br>
+                  The bot should watch: chapter drop announcements, spoiler threads, and character discussion channels. Each message is scanned for character names automatically.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1593,6 +1664,273 @@ function useRedditSuggestion(title){
   qField.style.transition = 'box-shadow 0.2s';
   qField.style.boxShadow = '0 0 0 2px var(--punk)';
   setTimeout(function(){ qField.style.boxShadow = ''; }, 1200);
+}
+
+// ── Chapter Intelligence ──────────────────────────────────────────────────────
+
+function ciTab(name){
+  ['pulse','signal','discord'].forEach(function(t){
+    const panel = document.getElementById('ci-panel-'+t);
+    const btn   = document.getElementById('ci-tab-'+t);
+    if(panel) panel.style.display = t === name ? 'flex' : 'none';
+    if(btn)   btn.classList.toggle('active', t === name);
+  });
+}
+
+function _admSecret(){
+  const el = document.getElementById('adm-secret');
+  if(!el || !el.value.trim()){
+    adminFeedback('⚠ Enter admin secret first', true);
+    if(el) el.focus();
+    return '';
+  }
+  return el.value.trim();
+}
+
+// ── Reddit Chapter Pulse ──────────────────────────────────────────────────────
+
+async function fetchChapterPulse(forceRefresh){
+  const secret = _admSecret();
+  if(!secret) return;
+
+  const fetchBtn = document.getElementById('ci-pulse-fetch');
+  const charsEl  = document.getElementById('ci-pulse-chars');
+  const postsEl  = document.getElementById('ci-pulse-posts');
+  if(!charsEl) return;
+
+  if(fetchBtn){ fetchBtn.disabled=true; fetchBtn.textContent='Loading…'; }
+  charsEl.innerHTML = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">Scanning Reddit…</span>';
+  if(postsEl) postsEl.style.display = 'none';
+
+  try {
+    const url = API_BASE + '/admin/chapter-pulse' + (forceRefresh ? '?refresh=true' : '');
+    const res = await fetch(url, { credentials:'include', headers:{'X-Admin-Secret': secret} });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      charsEl.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ '+(err.detail||'Failed')+'</span>';
+      if(fetchBtn){ fetchBtn.disabled=false; fetchBtn.textContent='Fetch Pulse'; }
+      return;
+    }
+    const data = await res.json();
+    _renderPulseChars(data.characters || [], data.cached, charsEl);
+    _renderPulsePosts(data.posts || [], postsEl);
+  } catch(e){
+    charsEl.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ Connection error</span>';
+  }
+  if(fetchBtn){ fetchBtn.disabled=false; fetchBtn.textContent='Fetch Pulse'; }
+}
+
+function _renderPulseChars(chars, cached, el){
+  if(!chars.length){
+    el.innerHTML = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">No character mentions detected in recent posts.</span>';
+    return;
+  }
+  const note = cached
+    ? '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim);margin-bottom:4px">↺ Cached · Refresh to fetch live</div>'
+    : '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--green);margin-bottom:4px">✓ Fresh from Reddit</div>';
+
+  const cards = chars.map(function(c){
+    const cid = c.character_id || ('n_'+c.name.replace(/\s+/g,'_'));
+    const price = c.current_price ? fB(c.current_price) : '—';
+    return '<div class="ci-char-card">'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      +   '<span class="ci-char-name">'+esc(c.name)+'</span>'
+      +   '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.62rem;color:var(--text-dim);margin-left:auto" id="ci-pr-'+cid+'">'+price+'</span>'
+      +   '<button class="ci-toggle-btn" onclick="ciPriceToggle(\''+cid+'\')">→ Set Price</button>'
+      + '</div>'
+      + '<div class="ci-char-meta">'
+      +   '<span style="color:var(--green)">● '+c.post_count+' post'+(c.post_count!==1?'s':'')+'</span>'
+      +   '<span>· score weight '+c.mention_score.toLocaleString()+'</span>'
+      + '</div>'
+      + '<div class="ci-price-form" id="ci-pf-'+cid+'">'
+      +   '<input id="ci-pi-'+cid+'" type="number" placeholder="New price in ฿" min="1000" step="1000">'
+      +   '<button class="ci-set-btn" id="ci-pb-'+cid+'" onclick="ciPriceSubmit(\''+cid+'\','+JSON.stringify(esc(c.name))+')">Set</button>'
+      +   '<span id="ci-ps-'+cid+'" style="font-size:0.62rem"></span>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  el.innerHTML = note + cards;
+}
+
+function _renderPulsePosts(posts, el){
+  if(!el || !posts.length) return;
+  const SUB_CLR = { OnePiece:'#e040fb', OnePieceLeaks:'#ff4455', OnePieceSpoilers:'#ffa726', Piratefolk:'#29b6f6' };
+  const items = posts.slice(0, 15).map(function(p){
+    const clr = SUB_CLR[p.subreddit] || '#888';
+    const chars = (p.characters||[]).slice(0,5).map(function(n){
+      return '<span style="background:rgba(0,208,132,0.10);border:1px solid rgba(0,208,132,0.30);border-radius:3px;padding:1px 5px;font-size:0.58rem;color:var(--green)">'+esc(n)+'</span>';
+    }).join('');
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;display:flex;flex-direction:column;gap:3px">'
+      + '<div style="display:flex;align-items:flex-start;gap:6px">'
+      +   '<span style="font-family:\'Orbitron\',sans-serif;font-size:0.42rem;font-weight:700;padding:1px 5px;border-radius:3px;background:'+clr+'22;color:'+clr+';border:1px solid '+clr+'55;flex-shrink:0">r/'+esc(p.subreddit)+'</span>'
+      +   '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.65rem;color:var(--text);flex:1">'+esc(p.title)+'</span>'
+      +   '<a href="'+esc(p.url)+'" target="_blank" rel="noopener" style="font-size:0.60rem;color:var(--punk2);flex-shrink:0">↗</a>'
+      + '</div>'
+      + (chars ? '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:1px">'+chars+'</div>' : '')
+      + '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.56rem;color:var(--text-dim)">▲ '+p.score.toLocaleString()+' · '+p.num_comments+' comments</span>'
+      + '</div>';
+  }).join('');
+
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  el.style.gap = '4px';
+  el.innerHTML = '<div style="font-family:\'Orbitron\',sans-serif;font-size:0.50rem;font-weight:700;letter-spacing:1px;color:var(--text-dim);margin-bottom:2px">RECENT POSTS</div>' + items;
+}
+
+// ── Community Signal ──────────────────────────────────────────────────────────
+
+async function fetchCommunitySignal(){
+  const secret = _admSecret();
+  if(!secret) return;
+  const listEl = document.getElementById('ci-signal-list');
+  if(!listEl) return;
+  listEl.innerHTML = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">Loading…</span>';
+
+  try {
+    const res = await fetch(API_BASE+'/admin/community-signal', {
+      credentials:'include', headers:{'X-Admin-Secret': secret}
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      listEl.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ '+(err.detail||'Failed')+'</span>';
+      return;
+    }
+    const data = await res.json();
+    _renderSignal(data, listEl);
+  } catch(e){
+    listEl.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ Connection error</span>';
+  }
+}
+
+function _renderSignal(data, el){
+  const chars = data.characters || [];
+  if(!chars.length){
+    el.innerHTML = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">No trading activity in the last '+data.days+' days.</span>';
+    return;
+  }
+  const maxAbs = Math.max(1, ...chars.map(function(c){ return Math.abs(c.net_qty); }));
+  const cards = chars.map(function(c){
+    const cid = 'sig_'+c.character_id;
+    const net = c.net_qty;
+    const netClr = net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'var(--text-dim)';
+    const netTxt = net > 0 ? '+'+net+' shares net buy' : net < 0 ? net+' shares net sell' : 'neutral';
+    const buyPct  = c.buy_qty  / Math.max(1, c.buy_qty + c.sell_qty) * 100;
+    const sellPct = 100 - buyPct;
+    const price = c.current_price ? fB(c.current_price) : '—';
+    return '<div class="ci-char-card">'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      +   '<span class="ci-char-name">'+esc(c.name)+'</span>'
+      +   '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.62rem;color:var(--text-dim);margin-left:auto" id="ci-pr-'+cid+'">'+price+'</span>'
+      +   '<button class="ci-toggle-btn" onclick="ciPriceToggle(\''+cid+'\')">→ Set Price</button>'
+      + '</div>'
+      + '<div style="display:flex;gap:2px;margin:2px 0">'
+      +   '<div class="ci-bar" style="width:'+buyPct.toFixed(1)+'%;background:var(--green)"></div>'
+      +   '<div class="ci-bar" style="width:'+sellPct.toFixed(1)+'%;background:var(--red)"></div>'
+      + '</div>'
+      + '<div class="ci-char-meta">'
+      +   '<span style="color:var(--green)">↑ '+c.buy_qty+' bought</span>'
+      +   '<span style="color:var(--red)">↓ '+c.sell_qty+' sold</span>'
+      +   '<span style="color:'+netClr+';font-weight:700">'+netTxt+'</span>'
+      + '</div>'
+      + '<div class="ci-price-form" id="ci-pf-'+cid+'">'
+      +   '<input id="ci-pi-'+cid+'" type="number" placeholder="New price in ฿" min="1000" step="1000">'
+      +   '<button class="ci-set-btn" id="ci-pb-'+cid+'" onclick="ciPriceSubmit(\''+cid+'\','+JSON.stringify(esc(c.name))+')">Set</button>'
+      +   '<span id="ci-ps-'+cid+'" style="font-size:0.62rem"></span>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  el.innerHTML = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim);margin-bottom:2px">Last '+data.days+' days · '+chars.length+' characters with activity</div>' + cards;
+}
+
+// ── Discord Events ────────────────────────────────────────────────────────────
+
+async function fetchDiscordEvents(){
+  const secret = _admSecret();
+  if(!secret) return;
+  const listEl = document.getElementById('ci-discord-list');
+  if(!listEl) return;
+  listEl.innerHTML = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">Checking…</span>';
+
+  try {
+    const res = await fetch(API_BASE+'/admin/discord-events', {
+      credentials:'include', headers:{'X-Admin-Secret': secret}
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      listEl.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ '+(err.detail||'Failed')+'</span>';
+      return;
+    }
+    const events = await res.json();
+    if(!events.length){
+      listEl.innerHTML = '<div style="background:var(--surface2);border:1px solid rgba(41,182,246,0.18);border-radius:8px;padding:14px 16px;font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim);line-height:1.7">'
+        + '<div style="color:var(--punk2);font-family:\'Orbitron\',sans-serif;font-size:0.52rem;font-weight:700;letter-spacing:1px;margin-bottom:8px">◌ No events yet</div>'
+        + 'The Discord bot hasn\'t sent any messages yet.<br>'
+        + 'Once connected it will POST to <span style="color:var(--text)">/admin/discord-ingest</span> for each relevant message.'
+        + '</div>';
+      return;
+    }
+    const rows = events.map(function(e){
+      const chars = (e.characters_detected||[]).slice(0,6).map(function(n){
+        return '<span style="background:rgba(41,182,246,0.10);border:1px solid rgba(41,182,246,0.30);border-radius:3px;padding:1px 5px;font-size:0.58rem;color:var(--punk2)">'+esc(n)+'</span>';
+      }).join('');
+      const chNum = e.chapter_num ? '<span style="color:var(--gold)">ch.'+e.chapter_num+'</span> · ' : '';
+      const ts = e.created_at ? new Date(e.created_at).toLocaleString() : '';
+      return '<div style="background:var(--surface2);border:1px solid rgba(41,182,246,0.18);border-radius:6px;padding:8px 12px;display:flex;flex-direction:column;gap:3px">'
+        + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+        +   '<span style="font-family:\'Orbitron\',sans-serif;font-size:0.42rem;font-weight:700;color:var(--punk2)">#'+esc(e.channel)+'</span>'
+        +   '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim)">'+esc(e.author)+'</span>'
+        +   '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.56rem;color:var(--text-dim);margin-left:auto">'+ts+'</span>'
+        + '</div>'
+        + '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.66rem;color:var(--text);line-height:1.4">'+esc(e.content)+'</div>'
+        + (chars ? '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:1px">'+chNum+chars+'</div>' : '')
+        + '</div>';
+    }).join('');
+    listEl.innerHTML = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--green);margin-bottom:4px">● '+events.length+' ingested messages</div>' + rows;
+  } catch(e){
+    listEl.innerHTML = '<span style="color:var(--red);font-size:0.68rem">⚠ Connection error</span>';
+  }
+}
+
+// ── Quick price set (shared by Pulse + Signal panels) ────────────────────────
+
+function ciPriceToggle(cid){
+  const form = document.getElementById('ci-pf-'+cid);
+  if(!form) return;
+  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+}
+
+async function ciPriceSubmit(cid, charName){
+  const secret = _admSecret();
+  if(!secret) return;
+  const inp = document.getElementById('ci-pi-'+cid);
+  const btn = document.getElementById('ci-pb-'+cid);
+  const status = document.getElementById('ci-ps-'+cid);
+  if(!inp) return;
+  const newPrice = parseFloat(inp.value);
+  if(!newPrice || newPrice < 1000){
+    if(status){ status.textContent = '⚠ min 1000฿'; status.style.color='var(--red)'; }
+    return;
+  }
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  try {
+    const res = await fetch(
+      API_BASE+'/admin/set-beri?name='+encodeURIComponent(charName)+'&beri='+newPrice,
+      { method:'POST', credentials:'include', headers:{'X-Admin-Secret': secret} }
+    );
+    const data = await res.json();
+    if(res.ok){
+      const priceEl = document.getElementById('ci-pr-'+cid);
+      if(priceEl) priceEl.textContent = fB(newPrice);
+      if(status){ status.textContent = '✓ set'; status.style.color='var(--green)'; }
+      const form = document.getElementById('ci-pf-'+cid);
+      if(form) setTimeout(function(){ form.style.display='none'; if(status) status.textContent=''; }, 1200);
+    } else {
+      if(status){ status.textContent = '⚠ '+(data.detail||'Failed'); status.style.color='var(--red)'; }
+    }
+  } catch(e){
+    if(status){ status.textContent = '⚠ Error'; status.style.color='var(--red)'; }
+  }
+  if(btn){ btn.disabled=false; btn.textContent='Set'; }
 }
 
 // ── Sale window helpers ───────────────────────────────────────────────────────

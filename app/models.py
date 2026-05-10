@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -224,3 +224,16 @@ class Transaction(Base):
 
     user = relationship("User", back_populates="transactions")
     character = relationship("Character")
+
+
+class DiscordEvent(Base):
+    __tablename__ = "discord_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    channel = Column(String, default="")
+    author = Column(String, default="")
+    content = Column(Text, default="")
+    characters_detected = Column(JSON, default=list)   # canonical character names found in message
+    chapter_num = Column(Integer, nullable=True)        # chapter number detected, if any
+    source_url = Column(String, default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
