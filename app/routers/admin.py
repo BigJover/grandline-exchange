@@ -233,6 +233,236 @@ def publish_transmission(
     return {"status": "ok", "id": tx.id, "chapter_number": tx.chapter_number}
 
 
+@router.get("/transmission/generate")
+def generate_transmission(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Auto-generate a ready-to-review transmission draft from Reddit pulse + Discord events + site signal.
+    Returns a pre-filled payload that the admin reviews then publishes."""
+    _check_secret(x_admin_secret)
+
+    # ── 1. Reddit pulse (use cache if fresh, else fetch) ────────────────────
+    now = _time.time()
+    if now - _pulse_cache["fetched_at"] < PULSE_CACHE_TTL and _pulse_cache["data"]:
+        pulse = _pulse_cache["data"]
+    else:
+        # Inline fetch (mirrors chapter_pulse logic)
+        char_index, char_ids, char_prices = _load_char_index(db)
+        headers = {
+            "User-Agent": "GrandLineExchange:ChapterPulse:v1.0 (chapter intelligence for fan site)",
+            "Accept": "application/json",
+        }
+        posts = []
+        seen_ids: set = set()
+        sources = [
+            "https://www.reddit.com/r/OnePieceLeaks/hot.json?limit=25",
+            "https://www.reddit.com/r/OnePieceSpoilers/hot.json?limit=25",
+            "https://www.reddit.com/r/OnePiece/search.json?q=chapter&sort=new&t=week&limit=25&restrict_sr=1",
+            "https://www.reddit.com/r/OnePiece/hot.json?limit=20",
+            "https://www.reddit.com/r/Piratefolk/hot.json?limit=15",
+        ]
+        for url in sources:
+            try:
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    data = _json.loads(resp.read())
+                    for post in data.get("data", {}).get("children", []):
+                        p = post.get("data", {})
+                        pid = p.get("id", "")
+                        if pid in seen_ids:
+                            continue
+                        seen_ids.add(pid)
+                        title = p.get("title", "").strip()
+                        if not title:
+                            continue
+                        selftext = (p.get("selftext", "") or "")
+                        full_text = title + " " + selftext[:500]
+                        mentioned = _extract_chars(full_text, char_index)
+                        posts.append({
+                            "id": pid,
+                            "title": title,
+                            "url": "https://reddit.com" + p.get("permalink", ""),
+                            "subreddit": p.get("subreddit", ""),
+                            "score": p.get("score", 0),
+                            "num_comments": p.get("num_comments", 0),
+                            "selftext_preview": selftext[:200],
+                            "characters": mentioned,
+                        })
+            except Exception as e:
+                print(f"[GenerateTransmission] Reddit {url} failed: {e}")
+
+        char_scores: dict = {}
+        for post in posts:
+            weight = max(1, post["score"])
+            for char_name in post["characters"]:
+                if char_name not in char_scores:
+                    char_scores[char_name] = {"score": 0.0, "post_count": 0}
+                char_scores[char_name]["score"] += weight
+                char_scores[char_name]["post_count"] += 1
+
+        char_list = [
+            {
+                "name": name,
+                "character_id": char_ids.get(name),
+                "current_price": char_prices.get(name),
+                "mention_score": round(d["score"]),
+                "post_count": d["post_count"],
+            }
+            for name, d in char_scores.items()
+        ]
+        char_list.sort(key=lambda x: x["mention_score"], reverse=True)
+        pulse = {
+            "posts": sorted(posts, key=lambda x: x["score"], reverse=True)[:40],
+            "characters": char_list[:30],
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _pulse_cache["data"] = pulse
+        _pulse_cache["fetched_at"] = now
+
+    # ── 2. Discord events (last 14 days) ────────────────────────────────────
+    discord_cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+    discord_events = db.query(models.DiscordEvent).filter(
+        models.DiscordEvent.created_at >= discord_cutoff
+    ).all()
+
+    discord_char_counts: dict = {}   # name → detection count
+    discord_chapter_nums: list = []
+    for ev in discord_events:
+        if ev.chapter_num:
+            discord_chapter_nums.append(ev.chapter_num)
+        for char_name in (ev.characters_detected or []):
+            discord_char_counts[char_name] = discord_char_counts.get(char_name, 0) + 1
+
+    # ── 3. Site trading signal (last 7 days) ────────────────────────────────
+    signal_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    txns = db.query(
+        models.Transaction.character_id,
+        models.Transaction.action,
+        models.Transaction.quantity,
+    ).filter(models.Transaction.timestamp >= signal_cutoff).all()
+
+    site_signal: dict = {}   # char_id → {buy_qty, sell_qty}
+    for char_id, action, qty in txns:
+        if char_id not in site_signal:
+            site_signal[char_id] = {"buy_qty": 0, "sell_qty": 0}
+        if action == "buy":
+            site_signal[char_id]["buy_qty"] += qty
+        elif action == "sell":
+            site_signal[char_id]["sell_qty"] += qty
+
+    # Map char_id → name for site signal
+    signal_char_ids = list(site_signal.keys())
+    site_chars_by_id: dict = {}
+    if signal_char_ids:
+        for c in db.query(models.Character.id, models.Character.name).filter(
+            models.Character.id.in_(signal_char_ids)
+        ).all():
+            site_chars_by_id[c.id] = c.name
+
+    site_net: dict = {}   # name → net_qty (positive = buy pressure)
+    for char_id, sq in site_signal.items():
+        name = site_chars_by_id.get(char_id)
+        if name:
+            site_net[name] = sq["buy_qty"] - sq["sell_qty"]
+
+    # ── 4. Detect chapter number ────────────────────────────────────────────
+    chapter_number = max(discord_chapter_nums) if discord_chapter_nums else None
+    if chapter_number is None:
+        for post in pulse.get("posts", []):
+            m = _re.search(r'\bchapter\s*#?(\d{3,4})\b', post.get("title", ""), _re.I)
+            if m:
+                chapter_number = int(m.group(1))
+                break
+    if chapter_number is None:
+        chapter_number = 0   # admin fills in manually
+
+    # ── 5. Build combined scores ─────────────────────────────────────────────
+    # Reddit mention_score (raw) + Discord detections × 1000 + net_buy × 100
+    reddit_chars = {c["name"]: c["mention_score"] for c in pulse.get("characters", [])}
+    all_names = set(reddit_chars) | set(discord_char_counts) | set(site_net)
+
+    combined: list = []
+    for name in all_names:
+        r_score = reddit_chars.get(name, 0)
+        d_count = discord_char_counts.get(name, 0)
+        net_buy = site_net.get(name, 0)
+        total = r_score + d_count * 1000 + net_buy * 100
+        combined.append({
+            "name": name,
+            "total": total,
+            "reddit_score": r_score,
+            "discord_count": d_count,
+            "net_buy": net_buy,
+        })
+
+    combined.sort(key=lambda x: x["total"], reverse=True)
+    top = combined[:12]   # top 12 movers
+
+    # ── 6. Auto-classify directions ──────────────────────────────────────────
+    movers = []
+    for c in top:
+        if c["net_buy"] < -3:
+            direction = "down"
+        elif c["discord_count"] > 0 and c["reddit_score"] == 0:
+            direction = "new"   # Discord-only signal (leak/early spoiler)
+        else:
+            direction = "up"
+        movers.append({"name": c["name"], "direction": direction})
+
+    # ── 7. Generate summary ──────────────────────────────────────────────────
+    up_names   = [m["name"] for m in movers if m["direction"] == "up"]
+    down_names = [m["name"] for m in movers if m["direction"] == "down"]
+    new_names  = [m["name"] for m in movers if m["direction"] == "new"]
+
+    ch_label = f"Ch.{chapter_number}" if chapter_number else "this chapter"
+    parts = []
+    if up_names:
+        parts.append(f"{', '.join(up_names[:4])} seeing strong buy pressure")
+    if down_names:
+        parts.append(f"{', '.join(down_names[:3])} under heavy sell pressure")
+    if new_names:
+        parts.append(f"{', '.join(new_names[:3])} entering the board via early signals")
+
+    summary = (
+        f"Intelligence compiled from {len(pulse.get('posts', []))} Reddit posts "
+        f"and {len(discord_events)} Discord events for {ch_label}. "
+        + (" — ".join(parts) + "." if parts else "Market activity nominal.")
+    )
+
+    # ── 8. Build response ────────────────────────────────────────────────────
+    uplink_label = (
+        f"Uplink: {ch_label} ◈ Signal Active"
+        if chapter_number
+        else "Uplink: Scanning ◈ Awaiting Chapter"
+    )
+    reddit_context = [
+        p["title"] for p in pulse.get("posts", [])[:5]
+    ]
+
+    return {
+        "chapter_number": chapter_number,
+        "uplink_label": uplink_label,
+        "summary": summary,
+        "movers": movers,
+        "reddit_context": reddit_context,
+        "sources": {
+            "reddit_posts": len(pulse.get("posts", [])),
+            "discord_events": len(discord_events),
+            "site_signal_chars": len(site_net),
+            "top_combined": [
+                {
+                    "name": c["name"],
+                    "reddit_score": c["reddit_score"],
+                    "discord_count": c["discord_count"],
+                    "net_buy": c["net_buy"],
+                }
+                for c in combined[:20]
+            ],
+        },
+    }
+
+
 # ── Casino admin ──────────────────────────────────────────────────────────────
 
 @router.post("/casino/create")

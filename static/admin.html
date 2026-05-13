@@ -273,7 +273,7 @@
         <button class="btn btn-ghost btn-sm" onclick="addMover()" style="align-self:flex-start;margin-top:4px">+ Add Mover</button>
       </div>
       <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn btn-ghost" onclick="prefillFromPulse()">Pre-fill from Pulse</button>
+        <button class="btn btn-ghost" onclick="generateFromData()">Generate from Data</button>
         <button class="btn btn-punk" onclick="publishTransmission()">PUBLISH</button>
       </div>
     </div>
@@ -761,6 +761,7 @@ function delMover(btn) {
 }
 
 let _lastPulseChars = [];
+let _lastGenerateContext = [];   // reddit_context from the last generate call
 
 function prefillFromPulse() {
   if (!_lastPulseChars.length) { toast('Fetch Reddit Pulse first', true); return; }
@@ -773,6 +774,48 @@ function prefillFromPulse() {
       '<button class="opt-del" onclick="delMover(this)">✕</button></div>';
   }).join('');
   toast('Pre-filled ' + top.length + ' movers from Reddit Pulse');
+}
+
+async function generateFromData() {
+  const btn = document.querySelector('[onclick="generateFromData()"]');
+  if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
+  try {
+    const d = await api('GET', '/admin/transmission/generate');
+    // Fill chapter number
+    const chEl = document.getElementById('tx-ch');
+    if (d.chapter_number) chEl.value = d.chapter_number;
+    // Fill uplink label
+    document.getElementById('tx-lbl').value = d.uplink_label || '';
+    // Fill summary
+    document.getElementById('tx-summary').value = d.summary || '';
+    // Rebuild movers list
+    const dirLabel = { up: '▲ up', down: '▼ down', new: '★ new' };
+    const list = document.getElementById('tx-mover-list');
+    if (d.movers && d.movers.length) {
+      list.innerHTML = d.movers.map(function(m){
+        const dir = m.direction || 'up';
+        return '<div class="opt-row">' +
+          '<input type="text" value="' + esc(m.name) + '" style="flex:2">' +
+          '<select style="flex:1;min-width:80px">' +
+            ['up','down','new'].map(function(v){
+              return '<option value="' + v + '"' + (v === dir ? ' selected' : '') + '>' + dirLabel[v] + '</option>';
+            }).join('') +
+          '</select>' +
+          '<button class="opt-del" onclick="delMover(this)">✕</button></div>';
+      }).join('');
+    }
+    // Store reddit_context for publish call
+    _lastGenerateContext = d.reddit_context || [];
+    // Show source summary
+    const src = d.sources || {};
+    toast('Generated from ' + (src.reddit_posts || 0) + ' Reddit posts · ' +
+          (src.discord_events || 0) + ' Discord events · ' +
+          (src.site_signal_chars || 0) + ' traded chars');
+  } catch(e) {
+    toast('Generate failed: ' + e.message, true);
+  } finally {
+    if (btn) { btn.textContent = 'Generate from Data'; btn.disabled = false; }
+  }
 }
 
 async function publishTransmission() {
@@ -797,9 +840,12 @@ async function publishTransmission() {
       uplink_label: lbl,
       summary: summ,
       movers: movers,
-      reddit_context: _lastPulseChars.slice(0, 10).map(function(c){ return c.name; }),
+      reddit_context: _lastGenerateContext.length
+        ? _lastGenerateContext
+        : _lastPulseChars.slice(0, 10).map(function(c){ return c.name; }),
     });
     toast('Transmission published — Ch.' + d.chapter_number);
+    _lastGenerateContext = [];
   } catch(e) { toast('Publish failed: ' + e.message, true); }
 }
 
