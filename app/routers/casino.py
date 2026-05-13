@@ -43,12 +43,13 @@ def _prediction_multiplier(chapter_drop_time: datetime, now: datetime) -> tuple[
 
 def _active_sale_discount(prop: models.Proposition, now: datetime) -> float:
     """Return the active sale discount fraction for bets placed right now.
-    0.20 during the 12h window after chapter drop; 0.50 during break week."""
-    if not prop.is_chapter_prediction or not prop.chapter_drop_time:
+    0.20 house cut reduction for 12h after chapter drop (regular chapters only).
+    Break week uses the double-down mechanic instead — no sale discount."""
+    if not prop.is_chapter_prediction or not prop.chapter_drop_time or prop.is_break_week:
         return 0.0
     drop = prop.chapter_drop_time
     if drop <= now <= drop + timedelta(hours=SALE_WINDOW_HOURS):
-        return 0.50 if prop.is_break_week else 0.20
+        return 0.20
     return 0.0
 
 

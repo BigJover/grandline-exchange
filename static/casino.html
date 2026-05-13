@@ -1967,13 +1967,14 @@ async function ciPriceSubmit(cid, charName){
 // ── Sale window helpers ───────────────────────────────────────────────────────
 
 function saleMeta(prop) {
-  // Returns { discount: 0.20|0.50, endsMs: timestamp } or null if no active sale
-  if (!prop.is_chapter_prediction || !prop.chapter_drop_time || prop.status !== 'open') return null;
+  // Returns { discount: 0.20, endsMs: timestamp } or null if no active sale.
+  // Break week uses double-down mechanic instead — no sale discount.
+  if (!prop.is_chapter_prediction || !prop.chapter_drop_time || prop.is_break_week || prop.status !== 'open') return null;
   const drop = new Date(prop.chapter_drop_time).getTime();
   const now  = Date.now();
   const end  = drop + 12 * 3600000;
   if (now >= drop && now <= end) {
-    return { discount: prop.is_break_week ? 0.50 : 0.20, endsMs: end };
+    return { discount: 0.20, endsMs: end };
   }
   return null;
 }
@@ -1995,8 +1996,7 @@ function saleHouseCutHtml(prop) {
 function saleBadgeHtml(prop) {
   const sale = saleMeta(prop);
   if (!sale) return '';
-  const label = sale.discount === 0.50 ? '🔥 ' + (sale.discount * 100) + '% SALE' : '⚡ ' + (sale.discount * 100) + '% SALE';
-  return '<span class="c-sale-tag">' + label + '</span>';
+  return '<span class="c-sale-tag">⚡ 20% SALE</span>';
 }
 
 // ── Chapter prediction helpers ─────────────────────────────────────────────
