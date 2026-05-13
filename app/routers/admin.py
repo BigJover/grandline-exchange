@@ -12,6 +12,7 @@ from typing import List, Optional
 from app.database import get_db
 from app import models, schemas
 from app.scheduler import run_beri_drop, WEEKLY_DROP
+from app.bots import run_bot_tick
 from app.routers.characters import invalidate_char_cache
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -175,6 +176,14 @@ def trigger_beri_drop(x_admin_secret: Optional[str] = Header(None), db: Session 
         "users_paid": count,
         "total_distributed": WEEKLY_DROP * count,
     }
+
+
+@router.post("/bot-tick")
+def trigger_bot_tick(x_admin_secret: Optional[str] = Header(None)):
+    """Manually fire one round of bot market trades. Protected by X-Admin-Secret header."""
+    _check_secret(x_admin_secret)
+    run_bot_tick()
+    return {"status": "ok", "message": "Bot tick fired"}
 
 
 # ── Casino admin ──────────────────────────────────────────────────────────────

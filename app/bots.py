@@ -8,6 +8,8 @@ run_bot_tick() — called once daily by the scheduler; applies a small, weighted
                  intentionally subtle (~0.2–0.6 % per week per character).
 """
 
+import random
+
 from app.database import SessionLocal
 from app import models
 
