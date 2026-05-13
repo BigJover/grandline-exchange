@@ -227,6 +227,9 @@ class PropositionOut(BaseModel):
     chapter_drop_time: Optional[datetime] = None
     is_break_week: bool = False
     user_bet_multiplier: Optional[float] = None
+    user_bet_is_free_play: bool = False
+    user_bet_doubled_down: bool = False
+    user_bet_penalty_amount: float = 0.0
     sale_discount: float = 0.0        # active sale discount fraction (0.0 = no sale)
 
     model_config = {"from_attributes": True}

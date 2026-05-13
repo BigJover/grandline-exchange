@@ -764,7 +764,7 @@
           <span class="c-panel-row-label">Free Play</span>
           <span class="c-panel-row-val" id="rp-freeplay">—</span>
         </div>
-        <button class="c-view-btn">View All Bets</button>
+        <button class="c-view-btn" onclick="scrollToArchive()">View All Bets</button>
       </div>
 
       <div class="c-panel">
@@ -1485,6 +1485,17 @@ setInterval(updateFreePlayStatus, 60000);
 
 // ── Prediction Archive ────────────────────────────────────────────────────────
 
+function scrollToArchive(){
+  const section = document.getElementById('pred-archive-section');
+  if(!section || section.style.display === 'none'){
+    // No archived predictions — scroll to All Challenges instead
+    const allSection = document.querySelector('.c-section-hdr');
+    if(allSection) allSection.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  section.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 function renderArchive(){
   const resolved = allProps.filter(function(p){ return p.status==='resolved' && p.is_chapter_prediction; });
   const section = document.getElementById('pred-archive-section');
@@ -1509,9 +1520,29 @@ function renderArchive(){
       ? '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.58rem;color:var(--text-dim)">'+new Date(p.resolved_at).toLocaleDateString()+'</span>'
       : '';
 
+    // Per-bet detail (only if user placed a bet)
+    let betDetailHtml = '';
+    if(userBet){
+      const mult = p.user_bet_multiplier || 1.0;
+      const amt  = p.user_bet_amount || 0;
+      const isFP = p.user_bet_is_free_play;
+      const isDD = p.user_bet_doubled_down;
+      const pen  = p.user_bet_penalty_amount || 0;
+
+      if(isFP){
+        betDetailHtml = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;color:var(--text-dim);margin-top:3px">Free play · 5,000฿ credit'+(userWon ? ' · won' : ' · lost')+'</div>';
+      } else {
+        const multTag  = mult > 1.0 ? ' · <span style="color:var(--gold)">'+mult+'× mult</span>' : '';
+        const ddTag    = isDD ? ' · <span style="color:var(--red)">⚔ doubled</span>' : '';
+        const penTag   = pen > 0 && !userWon ? ' · <span style="color:var(--red)">'+fB(pen)+' penalty</span>' : '';
+        betDetailHtml  = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;color:var(--text-dim);margin-top:3px">Wagered '+fB(amt)+multTag+ddTag+penTag+'</div>';
+      }
+    }
+
     return '<div class="c-archive-card">'+
       '<div class="c-archive-question">'+esc(p.question)+'</div>'+
       '<div class="c-archive-meta">'+userBadge+answerHtml+poolHtml+dateHtml+'</div>'+
+      betDetailHtml+
     '</div>';
   }).join('');
 }

@@ -94,6 +94,9 @@ def _build_odds(prop: models.Proposition, user_id: Optional[int] = None) -> sche
         chapter_drop_time=prop.chapter_drop_time,
         is_break_week=bool(prop.is_break_week),
         user_bet_multiplier=user_bet.multiplier if user_bet else None,
+        user_bet_is_free_play=bool(user_bet.is_free_play) if user_bet else False,
+        user_bet_doubled_down=bool(user_bet.doubled_down) if user_bet else False,
+        user_bet_penalty_amount=float(user_bet.penalty_amount or 0) if user_bet else 0.0,
         sale_discount=_active_sale_discount(prop, now),
     )
 

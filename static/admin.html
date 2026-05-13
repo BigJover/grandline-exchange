@@ -468,13 +468,29 @@ function propHtml(p) {
 
   const closesAt = p.closes_at ? new Date(p.closes_at).toLocaleString() : '—';
   const predBadge = p.is_chapter_prediction ? ' <span class="badge b-pred">⏱ PRED</span>' : '';
+  const breakBadge = p.is_break_week ? ' <span class="badge" style="background:rgba(255,107,107,0.12);color:var(--red);border:1px solid rgba(255,107,107,0.3)">⚔ BREAK</span>' : '';
+
+  // Prediction metadata row
+  let predMeta = '';
+  if (p.is_chapter_prediction) {
+    const dropStr = p.chapter_drop_time ? new Date(p.chapter_drop_time).toLocaleString() : '—';
+    predMeta = '<div style="font-size:0.66rem;color:var(--teal);margin-bottom:4px">⏱ Drop: ' + esc(dropStr) +
+      (p.is_break_week ? ' · <span style="color:var(--red)">⚔ Break Week</span>' : '') + '</div>';
+  }
+
+  const betCount = p.bet_count || 0;
+  const betLabel = betCount === 1 ? '1 bet' : betCount + ' bets';
 
   let acts = '';
   if (p.status === 'resolved') {
     acts = '<span class="dim" style="font-size:0.72rem">Resolved → ' + esc(p.correct_option || '') + '</span>';
   } else {
     if (p.status === 'open') acts += '<button class="btn btn-ghost btn-sm" onclick="closeProp(' + p.id + ')">CLOSE</button> ';
-    acts += '<button class="btn btn-punk btn-sm" onclick="toggleResolve(' + p.id + ')">RESOLVE ▾</button>';
+    acts += '<button class="btn btn-punk btn-sm" onclick="toggleResolve(' + p.id + ')">RESOLVE ▾</button> ';
+  }
+  // Delete button — always available unless resolved
+  if (p.status !== 'resolved') {
+    acts += '<button class="btn btn-red btn-sm" onclick="deleteProp(' + p.id + ',' + betCount + ')" style="margin-left:auto">DEL</button>';
   }
 
   const optBtns = (p.options || []).map(function(opt, i){
@@ -483,8 +499,9 @@ function propHtml(p) {
 
   return '<div class="prop-row" id="pr-' + p.id + '">' +
     '<div class="prop-hd"><div class="prop-q">' + esc(p.question) + '</div>' +
-    '<span class="badge ' + statusClass + '">' + p.status.toUpperCase() + '</span>' + predBadge + '</div>' +
-    '<div class="prop-meta">Cat: ' + esc(p.category || '—') + ' · Closes: ' + esc(closesAt) + ' · Pool: ' + pool + '</div>' +
+    '<span class="badge ' + statusClass + '">' + p.status.toUpperCase() + '</span>' + predBadge + breakBadge + '</div>' +
+    predMeta +
+    '<div class="prop-meta">Cat: ' + esc(p.category || '—') + ' · Closes: ' + esc(closesAt) + ' · Pool: ' + pool + ' · ' + betLabel + '</div>' +
     '<div class="prop-pool">' + bd + '</div>' +
     '<div class="prop-acts">' + acts + '</div>' +
     '<div class="resolve-zone" id="rz-' + p.id + '">' +
@@ -524,6 +541,19 @@ async function closeProp(id) {
     toast('Proposition closed');
     loadProps();
   } catch(e) { toast('Close failed: ' + e.message, true); }
+}
+
+async function deleteProp(id, betCount) {
+  const hasBets = betCount > 0;
+  const msg = hasBets
+    ? 'Delete prop #' + id + '? It has ' + betCount + ' bet(s) — all will be REFUNDED. This cannot be undone.'
+    : 'Delete prop #' + id + '? This cannot be undone.';
+  if (!confirm(msg)) return;
+  try {
+    await api('DELETE', '/admin/casino/' + id + (hasBets ? '?force=true' : ''));
+    toast('Prop #' + id + ' deleted' + (hasBets ? ' — ' + betCount + ' bet(s) refunded' : ''));
+    loadProps();
+  } catch(e) { toast('Delete failed: ' + e.message, true); }
 }
 
 // Options builder

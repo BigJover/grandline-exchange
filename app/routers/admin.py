@@ -662,12 +662,65 @@ def casino_list_all(
             "status": p.status,
             "options": p.options,
             "closes_at": str(p.closes_at) if p.closes_at else None,
-            "is_chapter_prediction": p.is_chapter_prediction,
+            "is_chapter_prediction": bool(p.is_chapter_prediction),
+            "chapter_drop_time": str(p.chapter_drop_time) if p.chapter_drop_time else None,
+            "is_break_week": bool(p.is_break_week),
             "total_pool": total,
             "pool_breakdown": per_option,
+            "bet_count": len(p.bets),
             "correct_option": p.options[p.correct_option] if p.correct_option is not None else None,
         })
     return result
+
+
+@router.delete("/casino/{prop_id}")
+def delete_proposition(
+    prop_id: int,
+    force: bool = False,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Delete a proposition. Refuses if bets exist unless force=true, which refunds all bets."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Proposition not found")
+    if prop.status == "resolved":
+        raise HTTPException(status_code=400, detail="Cannot delete a resolved proposition")
+
+    bets = db.query(models.PropositionBet).filter(
+        models.PropositionBet.proposition_id == prop_id
+    ).all()
+
+    if bets and not force:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Proposition has {len(bets)} bet(s). Pass force=true to delete and refund all bets."
+        )
+
+    refunded = 0
+    if bets:
+        for bet in bets:
+            if bet.is_free_play:
+                continue
+            user = db.query(models.User).filter(models.User.id == bet.user_id).first()
+            if user:
+                user.beri_balance += bet.amount
+                refunded += 1
+                db.add(models.BeriEvent(
+                    user_id=bet.user_id,
+                    event_type="admin_refund",
+                    amount=bet.amount,
+                    new_balance=user.beri_balance,
+                    description=f"Bet refunded — prop #{prop_id} deleted by admin",
+                ))
+        db.query(models.PropositionBet).filter(
+            models.PropositionBet.proposition_id == prop_id
+        ).delete()
+
+    db.delete(prop)
+    db.commit()
+    return {"status": "ok", "deleted_id": prop_id, "bets_refunded": refunded}
 
 
 # ── Reddit prediction suggestions ─────────────────────────────────────────────
