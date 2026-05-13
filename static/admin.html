@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>⚙ ADMIN — Grand Line Exchange</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --punk: #e040fb; --punk-dim: rgba(224,64,251,0.22);
+      --teal: #29b6f6; --bg: #0a0318; --bg2: #0f0425; --card: #130630;
+      --border: rgba(224,64,251,0.18); --text: #d4d4f0; --text-dim: #7a7a9a;
+      --green: #69db7c; --red: #ff6b6b; --gold: #ffd700; --yellow: #ffb300;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Share Tech Mono', monospace; min-height: 100vh; font-size: 14px; }
+    a { color: var(--teal); }
+
+    /* ── Layout ── */
+    .admin-header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 14px; }
+    .admin-logo { font-family: 'Orbitron', sans-serif; font-size: 0.85rem; font-weight: 900; color: var(--punk); letter-spacing: 3px; }
+    .admin-sub { color: var(--text-dim); font-size: 0.7rem; }
+    .admin-user { margin-left: auto; color: var(--teal); font-size: 0.78rem; }
+    .secret-bar { background: rgba(224,64,251,0.04); border-bottom: 1px solid var(--border); padding: 7px 24px; display: flex; align-items: center; gap: 10px; }
+    .secret-bar label { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 1px; white-space: nowrap; }
+    .secret-inp { background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; padding: 4px 10px; border-radius: 4px; width: 260px; }
+    .secret-inp:focus { outline: none; border-color: var(--punk-dim); }
+    .s-ok { color: var(--green); font-size: 0.7rem; } .s-miss { color: var(--red); font-size: 0.7rem; }
+
+    /* ── Not authed ── */
+    #not-authed { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 10px; }
+    #not-authed h2 { font-family: 'Orbitron', sans-serif; color: var(--red); font-size: 1.1rem; letter-spacing: 2px; }
+    #not-authed p { color: var(--text-dim); font-size: 0.82rem; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg2); padding: 0 20px; }
+    .tab-btn { font-family: 'Orbitron', sans-serif; font-size: 0.6rem; font-weight: 700; letter-spacing: 1.5px; color: var(--text-dim); background: none; border: none; border-bottom: 2px solid transparent; padding: 11px 18px; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--punk); border-bottom-color: var(--punk); }
+    .tab-content { display: none; padding: 20px 24px; max-width: 1280px; }
+    .tab-content.active { display: block; }
+
+    /* ── Cards & grids ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin-bottom: 14px; }
+    .card-title { font-family: 'Orbitron', sans-serif; font-size: 0.62rem; font-weight: 700; color: var(--punk); letter-spacing: 2px; margin-bottom: 14px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    @media(max-width: 860px) { .two-col, .three-col { grid-template-columns: 1fr; } }
+
+    /* ── Form ── */
+    .fr { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
+    .fr label { font-size: 0.65rem; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+    .fr-inline { display: flex; gap: 8px; align-items: flex-end; }
+    .fr-inline .fr { flex: 1; margin-bottom: 0; }
+    input[type=text], input[type=number], input[type=datetime-local], input[type=password], textarea, select {
+      background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+      font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; padding: 7px 10px; border-radius: 4px; width: 100%;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--punk-dim); }
+    textarea { resize: vertical; min-height: 54px; }
+    select option { background: var(--bg2); }
+    .fcheck { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: 0.8rem; cursor: pointer; }
+    .fcheck input[type=checkbox] { width: auto; accent-color: var(--punk); cursor: pointer; }
+
+    /* ── Buttons ── */
+    .btn { font-family: 'Orbitron', sans-serif; font-size: 0.58rem; font-weight: 700; letter-spacing: 1.5px; padding: 7px 14px; border-radius: 4px; border: none; cursor: pointer; transition: filter 0.15s; white-space: nowrap; }
+    .btn:hover { filter: brightness(1.15); }
+    .btn:active { filter: brightness(0.9); }
+    .btn-punk { background: var(--punk); color: #000; }
+    .btn-teal { background: var(--teal); color: #000; }
+    .btn-red  { background: var(--red);  color: #fff; }
+    .btn-gold { background: var(--gold); color: #000; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-ghost:hover { border-color: var(--punk-dim); color: var(--text); }
+    .btn-sm { font-size: 0.52rem; padding: 5px 9px; }
+
+    /* ── Badges ── */
+    .badge { display: inline-block; font-size: 0.55rem; padding: 2px 7px; border-radius: 3px; font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 1px; }
+    .b-open     { background: rgba(105,219,124,0.12); color: var(--green);    border: 1px solid rgba(105,219,124,0.3); }
+    .b-closed   { background: rgba(255,179,0,0.12);   color: var(--yellow);   border: 1px solid rgba(255,179,0,0.3); }
+    .b-resolved { background: rgba(122,122,154,0.12); color: var(--text-dim); border: 1px solid rgba(122,122,154,0.3); }
+    .b-pred     { background: rgba(41,182,246,0.12);  color: var(--teal);     border: 1px solid rgba(41,182,246,0.3); }
+
+    /* ── Prop list ── */
+    .prop-list { display: flex; flex-direction: column; gap: 8px; }
+    .prop-row { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+    .prop-hd { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+    .prop-q { flex: 1; font-size: 0.83rem; line-height: 1.4; }
+    .prop-meta { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 6px; }
+    .prop-pool { display: flex; gap: 14px; font-size: 0.73rem; margin-bottom: 8px; flex-wrap: wrap; }
+    .prop-acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .resolve-zone { margin-top: 9px; padding: 10px; background: rgba(224,64,251,0.04); border: 1px solid var(--punk-dim); border-radius: 4px; display: none; }
+    .resolve-zone.open { display: block; }
+    .resolve-opts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .ro-btn { font-family: 'Share Tech Mono', monospace; font-size: 0.76rem; padding: 5px 12px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; }
+    .ro-btn.sel { border-color: var(--punk); color: var(--punk); background: rgba(224,64,251,0.08); }
+
+    /* ── Options builder ── */
+    .opt-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 7px; }
+    .opt-row { display: flex; gap: 5px; align-items: center; }
+    .opt-row input { flex: 1; }
+    .opt-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1rem; padding: 0 4px; line-height: 1; }
+
+    /* ── Tables ── */
+    .atbl { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+    .atbl th { font-family: 'Orbitron', sans-serif; font-size: 0.52rem; letter-spacing: 1.5px; color: var(--text-dim); text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); text-transform: uppercase; }
+    .atbl td { padding: 7px 10px; border-bottom: 1px solid rgba(224,64,251,0.06); vertical-align: middle; }
+    .atbl tr:hover td { background: rgba(224,64,251,0.03); }
+
+    /* ── Economy actions ── */
+    .econ-row { display: flex; align-items: center; gap: 14px; padding: 13px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; }
+    .econ-info { flex: 1; }
+    .econ-title { font-family: 'Orbitron', sans-serif; font-size: 0.62rem; font-weight: 700; color: var(--text); letter-spacing: 1.5px; margin-bottom: 3px; }
+    .econ-desc { font-size: 0.7rem; color: var(--text-dim); line-height: 1.4; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--border); padding: 10px 16px; border-radius: 6px; font-size: 0.78rem; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999; max-width: 300px; line-height: 1.4; }
+    #toast.ok  { border-color: rgba(105,219,124,0.4); color: var(--green); }
+    #toast.err { border-color: rgba(255,107,107,0.4); color: var(--red); }
+    #toast.vis { opacity: 1; }
+
+    /* ── Misc ── */
+    .empty { color: var(--text-dim); font-size: 0.78rem; text-align: center; padding: 18px 0; }
+    .pos { color: var(--green); } .neg { color: var(--red); } .hi { color: var(--punk); }
+    .dim { color: var(--text-dim); }
+    .row-gap { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .sect-label { font-family: 'Orbitron', sans-serif; font-size: 0.57rem; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+    .pulse-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media(max-width: 860px) { .pulse-grid { grid-template-columns: 1fr; } }
+    .scroll-card { overflow-y: auto; max-height: 520px; }
+    .post-row { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 9px 12px; margin-bottom: 6px; }
+    .post-title { font-size: 0.8rem; margin-bottom: 3px; }
+    .post-meta  { font-size: 0.68rem; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<div id="not-authed" style="display:none">
+  <h2>ACCESS DENIED</h2>
+  <p>Admin privileges required. Sign in with an admin account first.</p>
+</div>
+
+<div id="panel" style="display:none">
+
+  <div class="admin-header">
+    <div>
+      <div class="admin-logo">⚙ ADMIN PANEL</div>
+      <div class="admin-sub">Grand Line Exchange — Restricted Access</div>
+    </div>
+    <div class="admin-user" id="admin-user">—</div>
+  </div>
+
+  <div class="secret-bar">
+    <label>ADMIN SECRET</label>
+    <input type="password" class="secret-inp" id="secret-inp" placeholder="Enter admin secret…" autocomplete="off">
+    <span id="s-status" class="s-miss">⚠ not set</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="davy">⚔ DAVY BACK</button>
+    <button class="tab-btn" data-tab="pulse">📡 CHAPTER PULSE</button>
+    <button class="tab-btn" data-tab="economy">💰 ECONOMY</button>
+    <button class="tab-btn" data-tab="users">👥 USERS</button>
+  </div>
+
+  <!-- ══ DAVY BACK TAB ══════════════════════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-davy">
+    <div class="two-col">
+
+      <!-- Create form -->
+      <div class="card">
+        <div class="card-title">CREATE PROPOSITION</div>
+        <div class="fr"><label>Question</label><textarea id="cp-q" rows="2" placeholder="Will Luffy use Gear 5 in ch.1183?"></textarea></div>
+        <div class="fr"><label>Category</label>
+          <select id="cp-cat">
+            <option value="chapter">chapter</option>
+            <option value="arc">arc</option>
+            <option value="slander">slander</option>
+            <option value="meta">meta</option>
+            <option value="endgame">endgame</option>
+          </select>
+        </div>
+        <div class="fr">
+          <label>Options</label>
+          <div class="opt-list" id="opt-list">
+            <div class="opt-row"><input type="text" value="Yes"><button class="opt-del" onclick="delOpt(this)">✕</button></div>
+            <div class="opt-row"><input type="text" value="No"><button class="opt-del" onclick="delOpt(this)">✕</button></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addOpt()" style="align-self:flex-start">+ Add Option</button>
+        </div>
+        <div class="two-col" style="gap:8px">
+          <div class="fr"><label>House Cut %</label><input type="number" id="cp-cut" value="5" min="1" max="20" step="1"></div>
+          <div class="fr"><label>Closes At (local time)</label><input type="datetime-local" id="cp-closes"></div>
+        </div>
+        <label class="fcheck"><input type="checkbox" id="cp-pred" onchange="togglePred()"> Chapter Prediction</label>
+        <div id="pred-fields" style="display:none">
+          <div class="fr"><label>Chapter Drop Time (local)</label><input type="datetime-local" id="cp-drop"></div>
+          <label class="fcheck"><input type="checkbox" id="cp-break"> Break Week</label>
+        </div>
+        <button class="btn btn-punk" onclick="createProp()" style="margin-top:4px">CREATE</button>
+      </div>
+
+      <!-- Propositions list -->
+      <div class="card scroll-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">PROPOSITIONS</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadProps()">↻</button>
+        </div>
+        <div class="prop-list" id="prop-list"><div class="empty">Loading…</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ CHAPTER PULSE TAB ═════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-pulse">
+
+    <div class="card">
+      <div class="card-title">PRICE ADJUSTMENT</div>
+      <div class="fr-inline">
+        <div class="fr"><label>Character Name</label><input type="text" id="adj-char" placeholder="e.g. Luffy"></div>
+        <div class="fr"><label>New Beri Value</label><input type="number" id="adj-beri" placeholder="4500000000"></div>
+        <button class="btn btn-punk" onclick="applyAdj()" style="margin-bottom:0">APPLY</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-teal" onclick="loadPulse()">📡 Fetch Reddit Pulse</button>
+      <button class="btn btn-ghost" onclick="loadSignal()">📊 Site Signal (7d)</button>
+    </div>
+
+    <div class="pulse-grid">
+      <div>
+        <div class="sect-label">Character Mentions — Reddit</div>
+        <div id="pulse-chars"><div class="empty">Click Fetch Reddit Pulse</div></div>
+      </div>
+      <div>
+        <div class="sect-label">Site Trading Signal</div>
+        <div id="signal-chars"><div class="empty">Click Site Signal</div></div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="sect-label">Reddit Posts</div>
+      <div id="pulse-posts"></div>
+    </div>
+
+  </div>
+
+  <!-- ══ ECONOMY TAB ════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-economy">
+    <div class="two-col">
+
+      <div class="card">
+        <div class="card-title">SCHEDULED ACTIONS</div>
+        <div class="econ-row">
+          <div class="econ-info">
+            <div class="econ-title">WEEKLY BERI DROP</div>
+            <div class="econ-desc">Fires faction income for all real users. Normally runs Sunday 00:00 UTC automatically.</div>
+          </div>
+          <button class="btn btn-gold" onclick="fireDrop()">FIRE</button>
+        </div>
+        <div class="econ-row">
+          <div class="econ-info">
+            <div class="econ-title">BOT MARKET TICK</div>
+            <div class="econ-desc">One round of ghost-bot trades — 15 characters, 1–2 shares each. Normally runs daily at noon UTC.</div>
+          </div>
+          <button class="btn btn-teal" onclick="fireTick()">FIRE</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">☠ BUSTER CALL</div>
+        <div class="fr"><label>Pirate Loss %</label><input type="number" id="bc-loss" value="20" min="1" max="80" step="1"></div>
+        <div class="fr"><label>Marine Bonus (฿)</label><input type="number" id="bc-bonus" value="100000" step="10000"></div>
+        <button class="btn btn-red" onclick="fireBuster()">FIRE BUSTER CALL</button>
+        <div style="margin-top:8px;font-size:0.7rem;color:var(--text-dim)">Hits all non-warlord pirates with a balance reduction. Marines receive a bonus.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ USERS TAB ══════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-users">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">USER LIST</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadUsers()">↻ Refresh</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="atbl">
+          <thead><tr><th>Username</th><th>Email</th><th>Balance</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="user-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">ADD BERI</div>
+        <div class="fr"><label>Username</label><input type="text" id="ab-user" placeholder="username"></div>
+        <div class="fr"><label>Amount (฿)</label><input type="number" id="ab-amt" value="1000000" step="100000"></div>
+        <button class="btn btn-teal" onclick="doAddBeri()">ADD BERI</button>
+      </div>
+      <div class="card">
+        <div class="card-title">RENAME USER</div>
+        <div class="fr"><label>Current Username</label><input type="text" id="rn-old" placeholder="current name"></div>
+        <div class="fr"><label>New Username</label><input type="text" id="rn-new" placeholder="new name"></div>
+        <button class="btn btn-punk" onclick="doRename()">RENAME</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /panel -->
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+const API = '';
+let me = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const r = await fetch(API + '/auth/me', { credentials: 'include' });
+    if (!r.ok) throw new Error('not logged in');
+    me = await r.json();
+    if (!me.is_admin) throw new Error('not admin');
+  } catch(_) {
+    document.getElementById('not-authed').style.display = 'flex';
+    return;
+  }
+
+  document.getElementById('panel').style.display = 'block';
+  document.getElementById('admin-user').textContent = '⚙ ' + me.username;
+
+  // Restore secret from session
+  const inp = document.getElementById('secret-inp');
+  inp.value = sessionStorage.getItem('_as') || '';
+  updateSStatus(inp.value);
+  inp.addEventListener('input', function(){
+    const v = this.value.trim();
+    sessionStorage.setItem('_as', v);
+    updateSStatus(v);
+  });
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(t){ t.classList.remove('active'); });
+      this.classList.add('active');
+      document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+      if (this.dataset.tab === 'davy')  loadProps();
+      if (this.dataset.tab === 'users') loadUsers();
+    });
+  });
+
+  loadProps();
+}
+
+function sec() { return sessionStorage.getItem('_as') || ''; }
+
+function updateSStatus(v) {
+  const el = document.getElementById('s-status');
+  if (v) { el.textContent = '✓ set'; el.className = 's-ok'; }
+  else    { el.textContent = '⚠ not set'; el.className = 's-miss'; }
+}
+
+async function api(method, path, body) {
+  const opts = {
+    method,
+    credentials: 'include',
+    headers: { 'X-Admin-Secret': sec(), 'Content-Type': 'application/json' },
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  let data;
+  try { data = await r.json(); } catch(_) { data = {}; }
+  if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
+  return data;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _tt;
+function toast(msg, isErr) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'vis ' + (isErr ? 'err' : 'ok');
+  clearTimeout(_tt);
+  _tt = setTimeout(function(){ el.classList.remove('vis'); }, 4000);
+}
+
+function fB(v) {
+  if (v == null) return '—';
+  const a = Math.abs(v);
+  if (a >= 1e9) return (v/1e9).toFixed(2) + 'B฿';
+  if (a >= 1e6) return (v/1e6).toFixed(2) + 'M฿';
+  if (a >= 1e3) return (v/1e3).toFixed(0) + 'K฿';
+  return v.toFixed(0) + '฿';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Davy Back ─────────────────────────────────────────────────────────────────
+async function loadProps() {
+  const el = document.getElementById('prop-list');
+  el.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const data = await api('GET', '/admin/casino/propositions');
+    if (!data.length) { el.innerHTML = '<div class="empty">No propositions yet.</div>'; return; }
+    el.innerHTML = data.map(propHtml).join('');
+  } catch(e) { el.innerHTML = '<div class="empty neg">' + esc(e.message) + '</div>'; }
+}
+
+function propHtml(p) {
+  const statusClass = { open: 'b-open', closed: 'b-closed', resolved: 'b-resolved' }[p.status] || 'b-resolved';
+  const pool = p.total_pool ? fB(p.total_pool) : '0฿';
+  const bd = Object.entries(p.pool_breakdown || {}).map(function([opt, amt]){
+    return '<span><span class="dim">' + esc(opt) + ':</span> <span style="color:var(--teal)">' + fB(amt) + '</span></span>';
+  }).join('') || '<span class="dim">No bets</span>';
+
+  const closesAt = p.closes_at ? new Date(p.closes_at).toLocaleString() : '—';
+  const predBadge = p.is_chapter_prediction ? ' <span class="badge b-pred">⏱ PRED</span>' : '';
+
+  let acts = '';
+  if (p.status === 'resolved') {
+    acts = '<span class="dim" style="font-size:0.72rem">Resolved → ' + esc(p.correct_option || '') + '</span>';
+  } else {
+    if (p.status === 'open') acts += '<button class="btn btn-ghost btn-sm" onclick="closeProp(' + p.id + ')">CLOSE</button> ';
+    acts += '<button class="btn btn-punk btn-sm" onclick="toggleResolve(' + p.id + ')">RESOLVE ▾</button>';
+  }
+
+  const optBtns = (p.options || []).map(function(opt, i){
+    return '<button class="ro-btn" data-idx="' + i + '" onclick="pickOpt(this,' + p.id + ')">' + esc(opt) + '</button>';
+  }).join('');
+
+  return '<div class="prop-row" id="pr-' + p.id + '">' +
+    '<div class="prop-hd"><div class="prop-q">' + esc(p.question) + '</div>' +
+    '<span class="badge ' + statusClass + '">' + p.status.toUpperCase() + '</span>' + predBadge + '</div>' +
+    '<div class="prop-meta">Cat: ' + esc(p.category || '—') + ' · Closes: ' + esc(closesAt) + ' · Pool: ' + pool + '</div>' +
+    '<div class="prop-pool">' + bd + '</div>' +
+    '<div class="prop-acts">' + acts + '</div>' +
+    '<div class="resolve-zone" id="rz-' + p.id + '">' +
+      '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">Select correct answer:</div>' +
+      '<div class="resolve-opts" id="ro-' + p.id + '">' + optBtns + '</div>' +
+      '<button class="btn btn-punk btn-sm" onclick="confirmResolve(' + p.id + ')">✓ CONFIRM RESOLVE</button>' +
+    '</div>' +
+  '</div>';
+}
+
+const _picks = {};
+
+function toggleResolve(id) {
+  document.getElementById('rz-' + id).classList.toggle('open');
+}
+
+function pickOpt(btn, id) {
+  document.querySelectorAll('#ro-' + id + ' .ro-btn').forEach(function(b){ b.classList.remove('sel'); });
+  btn.classList.add('sel');
+  _picks[id] = parseInt(btn.dataset.idx);
+}
+
+async function confirmResolve(id) {
+  if (_picks[id] === undefined) { toast('Select an option first', true); return; }
+  if (!confirm('Confirm resolve? This pays out all bets and cannot be undone.')) return;
+  try {
+    const d = await api('POST', '/admin/casino/resolve/' + id + '?correct_option=' + _picks[id]);
+    toast('Resolved — ' + d.winners + ' winners, ' + fB(d.total_paid_out) + ' paid out');
+    loadProps();
+  } catch(e) { toast('Resolve failed: ' + e.message, true); }
+}
+
+async function closeProp(id) {
+  if (!confirm('Close this proposition? No more bets after this.')) return;
+  try {
+    await api('POST', '/admin/casino/close/' + id);
+    toast('Proposition closed');
+    loadProps();
+  } catch(e) { toast('Close failed: ' + e.message, true); }
+}
+
+// Options builder
+function togglePred() {
+  document.getElementById('pred-fields').style.display =
+    document.getElementById('cp-pred').checked ? 'block' : 'none';
+}
+
+function addOpt() {
+  const list = document.getElementById('opt-list');
+  const row = document.createElement('div');
+  row.className = 'opt-row';
+  row.innerHTML = '<input type="text" placeholder="Option…"><button class="opt-del" onclick="delOpt(this)">✕</button>';
+  list.appendChild(row);
+}
+
+function delOpt(btn) {
+  const list = document.getElementById('opt-list');
+  if (list.children.length <= 2) { toast('Need at least 2 options', true); return; }
+  btn.closest('.opt-row').remove();
+}
+
+async function createProp() {
+  const q = document.getElementById('cp-q').value.trim();
+  if (!q) { toast('Question required', true); return; }
+  const opts = Array.from(document.querySelectorAll('#opt-list input')).map(function(i){ return i.value.trim(); }).filter(Boolean);
+  if (opts.length < 2) { toast('Need at least 2 options', true); return; }
+
+  const closesRaw = document.getElementById('cp-closes').value;
+  const dropRaw   = document.getElementById('cp-drop').value;
+  const isPred    = document.getElementById('cp-pred').checked;
+
+  const body = {
+    question: q,
+    category: document.getElementById('cp-cat').value,
+    options: opts,
+    house_cut: parseFloat(document.getElementById('cp-cut').value) / 100,
+    closes_at:           closesRaw ? new Date(closesRaw).toISOString() : null,
+    is_chapter_prediction: isPred,
+    chapter_drop_time:   (isPred && dropRaw) ? new Date(dropRaw).toISOString() : null,
+    is_break_week:       isPred && document.getElementById('cp-break').checked,
+  };
+
+  try {
+    const d = await api('POST', '/admin/casino/create', body);
+    toast('Created: ' + d.question);
+    document.getElementById('cp-q').value = '';
+    document.getElementById('cp-pred').checked = false;
+    togglePred();
+    loadProps();
+  } catch(e) { toast('Create failed: ' + e.message, true); }
+}
+
+// ── Chapter Pulse ─────────────────────────────────────────────────────────────
+async function loadPulse() {
+  document.getElementById('pulse-chars').innerHTML = '<div class="empty">Fetching from Reddit…</div>';
+  document.getElementById('pulse-posts').innerHTML = '';
+  try {
+    const d = await api('GET', '/admin/chapter-pulse?refresh=true');
+    renderPulseChars(d.characters || []);
+    renderPosts(d.posts || []);
+  } catch(e) {
+    document.getElementById('pulse-chars').innerHTML = '<div class="empty neg">' + esc(e.message) + '</div>';
+  }
+}
+
+function renderPulseChars(chars) {
+  const el = document.getElementById('pulse-chars');
+  if (!chars.length) { el.innerHTML = '<div class="empty">No character mentions found.</div>'; return; }
+  el.innerHTML = '<table class="atbl"><thead><tr><th>Character</th><th>Score</th><th>Posts</th><th>Price</th><th></th></tr></thead><tbody>' +
+    chars.slice(0,20).map(function(c){
+      const name = esc(c.name).replace(/'/g, "\\'");
+      return '<tr><td>' + esc(c.name) + '</td><td class="hi">' + c.mention_score.toLocaleString() +
+        '</td><td class="dim">' + c.post_count + '</td><td>' + fB(c.current_price) +
+        '</td><td><button class="btn btn-ghost btn-sm" onclick="fillAdj(\'' + name + '\',' + (c.current_price||0) + ')">Adj</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function renderPosts(posts) {
+  const el = document.getElementById('pulse-posts');
+  if (!posts.length) { el.innerHTML = ''; return; }
+  el.innerHTML = posts.slice(0,12).map(function(p){
+    const chars = (p.characters || []).slice(0,4).map(esc).join(', ');
+    return '<div class="post-row">' +
+      '<div class="post-title"><a href="' + esc(p.url) + '" target="_blank">' + esc(p.title) + '</a></div>' +
+      '<div class="post-meta">r/' + esc(p.subreddit) + ' · ▲' + p.score.toLocaleString() +
+      (chars ? ' · <span class="hi">' + chars + '</span>' : '') + '</div></div>';
+  }).join('');
+}
+
+async function loadSignal() {
+  document.getElementById('signal-chars').innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const d = await api('GET', '/admin/community-signal?days=7');
+    renderSignal(d.characters || []);
+  } catch(e) {
+    document.getElementById('signal-chars').innerHTML = '<div class="empty neg">' + esc(e.message) + '</div>';
+  }
+}
+
+function renderSignal(chars) {
+  const el = document.getElementById('signal-chars');
+  if (!chars.length) { el.innerHTML = '<div class="empty">No trading activity this week.</div>'; return; }
+  el.innerHTML = '<table class="atbl"><thead><tr><th>Character</th><th>Net</th><th>↑/↓</th><th>Price</th><th></th></tr></thead><tbody>' +
+    chars.slice(0,20).map(function(c){
+      const cls = c.net_qty >= 0 ? 'pos' : 'neg';
+      const sign = c.net_qty >= 0 ? '+' : '';
+      const name = esc(c.name).replace(/'/g, "\\'");
+      return '<tr><td>' + esc(c.name) + '</td><td class="' + cls + '">' + sign + c.net_qty +
+        '</td><td class="dim">' + c.buy_qty + '↑ ' + c.sell_qty + '↓</td><td>' + fB(c.current_price) +
+        '</td><td><button class="btn btn-ghost btn-sm" onclick="fillAdj(\'' + name + '\',' + (c.current_price||0) + ')">Adj</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function fillAdj(name, price) {
+  document.getElementById('adj-char').value = name;
+  document.getElementById('adj-beri').value = price;
+  document.getElementById('adj-char').focus();
+}
+
+async function applyAdj() {
+  const name = document.getElementById('adj-char').value.trim();
+  const beri = parseFloat(document.getElementById('adj-beri').value);
+  if (!name || !beri) { toast('Character name and beri value required', true); return; }
+  if (!confirm('Set ' + name + ' to ' + fB(beri) + '?')) return;
+  try {
+    const d = await api('POST', '/admin/set-beri?name=' + encodeURIComponent(name) + '&beri=' + beri);
+    toast(d.name + ': ' + fB(d.old_beri) + ' → ' + fB(d.new_beri));
+    document.getElementById('adj-char').value = '';
+    document.getElementById('adj-beri').value = '';
+  } catch(e) { toast('Price adjust failed: ' + e.message, true); }
+}
+
+// ── Economy ───────────────────────────────────────────────────────────────────
+async function fireDrop() {
+  if (!confirm('Fire weekly beri drop for all users?')) return;
+  try {
+    const d = await api('POST', '/admin/beri-drop');
+    toast('Beri drop fired — ' + d.users_paid + ' users paid');
+  } catch(e) { toast('Failed: ' + e.message, true); }
+}
+
+async function fireTick() {
+  try {
+    await api('POST', '/admin/bot-tick');
+    toast('Bot tick fired');
+  } catch(e) { toast('Failed: ' + e.message, true); }
+}
+
+async function fireBuster() {
+  const loss  = parseFloat(document.getElementById('bc-loss').value) / 100;
+  const bonus = parseInt(document.getElementById('bc-bonus').value);
+  if (!confirm('Fire Buster Call — ' + (loss*100).toFixed(0) + '% loss on pirates, +' + fB(bonus) + ' to marines?')) return;
+  try {
+    const d = await api('POST', '/admin/buster-call?loss_pct=' + loss + '&marine_bonus=' + bonus);
+    toast('Buster Call: ' + d.pirates_hit + ' pirates hit, ' + d.marines_rewarded + ' marines rewarded');
+  } catch(e) { toast('Failed: ' + e.message, true); }
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('user-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
+  try {
+    const users = await api('GET', '/admin/users');
+    if (!users.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No users.</td></tr>'; return; }
+    tbody.innerHTML = users.map(function(u){
+      const uname = esc(u.username).replace(/'/g,"\\'");
+      return '<tr>' +
+        '<td style="color:var(--teal)">' + esc(u.username) + '</td>' +
+        '<td class="dim" style="font-size:0.72rem">' + esc(u.email) + '</td>' +
+        '<td>' + fB(u.beri_balance) + '</td>' +
+        '<td class="dim" style="font-size:0.7rem">' + new Date(u.created_at).toLocaleDateString() + '</td>' +
+        '<td><div class="row-gap">' +
+          '<button class="btn btn-ghost btn-sm" onclick="prefillBeri(\'' + uname + '\')">+฿</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="prefillRename(\'' + uname + '\')">Rename</button>' +
+          '<button class="btn btn-red btn-sm"   onclick="deleteUser(\'' + uname + '\')">Delete</button>' +
+        '</div></td></tr>';
+    }).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="5" class="neg">' + esc(e.message) + '</td></tr>'; }
+}
+
+function prefillBeri(u)   { document.getElementById('ab-user').value = u; document.getElementById('ab-amt').focus(); }
+function prefillRename(u) { document.getElementById('rn-old').value = u;  document.getElementById('rn-new').value = ''; document.getElementById('rn-new').focus(); }
+
+async function doAddBeri() {
+  const user = document.getElementById('ab-user').value.trim();
+  const amt  = parseInt(document.getElementById('ab-amt').value);
+  if (!user || !amt) { toast('Username and amount required', true); return; }
+  try {
+    const d = await api('POST', '/admin/add-user-beri?username=' + encodeURIComponent(user) + '&amount=' + amt);
+    toast(user + ': ' + fB(d.old_balance) + ' → ' + fB(d.new_balance));
+    loadUsers();
+  } catch(e) { toast('Failed: ' + e.message, true); }
+}
+
+async function doRename() {
+  const oldN = document.getElementById('rn-old').value.trim();
+  const newN = document.getElementById('rn-new').value.trim();
+  if (!oldN || !newN) { toast('Both names required', true); return; }
+  if (!confirm('Rename ' + oldN + ' → ' + newN + '?')) return;
+  try {
+    await api('POST', '/admin/rename-user?old_username=' + encodeURIComponent(oldN) + '&new_username=' + encodeURIComponent(newN));
+    toast('Renamed ' + oldN + ' → ' + newN);
+    loadUsers();
+  } catch(e) { toast('Failed: ' + e.message, true); }
+}
+
+async function deleteUser(username) {
+  if (!confirm('Permanently delete "' + username + '" and all their data?')) return;
+  if (!confirm('Second confirmation — this cannot be undone.')) return;
+  try {
+    await api('POST', '/admin/delete-user?username=' + encodeURIComponent(username));
+    toast('Deleted: ' + username);
+    loadUsers();
+  } catch(e) { toast('Failed: ' + e.message, true); }
+}
+
+init();
+</script>
+</body>
+</html>

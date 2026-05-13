@@ -434,7 +434,7 @@ patch_ch1181_price_history()
 # Cache HTML pages in memory at startup — avoids disk read on every request
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
 _html_cache: dict[str, str] = {}
-for _page in ("index.html", "community.html", "casino.html", "profile.html"):
+for _page in ("index.html", "community.html", "casino.html", "profile.html", "admin.html"):
     try:
         with open(os.path.join(STATIC_DIR, _page)) as _f:
             _html_cache[_page] = _f.read()
@@ -555,3 +555,8 @@ def casino_page():
 @app.get("/profile")
 def profile_page():
     return HTMLResponse(content=_html_cache["profile.html"], headers=_NO_CACHE)
+
+
+@app.get("/panel")
+def admin_panel():
+    return HTMLResponse(content=_html_cache["admin.html"], headers=_NO_CACHE)
