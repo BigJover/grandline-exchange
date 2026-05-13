@@ -1369,7 +1369,7 @@ body::after {
       </div>
       <div class="stat-box">
         <div class="stat-label">Last Uplink</div>
-        <div class="stat-value">Ch. 1181</div>
+        <div class="stat-value" id="stat-uplink">Ch. 1181</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Next Beri Drop</div>
@@ -1381,15 +1381,15 @@ body::after {
           <div class="update-panel">
             <div class="update-header">
               <span class="update-badge">Vegapunk Transmission</span>
-              <span class="update-week">Uplink: Ch.1181 ◈ Elbaf Node Active</span>
+              <span class="update-week" id="tx-label">Uplink: Ch.1181 ◈ Elbaf Node Active</span>
             </div>
-            <div class="update-text">
+            <div class="update-text" id="tx-text">
               The Elbaf Arc continues to shake community valuations. Imu incapacitated both Sanji (kick) and Zoro (three omen bullets) — a clear power ceiling established.
               Notably, Zoro did not discard the bullets; Oda panels focus on him retaining and inspecting them post-impact.
               Harald's debut as King of Elbaf drove surges for Giant-affiliated characters, while Shanks' Shamrock connection to the Gorosei keeps Red Hair Pirates at historic highs.
               Click any card to open the full character profile.
             </div>
-            <div class="update-movers">
+            <div class="update-movers" id="tx-movers">
               <span class="mover-chip up">▲ Harald</span>
               <span class="mover-chip up">▲ Shanks</span>
               <span class="mover-chip up">▲ Joy Boy</span>
@@ -4141,6 +4141,28 @@ async function init() {
   updateHeaderWallet();
 }
 init();
+
+// ── Live chapter transmission ──────────────────────────────────────────────
+(function(){
+  function escTx(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  fetch('/transmission').then(function(r){ return r.ok ? r.json() : null; }).then(function(tx){
+    if(!tx) return;
+    const label  = document.getElementById('tx-label');
+    const text   = document.getElementById('tx-text');
+    const movers = document.getElementById('tx-movers');
+    const uplink = document.getElementById('stat-uplink');
+    if(label)  label.textContent  = tx.uplink_label || label.textContent;
+    if(text)   text.textContent   = tx.summary      || text.textContent;
+    if(uplink) uplink.textContent = tx.chapter_number ? 'Ch. ' + tx.chapter_number : uplink.textContent;
+    if(movers && tx.movers && tx.movers.length){
+      movers.innerHTML = tx.movers.map(function(m){
+        var cls  = m.direction === 'up' ? 'up' : m.direction === 'down' ? 'down' : 'new';
+        var icon = m.direction === 'up' ? '▲' : m.direction === 'down' ? '▼' : '★';
+        return '<span class="mover-chip '+cls+'">'+icon+' '+escTx(m.name)+'</span>';
+      }).join('');
+    }
+  }).catch(function(){});
+})();
 
 // ── Live price feed via WebSocket ─────────────────────────────────────────
 (function(){

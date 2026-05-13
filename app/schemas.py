@@ -182,6 +182,14 @@ class ShareOut(BaseModel):
 
 # ── Casino ────────────────────────────────────────────────────────────────────
 
+class TransmissionPublish(BaseModel):
+    chapter_number: int
+    uplink_label: str          # e.g. "Uplink: Ch.1182 ◈ Elbaf Node Active"
+    summary: str
+    movers: List[dict]         # [{"name": str, "direction": "up"|"down"|"new"}]
+    reddit_context: List[str] = []
+
+
 class PropositionCreate(BaseModel):
     question: str
     category: str = ""

@@ -226,6 +226,19 @@ class Transaction(Base):
     character = relationship("Character")
 
 
+class ChapterTransmission(Base):
+    """Admin-published chapter transmission — the live content in the TRANSMISSION dropdown."""
+    __tablename__ = "chapter_transmissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chapter_number = Column(Integer, nullable=False)
+    uplink_label = Column(String, default="")    # e.g. "Uplink: Ch.1182 ◈ Elbaf Node Active"
+    summary = Column(Text, default="")
+    movers = Column(JSON, default=list)          # [{"name": str, "direction": "up"|"down"|"new"}]
+    reddit_context = Column(JSON, default=list)  # top post titles stored for reference
+    published_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class DiscordEvent(Base):
     __tablename__ = "discord_events"
 

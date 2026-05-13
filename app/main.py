@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends
+from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +13,7 @@ import os
 
 limiter = Limiter(key_func=get_remote_address)
 
-from app.database import Base, engine, SessionLocal
+from app.database import Base, engine, SessionLocal, get_db
 from app import models
 from app.routers import auth, characters, trades, admin, users, requests as requests_router, comments as comments_router, casino as casino_router, profile as profile_router, trivia as trivia_router
 from app.scheduler import scheduler
@@ -557,6 +558,36 @@ def profile_page():
     return HTMLResponse(content=_html_cache["profile.html"], headers=_NO_CACHE)
 
 
+@app.get("/transmission")
+def get_transmission(db: Session = Depends(get_db)):
+    """Returns the latest published chapter transmission for the site header dropdown."""
+    tx = db.query(models.ChapterTransmission).order_by(
+        models.ChapterTransmission.published_at.desc()
+    ).first()
+    if not tx:
+        return None
+    return {
+        "chapter_number": tx.chapter_number,
+        "uplink_label":   tx.uplink_label,
+        "summary":        tx.summary,
+        "movers":         tx.movers or [],
+        "published_at":   tx.published_at.isoformat() if tx.published_at else None,
+    }
+
+
 @app.get("/panel")
-def admin_panel():
+def admin_panel(request: Request, db: Session = Depends(get_db)):
+    """Serve admin panel — only to logged-in admin users."""
+    from app.auth import get_optional_user
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        return HTMLResponse(
+            content="<html><body style='background:#0a0318;color:#ff6b6b;font-family:monospace;"
+                    "display:flex;align-items:center;justify-content:center;height:100vh;margin:0'>"
+                    "<div style='text-align:center'><h2>403 — ACCESS DENIED</h2>"
+                    "<p style='color:#7a7a9a;margin-top:8px'>Admin privileges required.</p></div>"
+                    "</body></html>",
+            status_code=403,
+            headers=_NO_CACHE,
+        )
     return HTMLResponse(content=_html_cache["admin.html"], headers=_NO_CACHE)

@@ -186,6 +186,53 @@ def trigger_bot_tick(x_admin_secret: Optional[str] = Header(None)):
     return {"status": "ok", "message": "Bot tick fired"}
 
 
+@router.post("/grant-admin")
+def grant_admin(username: str, x_admin_secret: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    """Grant admin privileges to a user. Protected by X-Admin-Secret header."""
+    _check_secret(x_admin_secret)
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+    if user.is_bot:
+        raise HTTPException(status_code=400, detail="Cannot grant admin to a bot")
+    user.is_admin = True
+    db.commit()
+    return {"status": "ok", "username": username, "is_admin": True}
+
+
+@router.post("/revoke-admin")
+def revoke_admin(username: str, x_admin_secret: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    """Revoke admin privileges from a user. Protected by X-Admin-Secret header."""
+    _check_secret(x_admin_secret)
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+    user.is_admin = False
+    db.commit()
+    return {"status": "ok", "username": username, "is_admin": False}
+
+
+@router.post("/transmission/publish")
+def publish_transmission(
+    payload: schemas.TransmissionPublish,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Publish a new chapter transmission. Replaces the live TRANSMISSION dropdown on all pages."""
+    _check_secret(x_admin_secret)
+    tx = models.ChapterTransmission(
+        chapter_number=payload.chapter_number,
+        uplink_label=payload.uplink_label,
+        summary=payload.summary,
+        movers=payload.movers,
+        reddit_context=payload.reddit_context,
+    )
+    db.add(tx)
+    db.commit()
+    db.refresh(tx)
+    return {"status": "ok", "id": tx.id, "chapter_number": tx.chapter_number}
+
+
 # ── Casino admin ──────────────────────────────────────────────────────────────
 
 @router.post("/casino/create")
