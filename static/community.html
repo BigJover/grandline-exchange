@@ -624,6 +624,31 @@ async function init(){
 }
 
 init();
+
+// ── Live price feed via WebSocket ──────────────────────────────────────────
+(function(){
+  let ws, retryTimer;
+  function connect(){
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + location.host + '/ws');
+    ws.onmessage = function(e){
+      let msg;
+      try { msg = JSON.parse(e.data); } catch(_){ return; }
+      if(msg.type !== 'prices' || !msg.data) return;
+      let anyChanged = false;
+      for(const [id, beri] of Object.entries(msg.data)){
+        const c = CHARACTERS.find(x => String(x.id) === id);
+        if(!c || Math.abs(c.beri - beri) < 1) continue;
+        c.beri = beri;
+        anyChanged = true;
+      }
+      if(anyChanged) buildTicker();
+    };
+    ws.onclose = function(){ clearTimeout(retryTimer); retryTimer = setTimeout(connect, 5000); };
+    ws.onerror = function(){ ws.close(); };
+  }
+  connect();
+})();
 </script>
 </body>
 </html>

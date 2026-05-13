@@ -852,6 +852,7 @@ body {
 const API_BASE = '';
 let currentUser = null;
 let allChars = [];
+let livePortfolio = [];
 let selectedCharId = null;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -1167,6 +1168,7 @@ function renderProfileHero(profileData){
 }
 
 function renderPortfolio(portfolio, user){
+  livePortfolio = portfolio.slice();
   const list   = document.getElementById('portfolio-list');
   const holdingsVal = portfolio.reduce(function(s,p){ return s+p.total_value; },0);
   const netWorth    = (user.beri_balance||0) + holdingsVal;
@@ -1708,6 +1710,50 @@ document.getElementById('faction-modal').addEventListener('click', function(e){ 
 document.getElementById('auth-overlay').addEventListener('click', function(e){ if(e.target===this) closeAuthModal(); });
 
 init();
+
+// ── Live price feed via WebSocket ──────────────────────────────────────────
+(function(){
+  let ws, retryTimer;
+
+  function refreshPortfolioPrices(priceMap){
+    let anyChanged = false;
+    for(const [id, beri] of Object.entries(priceMap)){
+      const ch = allChars.find(x => String(x.id) === id);
+      if(ch && Math.abs(ch.beri - beri) >= 1){ ch.beri = beri; anyChanged = true; }
+      const p = livePortfolio.find(x => String(x.character_id) === id);
+      if(p && Math.abs(p.current_price - beri) >= 1){
+        p.current_price = beri;
+        p.total_value = p.quantity * beri;
+        anyChanged = true;
+      }
+    }
+    if(!anyChanged) return;
+    buildTicker();
+    if(!livePortfolio.length) return;
+    const holdingsVal = livePortfolio.reduce(function(s,p){ return s + p.total_value; }, 0);
+    const netWorth = ((currentUser && currentUser.beri_balance) || 0) + holdingsVal;
+    const nwEl = document.getElementById('stat-net-worth');
+    const hEl  = document.getElementById('stat-holdings');
+    if(nwEl) nwEl.textContent = fBeriShort(netWorth) + '฿';
+    if(hEl)  hEl.textContent  = fBeriShort(holdingsVal) + '฿';
+    renderPortfolio(livePortfolio, currentUser);
+  }
+
+  function connect(){
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + location.host + '/ws');
+    ws.onmessage = function(e){
+      let msg;
+      try { msg = JSON.parse(e.data); } catch(_){ return; }
+      if(msg.type !== 'prices' || !msg.data) return;
+      refreshPortfolioPrices(msg.data);
+    };
+    ws.onclose = function(){ clearTimeout(retryTimer); retryTimer = setTimeout(connect, 5000); };
+    ws.onerror = function(){ ws.close(); };
+  }
+
+  connect();
+})();
 </script>
 </body>
 </html>
