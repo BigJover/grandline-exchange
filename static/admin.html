@@ -296,9 +296,16 @@
         <div class="econ-row">
           <div class="econ-info">
             <div class="econ-title">BOT MARKET TICK</div>
-            <div class="econ-desc">One round of ghost-bot trades — 15 characters, 1–2 shares each. Normally runs daily at noon UTC.</div>
+            <div class="econ-desc">One round of ghost-bot trades — 50 characters, tier-weighted qty. Normally runs daily at noon UTC.</div>
           </div>
           <button class="btn btn-teal" onclick="fireTick()">FIRE</button>
+        </div>
+        <div class="econ-row" style="margin-top:10px">
+          <div class="econ-info">
+            <div class="econ-title">BOT RESEED</div>
+            <div class="econ-desc">Wipe all bot share holdings and rebuild from tier targets (T1 5k · T2 2k · T3 800 · T4 200 per bot). Use after schema changes or if bot positions drift too far.</div>
+          </div>
+          <button class="btn btn-red" onclick="fireReseed()">RESEED</button>
         </div>
       </div>
 
@@ -701,6 +708,14 @@ async function fireTick() {
   try {
     await api('POST', '/admin/bot-tick');
     toast('Bot tick fired');
+  } catch(e) { toast('Failed: ' + e.message, true); }
+}
+
+async function fireReseed() {
+  if (!confirm('Wipe all bot share holdings and rebuild from tier targets?')) return;
+  try {
+    await api('POST', '/admin/bot-reseed');
+    toast('Bot positions reseeded');
   } catch(e) { toast('Failed: ' + e.message, true); }
 }
 

@@ -187,6 +187,15 @@ def trigger_bot_tick(x_admin_secret: Optional[str] = Header(None)):
     return {"status": "ok", "message": "Bot tick fired"}
 
 
+@router.post("/bot-reseed")
+def trigger_bot_reseed(x_admin_secret: Optional[str] = Header(None)):
+    """Wipe all bot share holdings and rebuild from tier targets. Use when bots need a fresh start."""
+    _check_secret(x_admin_secret)
+    from app.bots import reseed_bots
+    reseed_bots()
+    return {"status": "ok", "message": "Bot positions reseeded"}
+
+
 @router.post("/grant-admin")
 def grant_admin(username: str, x_admin_secret: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Grant admin privileges to a user. Protected by X-Admin-Secret header."""
