@@ -14,6 +14,7 @@ from app import models, schemas
 from app.scheduler import run_beri_drop, WEEKLY_DROP
 from app.bots import run_bot_tick
 from app.routers.characters import invalidate_char_cache
+from app.websocket_manager import manager
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -466,7 +467,7 @@ def generate_transmission(
 # ── Casino admin ──────────────────────────────────────────────────────────────
 
 @router.post("/casino/create")
-def casino_create(
+async def casino_create(
     prop: schemas.PropositionCreate,
     x_admin_secret: Optional[str] = Header(None),
     db: Session = Depends(get_db),
@@ -491,6 +492,13 @@ def casino_create(
     db.add(p)
     db.commit()
     db.refresh(p)
+    if p.is_chapter_prediction:
+        await manager.broadcast({
+            "type": "new_prediction",
+            "id": p.id,
+            "question": p.question,
+            "closes_at": p.closes_at.isoformat() if p.closes_at else None,
+        })
     return {"status": "ok", "id": p.id, "question": p.question}
 
 

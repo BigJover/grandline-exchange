@@ -4164,6 +4164,25 @@ init();
   }).catch(function(){});
 })();
 
+// ── Prediction toast ───────────────────────────────────────────────────────
+function showPredictionToast(question) {
+  const existing = document.getElementById('pred-toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.id = 'pred-toast';
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:#0f0a1e;border:1px solid #e040fb;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 0 32px rgba(224,64,251,0.35);max-width:440px;width:calc(100% - 48px);animation:pred-toast-in 0.3s ease;';
+  t.innerHTML = '<style>@keyframes pred-toast-in{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}</style>'
+    + '<span style="font-size:1.2rem">⚔</span>'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-family:\'Orbitron\',sans-serif;font-size:0.55rem;font-weight:700;color:#e040fb;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px">New Chapter Prediction</div>'
+    + '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.78rem;color:#cdd0ec;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + question + '</div>'
+    + '</div>'
+    + '<a href="/casino" style="font-family:\'Orbitron\',sans-serif;font-size:0.5rem;font-weight:700;color:#e040fb;text-decoration:none;border:1px solid #e040fb;border-radius:4px;padding:5px 10px;white-space:nowrap;letter-spacing:1px">PLACE BET →</a>'
+    + '<button onclick="document.getElementById(\'pred-toast\').remove()" style="background:none;border:none;color:#5a4a78;cursor:pointer;font-size:1rem;padding:0;line-height:1;margin-left:4px">✕</button>';
+  document.body.appendChild(t);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 12000);
+}
+
 // ── Live price feed via WebSocket ─────────────────────────────────────────
 (function(){
   let ws, retryTimer;
@@ -4175,6 +4194,7 @@ init();
     ws.onmessage = function(e){
       let msg;
       try { msg = JSON.parse(e.data); } catch(_){ return; }
+      if(msg.type === 'new_prediction') { showPredictionToast(msg.question); return; }
       if(msg.type !== 'prices' || !msg.data) return;
 
       let anyChanged = false;
