@@ -220,11 +220,17 @@
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">🔴 CHAPTER PIPELINE</div>
       <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:12px">
-        Auto-detects chapter drops from Reddit. Generates price proposals for your review — approve or dismiss per character before anything goes live.
+        Generates price proposals for your review — approve or dismiss per character before anything goes live.
+        <strong>Auto-detect</strong> polls Reddit (requires OAuth env vars). <strong>Manual</strong> always works — type the chapter number and run.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn btn-punk" onclick="detectChapter()">⚡ AUTO-DETECT</button>
+        <button class="btn btn-ghost" onclick="loadProposals()">↺ Refresh Proposals</button>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <button class="btn btn-punk" onclick="detectChapter()">⚡ DETECT NOW</button>
-        <button class="btn btn-ghost" onclick="loadProposals()">↺ Refresh Proposals</button>
+        <input type="number" id="manual-chapter-num" placeholder="Chapter #  e.g. 1183" min="1" max="9999"
+          style="width:180px;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);font-family:Share Tech Mono,monospace;font-size:0.82rem;border-radius:4px">
+        <button class="btn btn-punk" onclick="detectChapterManual()">▶ RUN FOR CHAPTER</button>
         <span id="pipeline-status" style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim)"></span>
       </div>
       <div id="proposals-wrap">
@@ -635,6 +641,22 @@ async function detectChapter() {
   document.getElementById('pipeline-status').textContent = 'Scanning Reddit…';
   try {
     const d = await api('POST', '/admin/chapter-detect');
+    document.getElementById('pipeline-status').textContent = d.message || 'Done';
+    await loadProposals();
+  } catch(e) {
+    document.getElementById('pipeline-status').textContent = '⚠ ' + e.message;
+  }
+}
+
+async function detectChapterManual() {
+  const num = parseInt(document.getElementById('manual-chapter-num').value, 10);
+  if (!num || num < 1 || num > 9999) {
+    toast('Enter a valid chapter number (e.g. 1183)', true);
+    return;
+  }
+  document.getElementById('pipeline-status').textContent = `Running pipeline for Ch.${num}…`;
+  try {
+    const d = await api('POST', `/admin/chapter-detect?chapter=${num}`);
     document.getElementById('pipeline-status').textContent = d.message || 'Done';
     await loadProposals();
   } catch(e) {

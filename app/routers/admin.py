@@ -1102,13 +1102,15 @@ def discord_events_list(
 
 @router.post("/chapter-detect")
 def chapter_detect(
+    chapter: Optional[int] = None,
     x_admin_secret: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
-    """Manually trigger chapter drop detection. Polls Reddit, generates price proposals if a new chapter is found."""
+    """Trigger chapter pipeline. Pass ?chapter=1183 to skip Reddit detection entirely
+    and run the pipeline for that specific chapter number."""
     _check_secret(x_admin_secret)
     from app.chapter_pipeline import detect_chapter_drop
-    result = detect_chapter_drop(db)
+    result = detect_chapter_drop(db, force_chapter=chapter)
     return result
 
 

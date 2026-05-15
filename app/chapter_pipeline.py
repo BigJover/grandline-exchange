@@ -158,72 +158,87 @@ def _extract_chars(text: str, char_index: dict) -> list:
 
 # ── Main detection function ───────────────────────────────────────────────────
 
-def detect_chapter_drop(db: Session) -> dict:
+def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dict:
     """
-    Poll Reddit for a new chapter drop.
+    Poll Reddit for a new chapter drop, or run the pipeline for a manually-specified chapter.
+
+    force_chapter: skip Reddit polling entirely and run for this chapter number.
     Returns {"detected": bool, "chapter": int|None, "proposals": int, "message": str}
     """
 
-    # ── 1. Poll multiple Reddit sources for chapter discussion posts ─────────
-    # /new + /hot catch posts from the last day or two.
-    # The search fallback (t=month) reliably finds last week's discussion thread
-    # even after it has dropped off /new and /hot.
-    sources = [
-        "https://www.reddit.com/r/OnePiece/new.json?limit=50",
-        "https://www.reddit.com/r/OnePiece/hot.json?limit=25",
-        "https://www.reddit.com/r/OnePiece/search.json?q=chapter+discussion&sort=new&t=month&limit=10&restrict_sr=1",
-        "https://www.reddit.com/r/OnePiece/search.json?q=official+release&sort=new&t=month&limit=10&restrict_sr=1",
-    ]
+    best_post_id: Optional[str] = None
+    best_title: str = ""
+    best_url: str = ""
 
-    all_posts = []
-    seen_ids: set = set()
-    any_fetch_ok = False
+    if force_chapter is not None:
+        # ── Manual mode — no Reddit needed ───────────────────────────────────
+        chapter_num = force_chapter
+        print(f"[ChapterPipeline] Manual trigger for Ch.{chapter_num}")
+    else:
+        # ── 1. Poll multiple Reddit sources for chapter discussion posts ──────
+        # /new + /hot catch posts from the last day or two.
+        # The search fallback (t=month) reliably finds last week's discussion thread
+        # even after it has dropped off /new and /hot.
+        sources = [
+            "https://www.reddit.com/r/OnePiece/new.json?limit=50",
+            "https://www.reddit.com/r/OnePiece/hot.json?limit=25",
+            "https://www.reddit.com/r/OnePiece/search.json?q=chapter+discussion&sort=new&t=month&limit=10&restrict_sr=1",
+            "https://www.reddit.com/r/OnePiece/search.json?q=official+release&sort=new&t=month&limit=10&restrict_sr=1",
+        ]
 
-    for url in sources:
-        feed = _fetch(url)
-        if not feed:
-            continue
-        any_fetch_ok = True
-        for child in feed.get("data", {}).get("children", []):
-            p = child.get("data", {})
-            pid = p.get("id", "")
-            if pid in seen_ids:
+        all_posts = []
+        seen_ids: set = set()
+        any_fetch_ok = False
+
+        for url in sources:
+            feed = _fetch(url)
+            if not feed:
                 continue
-            seen_ids.add(pid)
-            title = p.get("title", "").strip()
-            if not title:
-                continue
-            ch = _extract_chapter(title)
-            if ch:
-                all_posts.append({
-                    "id": pid,
-                    "title": title,
-                    "chapter": ch,
-                    "score": p.get("score", 0),
-                    "url": "https://reddit.com" + p.get("permalink", ""),
-                    "distinguished": p.get("distinguished"),
-                    "num_comments": p.get("num_comments", 0),
-                })
+            any_fetch_ok = True
+            for child in feed.get("data", {}).get("children", []):
+                p = child.get("data", {})
+                pid = p.get("id", "")
+                if pid in seen_ids:
+                    continue
+                seen_ids.add(pid)
+                title = p.get("title", "").strip()
+                if not title:
+                    continue
+                ch = _extract_chapter(title)
+                if ch:
+                    all_posts.append({
+                        "id": pid,
+                        "title": title,
+                        "chapter": ch,
+                        "score": p.get("score", 0),
+                        "url": "https://reddit.com" + p.get("permalink", ""),
+                        "distinguished": p.get("distinguished"),
+                        "num_comments": p.get("num_comments", 0),
+                    })
 
-    using_oauth = bool(_get_oauth_token())
-    if not any_fetch_ok:
-        hint = "Set REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET env vars to enable OAuth." if not using_oauth else "OAuth token present but all requests failed — check credentials."
-        return {
-            "detected": False,
-            "chapter": None,
-            "proposals": 0,
-            "message": f"Reddit fetch failed (all {len(sources)} sources returned errors). {hint}",
-        }
+        using_oauth = bool(_get_oauth_token())
+        if not any_fetch_ok:
+            hint = ("Set REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET env vars to enable OAuth, "
+                    "or use the manual chapter input in the admin panel.") if not using_oauth \
+                   else "OAuth token present but all requests failed — check credentials."
+            return {
+                "detected": False,
+                "chapter": None,
+                "proposals": 0,
+                "message": f"Reddit fetch failed (all {len(sources)} sources errored). {hint}",
+            }
 
-    if not all_posts:
-        return {"detected": False, "chapter": None, "proposals": 0, "message": "No chapter posts found on Reddit"}
+        if not all_posts:
+            return {"detected": False, "chapter": None, "proposals": 0, "message": "No chapter posts found on Reddit"}
 
-    # ── 2. Find highest chapter number ────────────────────────────────────────
-    # Prefer mod posts; fall back to highest-score post
-    mod_posts = [p for p in all_posts if p["distinguished"] == "moderator"]
-    candidate_pool = mod_posts if mod_posts else all_posts
-    best = max(candidate_pool, key=lambda p: (p["chapter"], p["score"]))
-    chapter_num = best["chapter"]
+        # ── 2. Find highest chapter number ────────────────────────────────────
+        mod_posts = [p for p in all_posts if p["distinguished"] == "moderator"]
+        candidate_pool = mod_posts if mod_posts else all_posts
+        best = max(candidate_pool, key=lambda p: (p["chapter"], p["score"]))
+        chapter_num = best["chapter"]
+        best_post_id = best["id"]
+        best_title = best["title"]
+        best_url = best["url"]
 
     # ── 3. Check if already processed ─────────────────────────────────────────
     existing = db.query(models.Chapter).filter(
@@ -241,21 +256,21 @@ def detect_chapter_drop(db: Session) -> dict:
     if not existing:
         chapter_row = models.Chapter(
             number=chapter_num,
-            title=best["title"],
-            reddit_url=best["url"],
+            title=best_title or f"Chapter {chapter_num}",
+            reddit_url=best_url or "",
         )
         db.add(chapter_row)
         db.flush()
     else:
         chapter_row = existing
 
-    # ── 5. Scrape top comments for character mentions ─────────────────────────
+    # ── 5. Scrape top comments for character mentions (Reddit optional) ────────
     char_index = _char_index_from_db(db)
     comment_mention_counts: dict = {}   # canonical_name → count
 
-    if best["id"]:
+    if best_post_id:
         comments_data = _fetch(
-            f"https://www.reddit.com/r/OnePiece/comments/{best['id']}.json?limit=50&sort=top"
+            f"https://www.reddit.com/r/OnePiece/comments/{best_post_id}.json?limit=50&sort=top"
         )
         if comments_data and isinstance(comments_data, list) and len(comments_data) > 1:
             for child in comments_data[1].get("data", {}).get("children", [])[:50]:
