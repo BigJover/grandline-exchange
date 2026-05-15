@@ -42,8 +42,10 @@ _HEADERS = {
 }
 
 _CHAPTER_RE = re.compile(
-    r'\bone\s*piece\s*(?:chapter|ch\.?)\s*#?(\d{3,4})\b'
-    r'|chapter\s*#?(\d{3,4})\s*(?:discussion|spoiler|release|thread|official|raw)',
+    # "One Piece Chapter 1183" / "One Piece: Chapter 1183" / "One Piece Ch. 1183"
+    r'\bone\s*piece\s*[:\-–]?\s*(?:chapter|ch\.?)\s*#?(\d{3,4})\b'
+    # "Chapter 1183 Discussion / Spoilers / Release / Thread"
+    r'|(?:chapter|ch\.?)\s*#?(\d{3,4})\b',
     re.IGNORECASE,
 )
 
@@ -103,34 +105,49 @@ def detect_chapter_drop(db: Session) -> dict:
     Returns {"detected": bool, "chapter": int|None, "proposals": int, "message": str}
     """
 
-    # ── 1. Poll r/OnePiece/new for chapter discussion posts ───────────────────
-    data = _fetch("https://www.reddit.com/r/OnePiece/new.json?limit=50")
-    if not data:
-        return {"detected": False, "chapter": None, "proposals": 0, "message": "Reddit fetch failed"}
-
-    # Also check hot — chapter discussion posts sometimes surface there
-    hot_data = _fetch("https://www.reddit.com/r/OnePiece/hot.json?limit=25")
+    # ── 1. Poll multiple Reddit sources for chapter discussion posts ─────────
+    # /new + /hot catch posts from the last day or two.
+    # The search fallback (t=month) reliably finds last week's discussion thread
+    # even after it has dropped off /new and /hot.
+    sources = [
+        "https://www.reddit.com/r/OnePiece/new.json?limit=50",
+        "https://www.reddit.com/r/OnePiece/hot.json?limit=25",
+        "https://www.reddit.com/r/OnePiece/search.json?q=chapter+discussion&sort=new&t=month&limit=10&restrict_sr=1",
+        "https://www.reddit.com/r/OnePiece/search.json?q=official+release&sort=new&t=month&limit=10&restrict_sr=1",
+    ]
 
     all_posts = []
-    for feed in [data, hot_data]:
+    seen_ids: set = set()
+    any_fetch_ok = False
+
+    for url in sources:
+        feed = _fetch(url)
         if not feed:
             continue
+        any_fetch_ok = True
         for child in feed.get("data", {}).get("children", []):
             p = child.get("data", {})
+            pid = p.get("id", "")
+            if pid in seen_ids:
+                continue
+            seen_ids.add(pid)
             title = p.get("title", "").strip()
             if not title:
                 continue
             ch = _extract_chapter(title)
             if ch:
                 all_posts.append({
-                    "id": p.get("id", ""),
+                    "id": pid,
                     "title": title,
                     "chapter": ch,
                     "score": p.get("score", 0),
                     "url": "https://reddit.com" + p.get("permalink", ""),
-                    "distinguished": p.get("distinguished"),  # "moderator" for mod posts
+                    "distinguished": p.get("distinguished"),
                     "num_comments": p.get("num_comments", 0),
                 })
+
+    if not any_fetch_ok:
+        return {"detected": False, "chapter": None, "proposals": 0, "message": "Reddit fetch failed"}
 
     if not all_posts:
         return {"detected": False, "chapter": None, "proposals": 0, "message": "No chapter posts found on Reddit"}
