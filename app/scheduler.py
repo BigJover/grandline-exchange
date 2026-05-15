@@ -270,8 +270,10 @@ def _run_bot_tick_guarded():
 
 
 def _run_chapter_detect_guarded():
-    """Poll Reddit for a new chapter drop every 2 hours. Idempotent — no-ops if chapter already processed."""
-    if not _should_run(_CHAPTER_LOCK, min_seconds=90 * 60):   # 90 min cooldown
+    """Run chapter drop detection. Called Thu 03:00 UTC (chapter drop + leak window)
+    and Sun 03:00 UTC (episode release / second-wave discussion).
+    The pipeline itself is idempotent — skips chapters already processed."""
+    if not _should_run(_CHAPTER_LOCK, min_seconds=3 * 3600):   # 3h cooldown guards against double-fire on multi-worker
         return
     try:
         from app.database import SessionLocal
@@ -280,6 +282,8 @@ def _run_chapter_detect_guarded():
         try:
             result = detect_chapter_drop(db)
             if result["detected"]:
+                print(f"[ChapterDetect] {result['message']}")
+            else:
                 print(f"[ChapterDetect] {result['message']}")
         finally:
             db.close()
@@ -302,8 +306,14 @@ scheduler.add_job(
 )
 scheduler.add_job(
     _run_chapter_detect_guarded,
-    CronTrigger(minute=0),   # top of every hour
-    id="chapter_detect",
+    CronTrigger(day_of_week="thu", hour=3, minute=0, second=0),  # chapter drop + leak window
+    id="chapter_detect_thu",
+    replace_existing=True,
+)
+scheduler.add_job(
+    _run_chapter_detect_guarded,
+    CronTrigger(day_of_week="sun", hour=3, minute=0, second=0),  # episode release / second-wave discussion
+    id="chapter_detect_sun",
     replace_existing=True,
 )
 # Comment purge disabled until there's a surplus of comments
