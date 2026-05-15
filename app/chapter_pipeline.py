@@ -22,11 +22,14 @@ Price proposal tiers (by Reddit rank):
     Mean reversion cap: if beri > base_beri × 3, upward proposals capped at +0.5 %
 """
 
+import os
 import re
 import json
 import time
 import math
+import base64
 import urllib.request
+import urllib.parse
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -40,6 +43,46 @@ _HEADERS = {
     "User-Agent": "GrandLineExchange:ChapterDetect:v1.0 (chapter drop detection for fan site)",
     "Accept": "application/json",
 }
+
+_REDDIT_TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
+_oauth_token: dict = {"token": None, "expires_at": 0.0}
+
+
+def _get_oauth_token() -> Optional[str]:
+    """Get a Reddit OAuth2 app-only access token using client credentials.
+    Returns None if env vars are not set — callers fall back to unauthenticated."""
+    client_id = os.getenv("REDDIT_CLIENT_ID", "").strip()
+    client_secret = os.getenv("REDDIT_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        return None
+
+    now = time.time()
+    if _oauth_token["token"] and now < _oauth_token["expires_at"] - 60:
+        return _oauth_token["token"]
+
+    credentials = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    req = urllib.request.Request(
+        _REDDIT_TOKEN_URL,
+        data=b"grant_type=client_credentials",
+        headers={
+            "Authorization": f"Basic {credentials}",
+            "User-Agent": _HEADERS["User-Agent"],
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+            token = result.get("access_token")
+            expires_in = result.get("expires_in", 3600)
+            _oauth_token["token"] = token
+            _oauth_token["expires_at"] = now + expires_in
+            print(f"[ChapterPipeline] Reddit OAuth token acquired (expires in {expires_in}s)")
+            return token
+    except Exception as e:
+        print(f"[ChapterPipeline] OAuth token fetch failed: {e}")
+        return None
 
 _CHAPTER_RE = re.compile(
     # "One Piece Chapter 1183" / "One Piece: Chapter 1183" / "One Piece Ch. 1183"
@@ -58,6 +101,22 @@ _RANK_PCT = [7.0, 5.0, 3.5, 3.5, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def _fetch(url: str, timeout: int = 8) -> Optional[dict]:
+    token = _get_oauth_token()
+    if token:
+        # Authenticated path — oauth.reddit.com bypasses datacenter IP blocks
+        oauth_url = url.replace("https://www.reddit.com/", "https://oauth.reddit.com/")
+        try:
+            req = urllib.request.Request(
+                oauth_url,
+                headers={**_HEADERS, "Authorization": f"Bearer {token}"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read())
+        except Exception as e:
+            print(f"[ChapterPipeline] OAuth fetch {oauth_url} failed: {e}")
+            # Fall through to unauthenticated attempt
+
+    # Unauthenticated fallback (works locally, may be blocked on Railway without creds)
     try:
         req = urllib.request.Request(url, headers=_HEADERS)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -146,8 +205,15 @@ def detect_chapter_drop(db: Session) -> dict:
                     "num_comments": p.get("num_comments", 0),
                 })
 
+    using_oauth = bool(_get_oauth_token())
     if not any_fetch_ok:
-        return {"detected": False, "chapter": None, "proposals": 0, "message": "Reddit fetch failed"}
+        hint = "Set REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET env vars to enable OAuth." if not using_oauth else "OAuth token present but all requests failed — check credentials."
+        return {
+            "detected": False,
+            "chapter": None,
+            "proposals": 0,
+            "message": f"Reddit fetch failed (all {len(sources)} sources returned errors). {hint}",
+        }
 
     if not all_posts:
         return {"detected": False, "chapter": None, "proposals": 0, "message": "No chapter posts found on Reddit"}
