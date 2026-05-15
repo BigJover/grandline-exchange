@@ -159,7 +159,7 @@
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="davy">⚔ DAVY BACK</button>
-    <button class="tab-btn" data-tab="pulse">📡 CHAPTER PULSE</button>
+    <button class="tab-btn" data-tab="pulse">📡 CHAPTER PULSE <span id="pipeline-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:0.55rem;margin-left:4px"></span></button>
     <button class="tab-btn" data-tab="economy">💰 ECONOMY</button>
     <button class="tab-btn" data-tab="users">👥 USERS</button>
   </div>
@@ -215,6 +215,22 @@
 
   <!-- ══ CHAPTER PULSE TAB ═════════════════════════════════════════════════ -->
   <div class="tab-content" id="tab-pulse">
+
+    <!-- ── Chapter Pipeline ── -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">🔴 CHAPTER PIPELINE</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:12px">
+        Auto-detects chapter drops from Reddit. Generates price proposals for your review — approve or dismiss per character before anything goes live.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn btn-punk" onclick="detectChapter()">⚡ DETECT NOW</button>
+        <button class="btn btn-ghost" onclick="loadProposals()">↺ Refresh Proposals</button>
+        <span id="pipeline-status" style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim)"></span>
+      </div>
+      <div id="proposals-wrap">
+        <div class="empty">Click Detect Now or Refresh Proposals.</div>
+      </div>
+    </div>
 
     <div class="card">
       <div class="card-title">PRICE ADJUSTMENT</div>
@@ -613,6 +629,139 @@ async function createProp() {
     loadProps();
   } catch(e) { toast('Create failed: ' + e.message, true); }
 }
+
+// ── Chapter Pipeline ──────────────────────────────────────────────────────────
+async function detectChapter() {
+  document.getElementById('pipeline-status').textContent = 'Scanning Reddit…';
+  try {
+    const d = await api('POST', '/admin/chapter-detect');
+    document.getElementById('pipeline-status').textContent = d.message || 'Done';
+    await loadProposals();
+  } catch(e) {
+    document.getElementById('pipeline-status').textContent = '⚠ ' + e.message;
+  }
+}
+
+async function loadProposals() {
+  document.getElementById('proposals-wrap').innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const d = await api('GET', '/admin/proposed-prices');
+    renderProposals(d.proposals || [], d.recent_chapters || []);
+  } catch(e) {
+    document.getElementById('proposals-wrap').innerHTML = '<div class="empty neg">⚠ ' + esc(e.message) + '</div>';
+  }
+}
+
+function renderProposals(proposals, chapters) {
+  const wrap = document.getElementById('proposals-wrap');
+  const badge = document.getElementById('pipeline-badge');
+
+  // Badge on tab
+  if (proposals.length) {
+    badge.textContent = proposals.length;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  let html = '';
+
+  // Recent chapters
+  if (chapters.length) {
+    const latest = chapters[0];
+    html += '<div style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim);margin-bottom:8px">'
+      + 'Last detected: <span style="color:var(--punk)">Ch.' + latest.number + '</span>'
+      + (latest.title ? ' — ' + esc(latest.title.slice(0, 60)) : '')
+      + ' · <a href="' + esc(latest.reddit_url) + '" target="_blank" style="color:var(--gold)">Reddit ↗</a>'
+      + '</div>';
+  }
+
+  if (!proposals.length) {
+    wrap.innerHTML = html + '<div class="empty">No pending proposals.</div>';
+    return;
+  }
+
+  // Group by chapter
+  const byChapter = {};
+  proposals.forEach(function(p) {
+    if (!byChapter[p.chapter_number]) byChapter[p.chapter_number] = [];
+    byChapter[p.chapter_number].push(p);
+  });
+
+  Object.keys(byChapter).sort(function(a,b){return b-a;}).forEach(function(ch) {
+    const group = byChapter[ch];
+    const ids = group.map(function(p){return p.id;});
+    html += '<div style="margin-bottom:14px">'
+      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
+      + '<span style="font-family:Orbitron,sans-serif;font-size:0.6rem;font-weight:700;color:var(--punk);letter-spacing:1.5px">CH.' + ch + ' — ' + group.length + ' PROPOSALS</span>'
+      + '<button class="btn btn-ghost btn-sm" onclick="approveAll(' + ch + ')">✓ Approve All</button>'
+      + '<button class="btn btn-sm" style="border-color:var(--red);color:var(--red)" onclick="dismissAll(' + ch + ')">✕ Dismiss All</button>'
+      + '</div>'
+      + '<table class="atbl"><thead><tr>'
+      + '<th>Character</th><th>Current</th><th>Proposed</th><th>Change</th><th>Reason</th><th></th>'
+      + '</tr></thead><tbody>'
+      + group.map(function(p) {
+          const up = p.direction === 'up';
+          const cls = up ? 'pos' : 'neg';
+          const arrow = up ? '▲' : '▼';
+          return '<tr>'
+            + '<td>' + esc(p.character_name) + '</td>'
+            + '<td>' + fB(p.current_beri) + '</td>'
+            + '<td class="' + cls + '">' + fB(p.proposed_beri) + '</td>'
+            + '<td class="' + cls + '">' + arrow + ' ' + p.pct_change.toFixed(1) + '%</td>'
+            + '<td class="dim" style="max-width:200px;white-space:normal;font-size:0.65rem">' + esc(p.reason) + '</td>'
+            + '<td style="white-space:nowrap">'
+            + '<button class="btn-approve" onclick="approveProposal(' + p.id + ')">✓</button>'
+            + ' <button class="btn-dismiss" onclick="dismissProposal(' + p.id + ')">✕</button>'
+            + '</td></tr>';
+        }).join('')
+      + '</tbody></table></div>';
+  });
+
+  wrap.innerHTML = html;
+}
+
+async function approveProposal(id) {
+  try {
+    const d = await api('POST', '/admin/proposed-prices/' + id + '/approve');
+    toast('✓ ' + d.character + ': ' + fB(d.old_beri) + ' → ' + fB(d.new_beri));
+    await loadProposals();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+async function dismissProposal(id) {
+  try {
+    await api('POST', '/admin/proposed-prices/' + id + '/dismiss');
+    await loadProposals();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+async function approveAll(ch) {
+  if (!confirm('Approve all Ch.' + ch + ' proposals?')) return;
+  try {
+    const d = await api('POST', '/admin/proposed-prices/approve-all?chapter=' + ch);
+    toast('✓ Applied ' + d.applied + ' price changes');
+    await loadProposals();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+async function dismissAll(ch) {
+  if (!confirm('Dismiss all Ch.' + ch + ' proposals?')) return;
+  try {
+    // dismiss one at a time via existing endpoint
+    const d = await api('GET', '/admin/proposed-prices');
+    const toDissmiss = (d.proposals || []).filter(function(p){return p.chapter_number == ch;});
+    for (const p of toDissmiss) {
+      await api('POST', '/admin/proposed-prices/' + p.id + '/dismiss');
+    }
+    await loadProposals();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+// Auto-load proposals when CHAPTER PULSE tab opens
+document.querySelectorAll('.tab-btn[data-tab="pulse"]').forEach(function(btn) {
+  btn.addEventListener('click', function() { setTimeout(loadProposals, 50); });
+});
 
 // ── Chapter Pulse ─────────────────────────────────────────────────────────────
 async function loadPulse() {

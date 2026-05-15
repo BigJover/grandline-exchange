@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-_BERI_LOCK  = "/tmp/beri_drop.lock"
-_PURGE_LOCK = "/tmp/comment_purge.lock"
-_BOT_LOCK   = "/tmp/bot_tick.lock"
+_BERI_LOCK    = "/tmp/beri_drop.lock"
+_PURGE_LOCK   = "/tmp/comment_purge.lock"
+_BOT_LOCK     = "/tmp/bot_tick.lock"
+_CHAPTER_LOCK = "/tmp/chapter_detect.lock"
 _MIN_INTERVAL = 23 * 3600  # must be at least 23h since last run
 
 
@@ -268,6 +269,24 @@ def _run_bot_tick_guarded():
     run_bot_tick()
 
 
+def _run_chapter_detect_guarded():
+    """Poll Reddit for a new chapter drop every 2 hours. Idempotent — no-ops if chapter already processed."""
+    if not _should_run(_CHAPTER_LOCK, min_seconds=90 * 60):   # 90 min cooldown
+        return
+    try:
+        from app.database import SessionLocal
+        from app.chapter_pipeline import detect_chapter_drop
+        db = SessionLocal()
+        try:
+            result = detect_chapter_drop(db)
+            if result["detected"]:
+                print(f"[ChapterDetect] {result['message']}")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[ChapterDetect] Error: {e}")
+
+
 scheduler = AsyncIOScheduler(timezone="UTC")
 scheduler.add_job(
     run_beri_drop,
@@ -279,6 +298,12 @@ scheduler.add_job(
     _run_bot_tick_guarded,
     CronTrigger(hour=12, minute=0, second=0),   # once daily at noon UTC
     id="bot_market_tick",
+    replace_existing=True,
+)
+scheduler.add_job(
+    _run_chapter_detect_guarded,
+    CronTrigger(minute=0),   # top of every hour
+    id="chapter_detect",
     replace_existing=True,
 )
 # Comment purge disabled until there's a surplus of comments

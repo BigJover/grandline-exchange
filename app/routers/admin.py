@@ -1096,3 +1096,155 @@ def discord_events_list(
         }
         for e in events
     ]
+
+
+# ── Chapter Pipeline ──────────────────────────────────────────────────────────
+
+@router.post("/chapter-detect")
+def chapter_detect(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Manually trigger chapter drop detection. Polls Reddit, generates price proposals if a new chapter is found."""
+    _check_secret(x_admin_secret)
+    from app.chapter_pipeline import detect_chapter_drop
+    result = detect_chapter_drop(db)
+    return result
+
+
+@router.get("/proposed-prices")
+def list_proposed_prices(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """List pending price change proposals grouped by chapter number."""
+    _check_secret(x_admin_secret)
+    rows = (
+        db.query(models.ProposedPriceChange)
+        .filter(models.ProposedPriceChange.status == "pending")
+        .order_by(
+            models.ProposedPriceChange.chapter_number.desc(),
+            models.ProposedPriceChange.pct_change.desc(),
+        )
+        .all()
+    )
+    chapters = db.query(models.Chapter).order_by(models.Chapter.number.desc()).limit(10).all()
+    return {
+        "proposals": [
+            {
+                "id": r.id,
+                "chapter_number": r.chapter_number,
+                "character_id": r.character_id,
+                "character_name": r.character_name,
+                "current_beri": r.current_beri,
+                "proposed_beri": r.proposed_beri,
+                "direction": r.direction,
+                "pct_change": r.pct_change,
+                "reason": r.reason,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+        "recent_chapters": [
+            {
+                "number": c.number,
+                "title": c.title,
+                "reddit_url": c.reddit_url,
+                "detected_at": c.detected_at.isoformat() if c.detected_at else None,
+                "processed": c.processed,
+            }
+            for c in chapters
+        ],
+    }
+
+
+@router.post("/proposed-prices/{proposal_id}/approve")
+def approve_proposed_price(
+    proposal_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Apply a proposed price change to the character."""
+    _check_secret(x_admin_secret)
+    proposal = db.query(models.ProposedPriceChange).filter(
+        models.ProposedPriceChange.id == proposal_id
+    ).first()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if proposal.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Proposal already {proposal.status}")
+
+    char = db.query(models.Character).filter(
+        models.Character.id == proposal.character_id
+    ).first()
+    if not char:
+        raise HTTPException(status_code=404, detail="Character not found")
+
+    old_beri = char.beri
+    char.beri = max(100_000, proposal.proposed_beri)
+    proposal.status = "approved"
+    db.commit()
+
+    invalidate_char_cache()
+
+    return {
+        "status": "approved",
+        "character": char.name,
+        "old_beri": old_beri,
+        "new_beri": char.beri,
+        "pct_change": proposal.pct_change,
+        "direction": proposal.direction,
+    }
+
+
+@router.post("/proposed-prices/{proposal_id}/dismiss")
+def dismiss_proposed_price(
+    proposal_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Dismiss a price proposal without applying it."""
+    _check_secret(x_admin_secret)
+    proposal = db.query(models.ProposedPriceChange).filter(
+        models.ProposedPriceChange.id == proposal_id
+    ).first()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    proposal.status = "dismissed"
+    db.commit()
+    return {"status": "dismissed", "id": proposal_id}
+
+
+@router.post("/proposed-prices/approve-all")
+def approve_all_proposed_prices(
+    chapter: Optional[int] = None,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Approve all pending proposals (optionally filtered to a specific chapter)."""
+    _check_secret(x_admin_secret)
+    q = db.query(models.ProposedPriceChange).filter(
+        models.ProposedPriceChange.status == "pending"
+    )
+    if chapter:
+        q = q.filter(models.ProposedPriceChange.chapter_number == chapter)
+    proposals = q.all()
+
+    char_ids = [p.character_id for p in proposals if p.character_id]
+    chars = {c.id: c for c in db.query(models.Character).filter(
+        models.Character.id.in_(char_ids)
+    ).all()}
+
+    applied = 0
+    for proposal in proposals:
+        char = chars.get(proposal.character_id)
+        if char:
+            char.beri = max(100_000, proposal.proposed_beri)
+            proposal.status = "approved"
+            applied += 1
+        else:
+            proposal.status = "dismissed"
+
+    db.commit()
+    invalidate_char_cache()
+    return {"status": "ok", "applied": applied, "total": len(proposals)}

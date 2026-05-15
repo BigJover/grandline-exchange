@@ -250,3 +250,32 @@ class DiscordEvent(Base):
     chapter_num = Column(Integer, nullable=True)        # chapter number detected, if any
     source_url = Column(String, default="")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Chapter(Base):
+    """A One Piece chapter detected via Reddit polling."""
+    __tablename__ = "chapters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    number = Column(Integer, unique=True, nullable=False, index=True)
+    title = Column(String, default="")
+    reddit_url = Column(String, default="")
+    detected_at = Column(DateTime(timezone=True), server_default=func.now())
+    processed = Column(Boolean, default=False)   # True once price proposals have been generated
+
+
+class ProposedPriceChange(Base):
+    """A price change proposed by the chapter pipeline, awaiting admin approval."""
+    __tablename__ = "proposed_price_changes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chapter_number = Column(Integer, nullable=False, index=True)
+    character_id = Column(Integer, ForeignKey("characters.id"), nullable=True)
+    character_name = Column(String, nullable=False)
+    current_beri = Column(Float, nullable=False)
+    proposed_beri = Column(Float, nullable=False)
+    direction = Column(String, nullable=False)   # "up" | "down"
+    pct_change = Column(Float, nullable=False)   # e.g. 5.0 = +5%
+    reason = Column(String, default="")
+    status = Column(String, default="pending")   # pending | approved | dismissed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
