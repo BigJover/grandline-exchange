@@ -130,8 +130,17 @@ class VegapunkBot(discord.Client):
             key=lambda x: x["change_pct"], reverse=True,
         )
         message = personality.transmission_response(movers)
-        sent = False
+
+        # Build target set: BotKV announcements channel (set by /setup-server) + env var fallback
+        target_ids: set[int] = set()
+        kv_ch = await api.get_kv("announcements_channel_id")
+        if kv_ch:
+            target_ids.add(int(kv_ch))
         for ch_id in TRANSMISSION_CHS:
+            target_ids.add(ch_id)
+
+        sent = False
+        for ch_id in target_ids:
             ch = self.get_channel(ch_id)
             if ch:
                 await ch.send(message)
@@ -275,6 +284,123 @@ async def cmd_compare(interaction: discord.Interaction, character1: str, charact
 ])
 async def cmd_satellite(interaction: discord.Interaction, satellite: str, subject: str):
     await interaction.response.send_message(personality.satellite_response(satellite, subject))
+
+
+# ── Server setup ──────────────────────────────────────────────────────────────
+
+@client.tree.command(name="setup-server", description="One-time Punk Records server setup — creates roles, categories, and channels")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def cmd_setup_server(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    guild = interaction.guild
+
+    lines: list[str] = []
+
+    # ── Roles (created top → bottom so hierarchy is correct) ──
+    role_specs = [
+        # (name,                  hex colour,  hoist,  mentionable)
+        ("◈ Punk Records",        0xe040fb,    True,   False),
+        ("◈ Marine Admiral",      0x29b6f6,    True,   False),
+        ("◈ Yonko",               0xd4a017,    True,   True),
+        ("◈ Supernova",           0x9b59b6,    True,   True),
+        ("◈ Revolutionary",       0x00d084,    True,   True),
+        ("◈ NewKama",             0x5a4a78,    False,  False),
+    ]
+
+    created_roles: dict[str, discord.Role] = {}
+    for name, colour, hoist, mentionable in role_specs:
+        existing = discord.utils.get(guild.roles, name=name)
+        if existing:
+            created_roles[name] = existing
+        else:
+            r = await guild.create_role(
+                name=name,
+                color=discord.Color(colour),
+                hoist=hoist,
+                mentionable=mentionable,
+                reason="Punk Records server setup",
+            )
+            created_roles[name] = r
+            lines.append(f"✅ Role **{name}**")
+
+    everyone   = guild.default_role
+    admin_role = created_roles.get("◈ Punk Records")
+    mod_role   = created_roles.get("◈ Marine Admiral")
+
+    # ── Permission helpers ──
+    def read_only() -> dict:
+        ow = {everyone: discord.PermissionOverwrite(view_channel=True, send_messages=False)}
+        if admin_role: ow[admin_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True)
+        if mod_role:   ow[mod_role]   = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True)
+        return ow
+
+    def private() -> dict:
+        ow = {everyone: discord.PermissionOverwrite(view_channel=False)}
+        if admin_role: ow[admin_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        if mod_role:   ow[mod_role]   = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        return ow
+
+    async def ensure_category(name: str) -> discord.CategoryChannel:
+        cat = discord.utils.get(guild.categories, name=name)
+        return cat or await guild.create_category(name, reason="Punk Records server setup")
+
+    async def ensure_channel(
+        category: discord.CategoryChannel,
+        name: str,
+        overwrites: dict | None = None,
+        topic: str = "",
+    ) -> discord.TextChannel:
+        ch = discord.utils.get(category.channels, name=name)
+        if ch:
+            return ch
+        kwargs: dict = {"category": category, "reason": "Punk Records server setup"}
+        if overwrites: kwargs["overwrites"] = overwrites
+        if topic:      kwargs["topic"] = topic
+        ch = await guild.create_text_channel(name, **kwargs)
+        lines.append(f"  # {name}")
+        return ch
+
+    # ── 📡 PUNK RECORDS ──
+    cat_pr    = await ensure_category("📡 PUNK RECORDS")
+    ch_ann    = await ensure_channel(cat_pr, "announcements",  read_only(), "Official Punk Records announcements & market alerts")
+    ch_uplink = await ensure_channel(cat_pr, "market-uplink",  read_only(), "Weekly Vegapunk credibility transmission")
+    ch_chap   = await ensure_channel(cat_pr, "chapter-intel",  read_only(), "Chapter drop alerts and character price impact")
+
+    # ── 📊 EXCHANGE FLOOR ──
+    cat_ex  = await ensure_category("📊 EXCHANGE FLOOR")
+    ch_gen  = await ensure_channel(cat_ex, "general",           topic="Grand Line Stock Exchange — trade talk & market discussion")
+    _       = await ensure_channel(cat_ex, "price-analysis",    topic="Character price analysis and predictions")
+    _       = await ensure_channel(cat_ex, "character-requests",topic="Request new characters for the exchange")
+
+    # ── 🏴‍☠️ GRAND LINE ──
+    cat_gl = await ensure_category("🏴‍☠️ GRAND LINE")
+    _ = await ensure_channel(cat_gl, "one-piece-discussion", topic="General One Piece discussion — spoilers welcome")
+    _ = await ensure_channel(cat_gl, "memes")
+    _ = await ensure_channel(cat_gl, "introduce-yourself",   topic="Tell the crew who you are")
+
+    # ── 🔒 ADMIN DOCK ──
+    cat_admin = await ensure_category("🔒 ADMIN DOCK")
+    _ = await ensure_channel(cat_admin, "bot-logs",    private())
+    _ = await ensure_channel(cat_admin, "admin-notes", private())
+
+    # ── Persist key channel IDs to BotKV ──
+    await api.set_kv("announcements_channel_id",  str(ch_ann.id))
+    await api.set_kv("market_uplink_channel_id",  str(ch_uplink.id))
+    await api.set_kv("chapter_intel_channel_id",  str(ch_chap.id))
+    await api.set_kv("general_channel_id",        str(ch_gen.id))
+
+    summary = "\n".join(lines) if lines else "All roles and channels already existed."
+    msg = (
+        f"**◈ Punk Records — Setup Complete**\n\n"
+        f"{summary}\n\n"
+        f"**Key channel IDs (update Railway env vars if needed):**\n"
+        f"• `VEGAPUNK_TRANSMISSION_CHANNELS` → `{ch_ann.id}` *(weekly transmission now posts to {ch_ann.mention})*\n"
+        f"• Chapter intel → `{ch_chap.id}`\n"
+        f"• General (Widgetbot) → `{ch_gen.id}`\n\n"
+        f"Make sure Vegapunk has **Manage Roles** and **Manage Channels** permissions."
+    )
+    await interaction.followup.send(msg, ephemeral=True)
 
 
 # ── Health check server (keeps Railway happy) ─────────────────────────────────
