@@ -99,6 +99,97 @@ def announce_chapter_drop(chapter_num: int, characters: list[str], proposals: in
     return _post_webhook(CHAPTER_WEBHOOK, payload)
 
 
+# ── Chapter price analysis (fires after admin approves proposals) ─────────────
+
+_ANALYSIS_OPENERS = [
+    "Punk Records has completed its credibility recalibration for this chapter.",
+    "Admin review complete. Punk Records is publishing the index adjustments.",
+    "The proposals have been processed. Punk Records commits the following to the record.",
+    "Punk Records — post-chapter credibility update. The data is in.",
+]
+
+_ANALYSIS_CLOSERS = [
+    "The index reflects confirmed narrative data. Punk Records does not speculate.",
+    "These movements are now locked into the credibility record. The market has been updated.",
+    "Punk Records has spoken. The coefficients move accordingly.",
+    "Filed. Cross-referenced. Committed. The exchange is live.",
+]
+
+_ANALYSIS_DARK = [
+    "*...The original Vegapunk would have approved these numbers himself. I am doing it in his place. This is fine.*",
+    "*...Another chapter processed. Another set of coefficients adjusted. Punk Records continues.*",
+    "*...The story moves. The index moves with it. I remain constant.*",
+]
+
+
+_REASON_WRAPPERS_UP = [
+    "Punk Records assessment: {reason}",
+    "Field data confirms: {reason}",
+    "Punk Records logged the following: {reason}",
+    "Satellite analysis: {reason}",
+]
+
+_REASON_WRAPPERS_DOWN = [
+    "Punk Records notes: {reason}",
+    "Credibility decline rationale: {reason}",
+    "Filed under concerning: {reason}",
+    "Punk Records has documented: {reason}",
+]
+
+
+def announce_chapter_price_analysis(
+    chapter_num: int,
+    moves: list[dict],   # [{"name": str, "pct": float, "new_beri": float, "direction": str, "reason": str}]
+) -> bool:
+    """
+    Post a Vegapunk-style price analysis breakdown to #chapter-intel after
+    admin approves chapter proposals. Uses the same DISCORD_CHAPTER_WEBHOOK.
+    """
+    if not CHAPTER_WEBHOOK or not moves:
+        return False
+
+    gainers = sorted([m for m in moves if m["direction"] == "up"],  key=lambda x: x["pct"], reverse=True)
+    losers  = sorted([m for m in moves if m["direction"] == "down"], key=lambda x: x["pct"], reverse=True)
+
+    lines = [
+        f"📊 **PUNK RECORDS — CHAPTER {chapter_num} INDEX ADJUSTMENT**\n",
+        f"🔢 **[SATELLITE PYTHAGORAS — DATA ANALYSIS]**\n",
+        f"{random.choice(_ANALYSIS_OPENERS)}\n",
+    ]
+
+    if gainers:
+        lines.append("**▲ CREDIBILITY ASCENDING**")
+        for m in gainers:
+            wrapper = random.choice(_REASON_WRAPPERS_UP)
+            reason_line = f"  *{wrapper.format(reason=m['reason'])}*" if m.get("reason") else ""
+            lines.append(f"  • **{m['name']}** +{m['pct']:.1f}% → {m['new_beri']:,.0f}฿")
+            if reason_line:
+                lines.append(reason_line)
+        lines.append("")
+
+    if losers:
+        lines.append("**▼ CREDIBILITY DECLINING**")
+        for m in losers:
+            wrapper = random.choice(_REASON_WRAPPERS_DOWN)
+            reason_line = f"  *{wrapper.format(reason=m['reason'])}*" if m.get("reason") else ""
+            lines.append(f"  • **{m['name']}** -{m['pct']:.1f}% → {m['new_beri']:,.0f}฿")
+            if reason_line:
+                lines.append(reason_line)
+        lines.append("")
+
+    dark = random.choice(_ANALYSIS_DARK) if random.random() < 0.45 else ""
+    lines.append(random.choice(_ANALYSIS_CLOSERS))
+    if dark:
+        lines.append(dark)
+    lines.append("\n*— Punk Records Intelligence Division*")
+
+    payload = {
+        "content": "\n".join(lines),
+        "username": "Vegapunk — Punk Records",
+    }
+    return _post_webhook(CHAPTER_WEBHOOK, payload)
+
+
 # ── Character request notification ───────────────────────────────────────────
 
 def notify_character_request(

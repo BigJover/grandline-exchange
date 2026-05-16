@@ -15,7 +15,7 @@ from app.scheduler import run_beri_drop, WEEKLY_DROP
 from app.bots import run_bot_tick
 from app.routers.characters import invalidate_char_cache
 from app.websocket_manager import manager
-from app.discord_notify import announce_price_alert
+from app.discord_notify import announce_price_alert, announce_chapter_price_analysis
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -1247,25 +1247,43 @@ def approve_all_proposed_prices(
 
     applied = 0
     big_movers = []
+    all_moves  = []
+    chapter_num = chapter  # may be None if no filter
     for proposal in proposals:
         char = chars.get(proposal.character_id)
         if char:
             char.beri = max(100_000, proposal.proposed_beri)
             proposal.status = "approved"
             applied += 1
+            signed = proposal.pct_change if proposal.direction == "up" else -proposal.pct_change
+            all_moves.append({
+                "name":      char.name,
+                "pct":       proposal.pct_change,
+                "new_beri":  char.beri,
+                "direction": proposal.direction,
+                "reason":    proposal.reason or "",
+            })
             if abs(proposal.pct_change) >= 10:
-                signed = proposal.pct_change if proposal.direction == "up" else -proposal.pct_change
                 big_movers.append((char.name, signed, char.beri))
+            if not chapter_num:
+                chapter_num = proposal.chapter_number
         else:
             proposal.status = "dismissed"
 
     db.commit()
     invalidate_char_cache()
 
-    # Fire Discord alerts for big movers
+    # Fire individual big-mover alerts
     for name, pct, beri in big_movers:
         try:
             announce_price_alert(name, pct, beri)
+        except Exception:
+            pass
+
+    # Fire full Vegapunk analysis to #chapter-intel
+    if all_moves:
+        try:
+            announce_chapter_price_analysis(chapter_num or 0, all_moves)
         except Exception:
             pass
 
