@@ -42,6 +42,7 @@ from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import Session
 
 from app import models
+from app.discord_notify import announce_chapter_drop
 
 # ── Shared fetch helpers ──────────────────────────────────────────────────────
 
@@ -569,6 +570,13 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     # ── 9. Mark chapter as processed ─────────────────────────────────────────
     chapter_row.processed = True
     db.commit()
+
+    # ── 10. Discord announcement ──────────────────────────────────────────────
+    top_chars = [c["name"] for c in combined[:10]]
+    try:
+        announce_chapter_drop(chapter_num, top_chars, proposals_created)
+    except Exception as e:
+        print(f"[ChapterPipeline] Discord notify failed (non-fatal): {e}")
 
     sources_str = ", ".join(sources_used) if sources_used else "manual"
     print(f"[ChapterPipeline] Ch.{chapter_num} — {proposals_created} proposals | sources: {sources_str}")

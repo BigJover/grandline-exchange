@@ -15,6 +15,7 @@ from app.scheduler import run_beri_drop, WEEKLY_DROP
 from app.bots import run_bot_tick
 from app.routers.characters import invalidate_char_cache
 from app.websocket_manager import manager
+from app.discord_notify import announce_price_alert
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -1189,6 +1190,13 @@ def approve_proposed_price(
 
     invalidate_char_cache()
 
+    # Fire Discord price alert for significant moves (±10%+)
+    if abs(proposal.pct_change) >= 10:
+        try:
+            announce_price_alert(char.name, proposal.pct_change if proposal.direction == "up" else -proposal.pct_change, char.beri)
+        except Exception:
+            pass
+
     return {
         "status": "approved",
         "character": char.name,
@@ -1238,17 +1246,29 @@ def approve_all_proposed_prices(
     ).all()}
 
     applied = 0
+    big_movers = []
     for proposal in proposals:
         char = chars.get(proposal.character_id)
         if char:
             char.beri = max(100_000, proposal.proposed_beri)
             proposal.status = "approved"
             applied += 1
+            if abs(proposal.pct_change) >= 10:
+                signed = proposal.pct_change if proposal.direction == "up" else -proposal.pct_change
+                big_movers.append((char.name, signed, char.beri))
         else:
             proposal.status = "dismissed"
 
     db.commit()
     invalidate_char_cache()
+
+    # Fire Discord alerts for big movers
+    for name, pct, beri in big_movers:
+        try:
+            announce_price_alert(name, pct, beri)
+        except Exception:
+            pass
+
     return {"status": "ok", "applied": applied, "total": len(proposals)}
 
 
