@@ -77,8 +77,60 @@ def _sign(pct: float) -> str:
 
 # ── Public response builders ───────────────────────────────────────────────────
 
+def _trim(text: str, limit: int = 280) -> str:
+    """Trim to roughly sentence-level length."""
+    if not text or len(text) <= limit:
+        return text
+    cut = text[:limit]
+    last = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    return (cut[:last + 1] if last > 80 else cut).strip()
+
+
+_BIO_INTROS = [
+    "Punk Records profile:",
+    "Filed under known intelligence:",
+    "Punk Records has the following on record:",
+    "What Punk Records knows:",
+    "My satellites compiled the following:",
+]
+
+_EVENT_INTROS = [
+    "Recent field intelligence:",
+    "Current situational analysis:",
+    "Punk Records — field update:",
+    "Last logged field report:",
+    "Active monitoring notes:",
+]
+
+_SBS_INTROS = [
+    "Punk Records footnote (Vol. {vol}):",
+    "Supplementary intelligence — Vol. {vol}:",
+    "Archived SBS record, Vol. {vol}:",
+    "Punk Records trivia node — Vol. {vol}:",
+]
+
+_BIO_COMMENTS = [
+    "*Punk Records has verified this assessment. Mostly.*",
+    "*The data is consistent with observed behavior. Mostly.*",
+    "*I have no notes. This is rare.*",
+    "*Filed, cross-referenced, and flagged as accurate.*",
+    "*Punk Records logged this before anyone else was paying attention.*",
+    "*This assessment has been reviewed by four satellites. Three agreed.*",
+]
+
+_EVENT_COMMENTS = [
+    "*My satellites are still processing the implications.*",
+    "*The credibility index moved accordingly. It always does.*",
+    "*Punk Records registered this shift before the dust settled.*",
+    "*This has been noted. Multiple times.*",
+    "*The coefficient reflects this. As it should.*",
+    "*Filed under: significant. Subcategory: very.*",
+]
+
+
 def intel_response(name: str, faction: str, beri: float, change_pct: float,
-                   rank: Optional[str] = None) -> str:
+                   rank: Optional[str] = None, bio: str = "", events: str = "",
+                   sbs: list = None) -> str:
     verb, _ = _direction(change_pct)
     faction_str = _FACTION.get(faction.lower(), "independent operator")
     rank_str = f" — currently ranked **{rank}**" if rank else ""
@@ -118,14 +170,50 @@ def intel_response(name: str, faction: str, beri: float, change_pct: float,
 
     comment = random.choice(comments).format(name=name)
     warning = " ⚠️" if change_pct <= -15 else ""
-    body = (
-        f"{sat(satellite)}\n"
-        f"**Field Subject:** {name} ({faction_str}){rank_str}\n"
-        f"**Credibility Index:** {beri:,.0f}฿\n"
-        f"**Coefficient Shift:** {_sign(change_pct)}{change_pct:.1f}%{warning}\n\n"
-        f"{comment}"
-    )
-    return body + _dark() + "\n\n*— Punk Records, Egghead Island*"
+
+    sections = [
+        sat(satellite),
+        f"**PUNK RECORDS — FIELD DOSSIER: {name.upper()}**",
+        f"**Affiliation:** {faction_str}{rank_str}",
+        f"**Credibility Index:** {beri:,.0f}฿",
+        f"**Coefficient Shift:** {_sign(change_pct)}{change_pct:.1f}%{warning}",
+        "",
+        comment,
+    ]
+
+    # Bio section
+    if bio and bio.strip():
+        sections += [
+            "",
+            f"**{random.choice(_BIO_INTROS)}**",
+            _trim(bio),
+            random.choice(_BIO_COMMENTS),
+        ]
+
+    # Events section
+    if events and events.strip():
+        sections += [
+            "",
+            f"**{random.choice(_EVENT_INTROS)}**",
+            _trim(events),
+            random.choice(_EVENT_COMMENTS),
+        ]
+
+    # SBS — randomly included (~50% chance if available)
+    if sbs and random.random() < 0.50:
+        entry = random.choice(sbs)
+        vol  = entry.get("vol", "?")
+        text = entry.get("text", "")
+        if text:
+            sections += [
+                "",
+                f"**{random.choice(_SBS_INTROS).format(vol=vol)}**",
+                text,
+                "*Punk Records finds this consistent with the broader data set.*" if random.random() < 0.5
+                else "*This was already in Punk Records before the volume shipped. Obviously.*",
+            ]
+
+    return "\n".join(sections) + _dark() + "\n\n*— Punk Records, Egghead Island*"
 
 
 def slander_response(name: str, change_pct: float) -> str:

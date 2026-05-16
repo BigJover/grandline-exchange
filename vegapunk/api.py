@@ -3,7 +3,7 @@ import os
 import aiohttp
 from typing import Optional
 
-SITE_URL   = os.getenv("SITE_URL", "https://grandline-exchange.up.railway.app").rstrip("/")
+SITE_URL     = os.getenv("SITE_URL", "https://grandline-exchange.up.railway.app").rstrip("/")
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
 
 
@@ -21,31 +21,54 @@ async def fetch_all_characters() -> list[dict]:
     return []
 
 
-async def find_character(query: str) -> Optional[dict]:
-    """Case-insensitive search by name or alias. Returns first match."""
-    chars = await fetch_all_characters()
-    q = query.lower().strip()
-    # exact name
-    for c in chars:
-        if c["name"].lower() == q:
-            return c
-    # alias exact
-    for c in chars:
-        if any(a.lower() == q for a in c.get("aliases") or []):
-            return c
-    # substring
-    for c in chars:
-        if q in c["name"].lower():
-            return c
+async def fetch_character_full(char_id: int) -> Optional[dict]:
+    """Fetch full character data including bio, events, and sbs."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{SITE_URL}/characters/{char_id}",
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.json(content_type=None)
+    except Exception:
+        pass
     return None
 
 
+async def find_character(query: str, full: bool = False) -> Optional[dict]:
+    """
+    Case-insensitive search by name or alias.
+    If full=True, fetches the complete record (bio, events, sbs) after matching.
+    """
+    chars = await fetch_all_characters()
+    q = query.lower().strip()
+
+    match = None
+    for c in chars:
+        if c["name"].lower() == q:
+            match = c
+            break
+    if not match:
+        for c in chars:
+            if any(a.lower() == q for a in c.get("aliases") or []):
+                match = c
+                break
+    if not match:
+        for c in chars:
+            if q in c["name"].lower():
+                match = c
+                break
+
+    if match and full:
+        full_data = await fetch_character_full(match["id"])
+        return full_data if full_data else match
+
+    return match
+
+
 def change_pct(char: dict) -> float:
-    """
-    Recent % change using the last two price_history entries.
-    price_history entries are dicts: {"chapter": int, "label": str, "beri": float}
-    Falls back to comparing first vs last entry, then to 0.
-    """
+    """Overall % change using first vs last price_history entry."""
     history: list = char.get("price_history") or []
     if len(history) >= 2:
         first_beri = history[0].get("beri", 0)

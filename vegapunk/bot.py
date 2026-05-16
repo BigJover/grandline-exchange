@@ -156,7 +156,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 @app_commands.describe(character="The One Piece character to analyze")
 async def cmd_intel(interaction: discord.Interaction, character: str):
     await interaction.response.defer()
-    char = await api.find_character(character)
+    char = await api.find_character(character, full=True)
     if not char:
         await interaction.followup.send(
             f"{personality.sat('main')}\n"
@@ -173,6 +173,9 @@ async def cmd_intel(interaction: discord.Interaction, character: str):
             beri=char["beri"],
             change_pct=pct,
             rank=char.get("rank"),
+            bio=char.get("bio", ""),
+            events=char.get("events", ""),
+            sbs=char.get("sbs", []),
         )
     )
 
