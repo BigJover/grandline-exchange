@@ -391,68 +391,103 @@ async def cmd_setup_server(interaction: discord.Interaction):
 
     lines: list[str] = []
 
-    # ── Roles (created top → bottom so hierarchy is correct) ──
+    # ── Roles ──────────────────────────────────────────────────────────────────
+    # Imu + Gorosei first so they exist when building permission overwrites
     role_specs = [
-        # (name,                  hex colour,  hoist,  mentionable)
-        ("◈ Punk Records",        0xe040fb,    True,   False),
-        ("◈ Marine Admiral",      0x29b6f6,    True,   False),
-        ("◈ Yonko",               0xd4a017,    True,   True),
-        ("◈ Supernova",           0x9b59b6,    True,   True),
-        ("◈ Revolutionary",       0x00d084,    True,   True),
-        ("◈ NewKama",             0x5a4a78,    False,  False),
+        # (name,               hex colour,  hoist,  mentionable)
+        ("◈ Imu",             0xf5e642,    True,   False),   # owner — assign to yourself
+        ("◈ Punk Records",    0xe040fb,    True,   False),   # admin
+        ("◈ Gorosei",         0x800020,    True,   False),   # private access — close friends, no manage perms
+        ("◈ Marine Admiral",  0x29b6f6,    True,   False),
+        ("◈ Yonko",           0xd4a017,    True,   True),
+        ("◈ Supernova",       0x9b59b6,    True,   True),
+        ("◈ Revolutionary",   0x00d084,    True,   True),
+        ("◈ NewKama",         0x5a4a78,    False,  False),
     ]
 
     created_roles: dict[str, discord.Role] = {}
-    for name, colour, hoist, mentionable in role_specs:
-        existing = discord.utils.get(guild.roles, name=name)
+    for rname, colour, hoist, mentionable in role_specs:
+        existing = discord.utils.get(guild.roles, name=rname)
         if existing:
-            created_roles[name] = existing
+            created_roles[rname] = existing
         else:
             r = await guild.create_role(
-                name=name,
+                name=rname,
                 color=discord.Color(colour),
                 hoist=hoist,
                 mentionable=mentionable,
                 reason="Punk Records server setup",
             )
-            created_roles[name] = r
-            lines.append(f"✅ Role **{name}**")
+            created_roles[rname] = r
+            lines.append(f"✅ Role **{rname}**")
 
-    everyone   = guild.default_role
-    admin_role = created_roles.get("◈ Punk Records")
-    mod_role   = created_roles.get("◈ Marine Admiral")
+    everyone     = guild.default_role
+    admin_role   = created_roles.get("◈ Punk Records")
+    mod_role     = created_roles.get("◈ Marine Admiral")
+    gorosei_role = created_roles.get("◈ Gorosei")
+    imu_role     = created_roles.get("◈ Imu")
 
-    # ── Permission helpers ──
+    # ── Permission helpers ──────────────────────────────────────────────────────
     def read_only() -> dict:
         ow = {everyone: discord.PermissionOverwrite(view_channel=True, send_messages=False)}
-        if admin_role: ow[admin_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True)
-        if mod_role:   ow[mod_role]   = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True)
+        if admin_role:   ow[admin_role]   = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True)
+        if mod_role:     ow[mod_role]     = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True)
+        if imu_role:     ow[imu_role]     = discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_messages=True)
         return ow
 
     def private() -> dict:
         ow = {everyone: discord.PermissionOverwrite(view_channel=False)}
         if admin_role: ow[admin_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
         if mod_role:   ow[mod_role]   = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+        if imu_role:   ow[imu_role]   = discord.PermissionOverwrite(view_channel=True, send_messages=True)
         return ow
 
-    async def ensure_category(name: str) -> discord.CategoryChannel:
-        cat = discord.utils.get(guild.categories, name=name)
-        return cat or await guild.create_category(name, reason="Punk Records server setup")
+    def gorosei_only() -> dict:
+        """Private voice + text — Gorosei, Imu, and Punk Records only. No manage perms for Gorosei."""
+        ow = {everyone: discord.PermissionOverwrite(view_channel=False, connect=False)}
+        if admin_role:   ow[admin_role]   = discord.PermissionOverwrite(view_channel=True, send_messages=True, connect=True, manage_channels=True)
+        if imu_role:     ow[imu_role]     = discord.PermissionOverwrite(view_channel=True, send_messages=True, connect=True, manage_channels=True)
+        if gorosei_role: ow[gorosei_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, connect=True, manage_channels=False)
+        return ow
+
+    # ── Channel helpers ─────────────────────────────────────────────────────────
+    async def ensure_category(cname: str, overwrites: dict | None = None) -> discord.CategoryChannel:
+        cat = discord.utils.get(guild.categories, name=cname)
+        if cat:
+            return cat
+        kwargs: dict = {"reason": "Punk Records server setup"}
+        if overwrites: kwargs["overwrites"] = overwrites
+        return await guild.create_category(cname, **kwargs)
 
     async def ensure_channel(
         category: discord.CategoryChannel,
-        name: str,
+        cname: str,
         overwrites: dict | None = None,
         topic: str = "",
     ) -> discord.TextChannel:
-        ch = discord.utils.get(category.channels, name=name)
+        ch = discord.utils.get(category.channels, name=cname)
         if ch:
             return ch
         kwargs: dict = {"category": category, "reason": "Punk Records server setup"}
         if overwrites: kwargs["overwrites"] = overwrites
         if topic:      kwargs["topic"] = topic
-        ch = await guild.create_text_channel(name, **kwargs)
-        lines.append(f"  # {name}")
+        ch = await guild.create_text_channel(cname, **kwargs)
+        lines.append(f"  # {cname}")
+        return ch
+
+    async def ensure_voice(
+        category: discord.CategoryChannel,
+        cname: str,
+        user_limit: int = 0,
+        overwrites: dict | None = None,
+    ) -> discord.VoiceChannel:
+        ch = discord.utils.get(category.voice_channels, name=cname)
+        if ch:
+            return ch
+        kwargs: dict = {"category": category, "user_limit": user_limit, "reason": "Punk Records server setup"}
+        if overwrites: kwargs["overwrites"] = overwrites
+        ch = await guild.create_voice_channel(cname, **kwargs)
+        lines.append(f"  🔊 {cname}" + (f" ({user_limit})" if user_limit else ""))
         return ch
 
     # ── 📡 PUNK RECORDS ──
@@ -473,6 +508,20 @@ async def cmd_setup_server(interaction: discord.Interaction):
     ch_mem  = await ensure_channel(cat_gl, "memes")
     ch_intro= await ensure_channel(cat_gl, "introduce-yourself",   topic="Tell the crew who you are")
 
+    # ── 🎙️ VOICE ──
+    cat_vc = await ensure_category("🎙️ VOICE")
+    await ensure_voice(cat_vc, "📡 Punk Records Community")            # unlimited — main lounge
+    await ensure_voice(cat_vc, "⚓ Marineford",          user_limit=10)
+    await ensure_voice(cat_vc, "🌊 Laugh Tale",           user_limit=10)
+    await ensure_voice(cat_vc, "🏝️ Sabaody Archipelago", user_limit=10)
+    await ensure_voice(cat_vc, "⚡ Wano",                 user_limit=10)
+    await ensure_voice(cat_vc, "🎪 Dressrosa",            user_limit=10)
+
+    # ── 👁️ EMPTY THRONE — Gorosei private ──
+    cat_gt = await ensure_category("👁️ EMPTY THRONE", gorosei_only())
+    _      = await ensure_channel(cat_gt, "five-elders", gorosei_only(), "Private — Gorosei only")
+    _      = await ensure_voice(cat_gt, "🌑 The Empty Throne", overwrites=gorosei_only())
+
     # ── 🔒 ADMIN DOCK ──
     cat_admin = await ensure_category("🔒 ADMIN DOCK")
     _ = await ensure_channel(cat_admin, "bot-logs",    private())
@@ -491,15 +540,15 @@ async def cmd_setup_server(interaction: discord.Interaction):
     # Refresh local cache immediately
     await _load_ch_cache()
 
-    summary = "\n".join(lines) if lines else "All roles and channels already existed."
+    summary = "\n".join(lines) if lines else "All roles and channels already existed — nothing to create."
     msg = (
         f"**◈ Punk Records — Setup Complete**\n\n"
         f"{summary}\n\n"
-        f"**Key channel IDs (update Railway env vars if needed):**\n"
-        f"• `VEGAPUNK_TRANSMISSION_CHANNELS` → `{ch_ann.id}` *(weekly transmission now posts to {ch_ann.mention})*\n"
-        f"• Chapter intel → `{ch_chap.id}`\n"
-        f"• General (Widgetbot) → `{ch_gen.id}`\n\n"
-        f"Make sure Vegapunk has **Manage Roles** and **Manage Channels** permissions."
+        f"**Next steps:**\n"
+        f"• Go to **Server Settings → Roles** and drag **◈ Imu** to the top, then **◈ Gorosei** just below **◈ Punk Records**\n"
+        f"• Assign **◈ Imu** to yourself\n"
+        f"• Assign **◈ Gorosei** to close friends — they get {cat_gt.mention} access but cannot manage anything\n"
+        f"• Transmission → {ch_ann.mention} · General chat → {ch_gen.mention} · Widgetbot channel → `{ch_gen.id}`"
     )
     await interaction.followup.send(msg, ephemeral=True)
 
