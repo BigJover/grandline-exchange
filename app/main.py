@@ -548,6 +548,29 @@ def community_page():
     return HTMLResponse(content=_html_cache["community.html"], headers=_NO_CACHE)
 
 
+@app.get("/community/discord-feed")
+def community_discord_feed(limit: int = 20, db=Depends(get_db)):
+    """Public feed of recent Discord intelligence events for the community tab."""
+    from app.models import DiscordEvent
+    events = (
+        db.query(DiscordEvent)
+        .order_by(DiscordEvent.created_at.desc())
+        .limit(min(limit, 50))
+        .all()
+    )
+    return [
+        {
+            "id": e.id,
+            "author": e.author or "Anonymous",
+            "content": (e.content or "")[:280],
+            "characters_detected": e.characters_detected or [],
+            "chapter_num": e.chapter_num,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        }
+        for e in events
+    ]
+
+
 @app.get("/casino")
 def casino_page():
     return HTMLResponse(content=_html_cache["casino.html"], headers=_NO_CACHE)

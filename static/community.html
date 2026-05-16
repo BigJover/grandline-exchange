@@ -180,6 +180,15 @@
     .rank-3 { background:rgba(180,100,40,0.12); color:#c87a3a; border:1px solid rgba(180,100,40,0.3); }
 
     /* ── Discord panel ── */
+    .discord-event { padding:10px 14px; border-bottom:1px solid var(--border); font-family:'Share Tech Mono',monospace; font-size:0.68rem; line-height:1.5; }
+    .discord-event:last-child { border-bottom:none; }
+    .discord-event-author { color:var(--gold); font-weight:700; margin-bottom:2px; }
+    .discord-event-content { color:var(--text); margin-bottom:4px; word-break:break-word; }
+    .discord-event-chars { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+    .discord-char-tag { background:rgba(255,200,0,0.08); border:1px solid rgba(255,200,0,0.2); border-radius:4px; padding:1px 6px; font-size:0.6rem; color:var(--gold); }
+    .discord-event-time { color:var(--text-dim); font-size:0.58rem; margin-top:3px; }
+    .discord-join-btn { display:block; width:calc(100% - 36px); margin:14px 18px; padding:9px; background:transparent; border:1px solid var(--gold); border-radius:6px; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px; cursor:pointer; text-align:center; text-decoration:none; transition:background 0.2s; }
+    .discord-join-btn:hover { background:rgba(255,200,0,0.08); }
     .discord-panel {
       position:sticky; top:100px;
       background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px;
@@ -337,19 +346,14 @@
 
     <aside class="discord-panel">
       <div class="discord-header">
-        <div class="discord-title">◈ Live Server</div>
-        <div class="discord-dot"></div>
+        <div class="discord-title">◈ Punk Records Intel</div>
+        <div class="discord-dot" id="discord-dot" style="background:var(--text-dim)"></div>
       </div>
-      <div class="discord-body">
-        <div class="discord-icon">🗨</div>
-        <div class="discord-coming">Coming Soon</div>
-        <div class="discord-desc">
-          The Grand Line Exchange Discord server is being set up.<br><br>
-          When live, <strong>the general channel will appear here</strong> — readable by anyone, postable after joining the server with your Discord account.
-        </div>
-        <button class="discord-placeholder-btn" disabled>Join Server — Coming Soon</button>
+      <div id="discord-feed-body">
+        <div class="feed-empty" style="padding:30px 0;font-size:0.72rem;">Loading intel…</div>
       </div>
-      <div class="discord-footer">Powered by Widgetbot · Read-only until you join</div>
+      <a class="discord-join-btn" href="https://discord.gg/placeholder" id="discord-join-link" target="_blank" rel="noopener">◈ Join the Server</a>
+      <div class="discord-footer">Live character intelligence from the community</div>
     </aside>
   </div>
 </div>
@@ -620,8 +624,42 @@ async function init(){
     else { currentUser=null; clearHint(); }
   } catch(e){ currentUser=null; clearHint(); }
   updateAuthUI();
-  await Promise.all([loadFeed(), loadCharacters()]);
+  await Promise.all([loadFeed(), loadCharacters(), loadDiscordFeed()]);
 }
+
+// ── Discord intel feed ────────────────────────────────────────────────────────
+async function loadDiscordFeed(){
+  const body = document.getElementById('discord-feed-body');
+  const dot  = document.getElementById('discord-dot');
+  try {
+    const res = await fetch(API + '/community/discord-feed?limit=15');
+    if(!res.ok) throw new Error(res.status);
+    const events = await res.json();
+    if(dot) dot.style.background = 'var(--green, #4caf50)';
+    if(!events.length){
+      body.innerHTML = '<div class="feed-empty" style="padding:30px 0;font-size:0.72rem;">No intel yet — connect to the server to contribute.</div>';
+      return;
+    }
+    body.innerHTML = events.map(e => {
+      const chars = (e.characters_detected || []).map(c =>
+        '<span class="discord-char-tag">'+esc(c)+'</span>'
+      ).join('');
+      const chap = e.chapter_num ? '<span class="discord-char-tag" style="border-color:rgba(100,180,255,0.3);color:#64b4ff">Ch.'+e.chapter_num+'</span>' : '';
+      const time = e.created_at ? new Date(e.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      return '<div class="discord-event">'+
+        '<div class="discord-event-author">'+esc(e.author)+'</div>'+
+        '<div class="discord-event-content">'+esc(e.content)+'</div>'+
+        ((chars||chap) ? '<div class="discord-event-chars">'+chap+chars+'</div>' : '')+
+        '<div class="discord-event-time">'+time+'</div>'+
+      '</div>';
+    }).join('');
+  } catch(e){
+    if(body) body.innerHTML = '<div class="feed-empty" style="padding:30px 0;font-size:0.72rem;">Intel feed unavailable.</div>';
+  }
+}
+
+// Auto-refresh Discord feed every 60 seconds
+setInterval(loadDiscordFeed, 60000);
 
 init();
 
