@@ -38,6 +38,21 @@ INGEST_ALL          = not INGEST_CHANNELS          # if no IDs set → ingest ev
 
 _TRIGGER_PHRASES    = {"vegapunk", "punk records", "are you a bot", "are you real", "are you alive"}
 
+# ── In-memory channel ID cache (populated from BotKV on ready) ────────────────
+_CH: dict[str, int] = {}   # key → channel id
+
+async def _load_ch_cache():
+    keys = [
+        "announcements_channel_id", "market_uplink_channel_id",
+        "chapter_intel_channel_id", "general_channel_id",
+        "one_piece_discussion_channel_id", "memes_channel_id",
+        "introduce_yourself_channel_id", "price_analysis_channel_id",
+    ]
+    for k in keys:
+        v = await api.get_kv(k)
+        if v:
+            _CH[k] = int(v)
+
 
 # ── Bot client ────────────────────────────────────────────────────────────────
 
@@ -56,9 +71,11 @@ class VegapunkBot(discord.Client):
             await self.tree.sync(guild=guild)
         else:
             await self.tree.sync()
-        if TRANSMISSION_CHS:
-            self.weekly_transmission.start()
-            self.random_hot_take.start()
+        self.weekly_transmission.start()
+        self.random_hot_take.start()
+        self.lore_post.start()
+        self.market_uplink_post.start()
+        self.price_analysis_post.start()
         log.info("Punk Records systems online.")
 
     async def on_ready(self):
@@ -68,7 +85,8 @@ class VegapunkBot(discord.Client):
                 name="Punk Records | /intel"
             )
         )
-        log.info("Vegapunk connected as %s", self.user)
+        await _load_ch_cache()
+        log.info("Vegapunk connected as %s — channel cache: %s", self.user, _CH)
 
     async def on_member_join(self, member: discord.Member):
         role = discord.utils.get(member.guild.roles, name="NewKama")
@@ -90,13 +108,30 @@ class VegapunkBot(discord.Client):
         if message.author.bot:
             return
 
-        channel_id = str(message.channel.id)
-        if INGEST_ALL or channel_id in INGEST_CHANNELS:
+        ch_id = message.channel.id
+        ch_id_str = str(ch_id)
+
+        if INGEST_ALL or ch_id_str in INGEST_CHANNELS:
             await api.ingest_message(
-                channel=getattr(message.channel, "name", channel_id),
+                channel=getattr(message.channel, "name", ch_id_str),
                 author=str(message.author),
                 content=message.content,
             )
+
+        # #memes — random emoji reaction (~35% chance)
+        if ch_id == _CH.get("memes_channel_id") and random.random() < 0.35:
+            try:
+                await message.add_reaction(personality.meme_reaction())
+            except Exception:
+                pass
+
+        # #introduce-yourself — Vegapunk welcome comment (~80% chance)
+        if ch_id == _CH.get("introduce_yourself_channel_id") and random.random() < 0.80:
+            try:
+                username = message.author.display_name
+                await message.reply(personality.introduce_yourself_response(username))
+            except Exception:
+                pass
 
         # Reply when directly addressed or asked about Vegapunk
         content_lower = message.content.lower()
@@ -173,8 +208,58 @@ class VegapunkBot(discord.Client):
             if ch:
                 await ch.send(message)
 
+    @tasks.loop(hours=10)
+    async def lore_post(self):
+        if random.random() > 0.35:   # ~35% chance each 10h tick
+            return
+        ch_id = _CH.get("one_piece_discussion_channel_id")
+        if not ch_id:
+            return
+        ch = self.get_channel(ch_id)
+        if ch:
+            await ch.send(personality.lore_hot_take())
+
+    @tasks.loop(hours=8)
+    async def market_uplink_post(self):
+        if random.random() > 0.50:   # ~50% chance each 8h tick
+            return
+        ch_id = _CH.get("market_uplink_channel_id")
+        if not ch_id:
+            return
+        ch = self.get_channel(ch_id)
+        if not ch:
+            return
+        chars = await api.fetch_all_characters()
+        if not chars:
+            return
+        # Pick a character with notable movement
+        candidates = [c for c in chars if abs(api.recent_change_pct(c)) > 1.0]
+        char = random.choice(candidates[:30]) if candidates else random.choice(chars[:30])
+        pct = api.recent_change_pct(char)
+        await ch.send(personality.market_uplink_alert(char["name"], pct, char.get("faction", "other")))
+
+    @tasks.loop(hours=16)
+    async def price_analysis_post(self):
+        if random.random() > 0.60:   # ~60% chance each 16h tick
+            return
+        ch_id = _CH.get("price_analysis_channel_id")
+        if not ch_id:
+            return
+        ch = self.get_channel(ch_id)
+        if not ch:
+            return
+        chars = await api.fetch_all_characters()
+        if not chars:
+            return
+        char = random.choice(chars[:40])
+        pct = api.recent_change_pct(char)
+        await ch.send(personality.price_analysis_response(char, pct))
+
     @weekly_transmission.before_loop
     @random_hot_take.before_loop
+    @lore_post.before_loop
+    @market_uplink_post.before_loop
+    @price_analysis_post.before_loop
     async def _wait_ready(self):
         await self.wait_until_ready()
 
@@ -377,16 +462,16 @@ async def cmd_setup_server(interaction: discord.Interaction):
     ch_chap   = await ensure_channel(cat_pr, "chapter-intel",  read_only(), "Chapter drop alerts and character price impact")
 
     # ── 📊 EXCHANGE FLOOR ──
-    cat_ex  = await ensure_category("📊 EXCHANGE FLOOR")
-    ch_gen  = await ensure_channel(cat_ex, "general",           topic="Grand Line Stock Exchange — trade talk & market discussion")
-    _       = await ensure_channel(cat_ex, "price-analysis",    topic="Character price analysis and predictions")
-    _       = await ensure_channel(cat_ex, "character-requests",topic="Request new characters for the exchange")
+    cat_ex   = await ensure_category("📊 EXCHANGE FLOOR")
+    ch_gen   = await ensure_channel(cat_ex, "general",           topic="Grand Line Stock Exchange — trade talk & market discussion")
+    ch_pa    = await ensure_channel(cat_ex, "price-analysis",    topic="Character price analysis and predictions")
+    _        = await ensure_channel(cat_ex, "character-requests",topic="Request new characters for the exchange")
 
     # ── 🏴‍☠️ GRAND LINE ──
-    cat_gl = await ensure_category("🏴‍☠️ GRAND LINE")
-    _ = await ensure_channel(cat_gl, "one-piece-discussion", topic="General One Piece discussion — spoilers welcome")
-    _ = await ensure_channel(cat_gl, "memes")
-    _ = await ensure_channel(cat_gl, "introduce-yourself",   topic="Tell the crew who you are")
+    cat_gl  = await ensure_category("🏴‍☠️ GRAND LINE")
+    ch_op   = await ensure_channel(cat_gl, "one-piece-discussion", topic="General One Piece discussion — spoilers welcome")
+    ch_mem  = await ensure_channel(cat_gl, "memes")
+    ch_intro= await ensure_channel(cat_gl, "introduce-yourself",   topic="Tell the crew who you are")
 
     # ── 🔒 ADMIN DOCK ──
     cat_admin = await ensure_category("🔒 ADMIN DOCK")
@@ -394,10 +479,17 @@ async def cmd_setup_server(interaction: discord.Interaction):
     _ = await ensure_channel(cat_admin, "admin-notes", private())
 
     # ── Persist key channel IDs to BotKV ──
-    await api.set_kv("announcements_channel_id",  str(ch_ann.id))
-    await api.set_kv("market_uplink_channel_id",  str(ch_uplink.id))
-    await api.set_kv("chapter_intel_channel_id",  str(ch_chap.id))
-    await api.set_kv("general_channel_id",        str(ch_gen.id))
+    await api.set_kv("announcements_channel_id",          str(ch_ann.id))
+    await api.set_kv("market_uplink_channel_id",          str(ch_uplink.id))
+    await api.set_kv("chapter_intel_channel_id",          str(ch_chap.id))
+    await api.set_kv("general_channel_id",                str(ch_gen.id))
+    await api.set_kv("price_analysis_channel_id",         str(ch_pa.id))
+    await api.set_kv("one_piece_discussion_channel_id",   str(ch_op.id))
+    await api.set_kv("memes_channel_id",                  str(ch_mem.id))
+    await api.set_kv("introduce_yourself_channel_id",     str(ch_intro.id))
+
+    # Refresh local cache immediately
+    await _load_ch_cache()
 
     summary = "\n".join(lines) if lines else "All roles and channels already existed."
     msg = (

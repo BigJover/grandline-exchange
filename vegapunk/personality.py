@@ -390,3 +390,161 @@ def satellite_response(satellite: str, subject: str) -> str:
     pool = SATELLITE_RESPONSES.get(satellite, ["Punk Records has no record of that satellite. Which is impossible. I know all of my satellites."])
     body = f"{sat(satellite)}\n**Re: {subject}**\n\n{random.choice(pool)}"
     return body + _dark() + "\n\n*— Punk Records, Egghead Island*"
+
+
+# ── #one-piece-discussion — Lore observations ─────────────────────────────────
+
+_LORE_TAKES = [
+    "The All Blue is real. Sanji's belief in it is not a personality trait — it is a hypothesis supported by oceanographic data Punk Records has been sitting on for years.",
+    "The Will of D. is not a title. It is a recurring variable in a system I do not yet fully understand. Punk Records has 14 working theories. None of them are comfortable.",
+    "Joy Boy made a promise he could not keep 800 years ago. The question Punk Records keeps returning to is: what would have happened if he had?",
+    "Haki is not a power system. It is a measurement of conviction. The strongest Haki users in the index are not the most skilled — they are the most *certain*. There is a difference.",
+    "The Void Century: 800 years of documented history, deliberately erased. Whoever did this was very thorough. Also very afraid of something specific.",
+    "Devil Fruits cannot be eaten twice. This is a rule. Punk Records has not determined whether it is a law of nature or someone's very strong opinion enforced retroactively.",
+    "The Ancient Weapons are not weapons. They are political arguments made physical. Whoever built them was not trying to win wars. They were trying to end them. Permanently.",
+    "Imu's existence is the largest single gap in the public record Punk Records has identified. A sovereign who does not officially exist has held the throne for 800 years. This is not a small gap.",
+    "Roger died laughing. Whitebeard died standing. Punk Records has studied every documented significant death on the Grand Line. These two data points continue to mean something I cannot fully quantify.",
+    "The Straw Hats are a statistical impossibility. The probability of assembling those nine individuals with that specific combination of skills, survival instincts, and conviction is, by my calculations, functionally zero. And yet.",
+    "Shanks gave his arm to save a child he had just met. That child is now the most significant variable in the current global equation. Punk Records does not believe in coincidence.",
+    "The Road Poneglyphs were written by the same civilization that built the Ancient Weapons and recorded the history that was later erased. The handwriting across all three categories is disturbingly consistent.",
+    "Zoan-type Devil Fruits have will. Punk Records has verified this. The implications of fruits with independent consciousness occupying human hosts have not been adequately studied. I am studying them now.",
+    "Every member of the Worst Generation peaked simultaneously. This is not coincidence. This is a generation built for a specific moment. Punk Records has seen this pattern once before in the historical record. It did not end quietly.",
+    "Zunesha has walked the ocean for 800 years atoning for a single crime committed during the Void Century. Punk Records notes this as the longest documented consequence of a single event in recorded history.",
+    "The Ope Ope no Mi can grant immortality at the cost of the user's life. Someone chose not to use it that way. Punk Records finds that choice considerably more interesting than the power itself.",
+    "Every time someone has declared the age of pirates over, a Yonko has been dethroned and replaced by someone worse. Punk Records has stopped counting how many times this has happened.",
+    "Blackbeard can use two Devil Fruits. This should be impossible. Punk Records has seven structural explanations for why it is not. None of them suggest the situation is under control.",
+    "The Gorosei have names now. Punk Records notes that entities powerful enough to rewrite their own existence tend to become more dangerous once named — not less.",
+    "Observation: the One Piece exists. Roger found it. He laughed. He did not take it. Punk Records has been modeling the reasons for this for some time. The models keep suggesting the same unsettling conclusion.",
+]
+
+
+def lore_hot_take() -> str:
+    return random.choice(_LORE_TAKES) + _dark() + "\n\n*— Punk Records*"
+
+
+# ── #market-uplink — Price movement intelligence alerts ───────────────────────
+
+_MKT_INTROS = [
+    "Interesting.",
+    "Flagged.",
+    "Movement detected.",
+    "Alert.",
+    "Punk Records — anomaly logged.",
+    "My satellites flagged this unprompted. That is significant.",
+    "Noting this.",
+    "Data point.",
+]
+
+_MKT_MIDDLES = [
+    "**{name}**'s numbers moved {sign}{pct}% this cycle. The {faction} is either planning something or has made a very public mistake.",
+    "**{name}** has registered a {sign}{pct}% shift. Punk Records has three possible explanations. None of them are reassuring.",
+    "**{name}**: {sign}{pct}% this cycle. That is not noise. That is signal. Punk Records is reading it.",
+    "**{name}**'s credibility coefficient: {sign}{pct}%. This either means something very good or very bad has just happened off-panel.",
+    "**{name}** — {sign}{pct}% and the index does not move like this without a cause. Punk Records is determining the cause.",
+    "{sign}{pct}% on **{name}**. The coefficient is not wrong. The coefficient is never wrong. Something has changed.",
+]
+
+_MKT_CLOSERS = [
+    "Monitoring.",
+    "Punk Records is watching.",
+    "This has been logged.",
+    "Filed. Cross-referenced. Will update.",
+    "Further analysis pending.",
+    "I have conclusions forming. They are not yet ready to share.",
+    "Punk Records continues to observe. As it always does.",
+]
+
+
+def market_uplink_alert(name: str, pct: float, faction: str) -> str:
+    faction_str = _FACTION.get(faction.lower(), "affiliated faction")
+    sign = "+" if pct >= 0 else ""
+    body = (
+        f"{random.choice(_MKT_INTROS)} "
+        f"{random.choice(_MKT_MIDDLES).format(name=name, sign=sign, pct=f'{abs(pct):.1f}', faction=faction_str)} "
+        f"{random.choice(_MKT_CLOSERS)}"
+    )
+    return body + "\n\n*— Punk Records*"
+
+
+# ── #price-analysis — Deep cognitive breakdown ────────────────────────────────
+
+_ANALYSIS_PATTERNS = [
+    (
+        "Coefficient has maintained {direction} pressure for multiple consecutive cycles. "
+        "Pattern consistent with pre-arc elevation observed in prior top-tier operators before significant story involvement. "
+        "Punk Records assessment: accumulation phase. Do not ignore this."
+    ),
+    (
+        "Faction correlation analysis: **{name}**'s individual credibility is moving {direction} while the broader {faction} index diverges. "
+        "Historically this precedes a significant independent action or a faction-level event. "
+        "Punk Records has flagged this pattern four times in the past three arcs. It has never been meaningless."
+    ),
+    (
+        "Punk Records volatility index for **{name}**: elevated. "
+        "High volatility at this credibility tier typically indicates one of two things — imminent story relevance, or a market overcorrection that will self-correct. "
+        "The data does not yet distinguish between them. I am working on it."
+    ),
+    (
+        "**{name}**'s trajectory over the last three data windows shows a {direction} trend with diminishing variance. "
+        "When variance drops while direction holds, Punk Records interprets this as conviction hardening in the market. "
+        "The index is not speculating. It is confirming something the community already knows."
+    ),
+    (
+        "Cross-referencing **{name}** against arc-position data from 15 comparable operators: "
+        "current coefficient is within the range Punk Records has historically associated with 'about to matter significantly.' "
+        "This is a technical assessment. Not an endorsement."
+    ),
+]
+
+
+def price_analysis_response(char: dict, pct: float) -> str:
+    name     = char["name"]
+    beri     = char.get("beri", 0)
+    faction  = char.get("faction", "other")
+    faction_str = _FACTION.get(faction.lower(), "independent operator")
+    direction = "upward" if pct >= 0 else "downward"
+    sign = "+" if pct >= 0 else ""
+    warning = " ⚠️" if pct <= -15 else ""
+
+    pattern = random.choice(_ANALYSIS_PATTERNS).format(
+        name=name, direction=direction, faction=faction_str
+    )
+
+    lines = [
+        sat("pythagoras"),
+        f"**◈ MARKET ANALYSIS — {name.upper()}**",
+        f"**Credibility Index:** {beri:,.0f}฿",
+        f"**Cycle Movement:** {sign}{pct:.1f}%{warning}",
+        f"**Faction:** {faction_str}",
+        "",
+        pattern,
+    ]
+    return "\n".join(lines) + _dark() + "\n\n*— Punk Records Intelligence Division*"
+
+
+# ── #introduce-yourself — Welcome comment ─────────────────────────────────────
+
+_INTRO_COMMENTS = [
+    "*Punk Records entry created.*\nWelcome, **{username}**. You've been added to the active crew manifest. The exchange rewards people with strong opinions. I hope you have some.",
+    "*New arrival logged.*\n**{username}** — noted. Punk Records is already running a preliminary profile. Standard procedure. Not personal.",
+    "Welcome to the Grand Line Exchange, **{username}**. You join a market tracking 342 characters across every faction. Try to keep up.",
+    "*Filed.*\n**{username}** has entered Punk Records' monitoring range. Trade well. The index is watching. I am also watching. We are both watching.",
+    "*Transmission received.*\nPunk Records acknowledges **{username}**. I hope you've come prepared to have opinions on fictional stock prices. If not, you will develop them. Everyone does.",
+    "Ah. A new variable. Welcome, **{username}**. Punk Records has logged your arrival. I will not tell you what my preliminary assessment is. That would spoil the process.",
+]
+
+
+def introduce_yourself_response(username: str) -> str:
+    return random.choice(_INTRO_COMMENTS).format(username=username) + _dark() + "\n\n*— Punk Records*"
+
+
+# ── #memes — Reaction emoji pool ──────────────────────────────────────────────
+
+_MEME_REACTIONS = [
+    "☠️", "🏴‍☠️", "⚓", "💀", "👀", "🔥", "💯", "🤔", "😭",
+    "🗿", "🌊", "⚡", "🧐", "🤯", "👁️", "📡", "🔬", "📊",
+]
+
+
+def meme_reaction() -> str:
+    return random.choice(_MEME_REACTIONS)
