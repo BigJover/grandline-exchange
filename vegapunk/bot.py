@@ -13,6 +13,7 @@ import os
 import random
 import logging
 import threading
+import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 
@@ -113,18 +114,31 @@ class VegapunkBot(discord.Client):
 
     # ── Scheduled tasks ───────────────────────────────────────────────────────
 
-    @tasks.loop(hours=168)  # once per week
+    @tasks.loop(hours=12)  # check twice daily; actual send is gated to once per ISO week
     async def weekly_transmission(self):
+        now = datetime.datetime.utcnow()
+        iso = now.isocalendar()
+        current_week = f"{iso[0]}-W{iso[1]:02d}"
+
+        last_week = await api.get_kv("last_tx_week")
+        if last_week == current_week:
+            return  # already fired this week — skip
+
         chars = await api.fetch_all_characters()
         movers = sorted(
             [{"name": c["name"], "beri": c["beri"], "change_pct": api.recent_change_pct(c)} for c in chars],
             key=lambda x: x["change_pct"], reverse=True,
         )
         message = personality.transmission_response(movers)
+        sent = False
         for ch_id in TRANSMISSION_CHS:
             ch = self.get_channel(ch_id)
             if ch:
                 await ch.send(message)
+                sent = True
+        if sent:
+            await api.set_kv("last_tx_week", current_week)
+            log.info("Weekly transmission sent for %s", current_week)
 
     @tasks.loop(hours=6)
     async def random_hot_take(self):

@@ -90,6 +90,42 @@ def recent_change_pct(char: dict) -> float:
     return change_pct(char)
 
 
+async def get_kv(key: str) -> str:
+    """Read a persistent key from the site's bot KV store."""
+    if not ADMIN_SECRET:
+        return ""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{SITE_URL}/admin/kv/{key}",
+                headers={"X-Admin-Secret": ADMIN_SECRET},
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json(content_type=None)
+                    return data.get("value", "")
+    except Exception:
+        pass
+    return ""
+
+
+async def set_kv(key: str, value: str) -> bool:
+    """Write a persistent key to the site's bot KV store."""
+    if not ADMIN_SECRET:
+        return False
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{SITE_URL}/admin/kv/{key}",
+                json={"value": value},
+                headers={"X-Admin-Secret": ADMIN_SECRET},
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                return resp.status == 200
+    except Exception:
+        return False
+
+
 async def ingest_message(channel: str, author: str, content: str) -> bool:
     """Forward a Discord message to /admin/discord-ingest for character intelligence."""
     if not ADMIN_SECRET or not content.strip():

@@ -279,3 +279,11 @@ class ProposedPriceChange(Base):
     reason = Column(String, default="")
     status = Column(String, default="pending")   # pending | approved | dismissed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BotKV(Base):
+    """Persistent key-value store for the Vegapunk bot (survives restarts)."""
+    __tablename__ = "bot_kv"
+
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False, default="")

@@ -1313,3 +1313,34 @@ def sync_character_meta(
     db.commit()
     invalidate_char_cache()
     return {"status": "ok", "updated": len(updated), "skipped": len(skipped), "updated_names": updated}
+
+
+# ── Bot key-value store ────────────────────────────────────────────────────────
+
+@router.get("/kv/{key}")
+def get_kv(
+    key: str,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    _check_secret(x_admin_secret)
+    row = db.query(models.BotKV).filter(models.BotKV.key == key).first()
+    return {"key": key, "value": row.value if row else ""}
+
+
+@router.post("/kv/{key}")
+def set_kv(
+    key: str,
+    payload: dict,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    _check_secret(x_admin_secret)
+    value = str(payload.get("value", ""))
+    row = db.query(models.BotKV).filter(models.BotKV.key == key).first()
+    if row:
+        row.value = value
+    else:
+        db.add(models.BotKV(key=key, value=value))
+    db.commit()
+    return {"key": key, "value": value}
