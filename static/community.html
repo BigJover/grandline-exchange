@@ -138,8 +138,46 @@
     .scope-btn.active { border-color:var(--punk2); color:var(--punk2); background:rgba(41,182,246,0.08); }
     .scope-label { font-family:'Orbitron',sans-serif; font-size:0.48rem; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-right:6px; }
 
-    /* ── Two-column body ── */
-    .community-body { display:grid; grid-template-columns:1fr 340px; gap:28px; align-items:start; }
+    /* ── Intel hero panel ── */
+    .intel-hero {
+      background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px;
+      overflow:hidden; box-shadow:0 4px 48px rgba(0,0,0,0.55), 0 0 60px rgba(88,101,242,0.05);
+      margin-bottom:32px;
+    }
+    .intel-hero .discord-header { padding:16px 22px; }
+    .intel-hero .discord-title  { font-size:0.8rem; letter-spacing:3px; }
+    .intel-tag {
+      font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:700; letter-spacing:2px;
+      padding:3px 10px; border-radius:3px; background:rgba(88,101,242,0.14); color:#7983f5;
+      border:1px solid rgba(88,101,242,0.35); text-transform:uppercase;
+    }
+    .intel-frame iframe {
+      display:block; width:100%; height:700px; border:none;
+      border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+    }
+    .intel-footer {
+      display:flex; align-items:center; gap:16px; padding:12px 20px; flex-wrap:wrap;
+    }
+    .intel-footer .discord-join-btn { display:inline-block; width:auto; margin:0; padding:8px 22px; white-space:nowrap; }
+    .intel-footer-text { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-left:auto; }
+
+    /* ── Two-column body (comments + small intel feed) ── */
+    .community-body { display:grid; grid-template-columns:1fr 300px; gap:28px; align-items:start; }
+
+    /* ── Intel sidebar ── */
+    .intel-sidebar {
+      position:sticky; top:100px;
+      background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px;
+      overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.45);
+      max-height:calc(100vh - 120px); display:flex; flex-direction:column;
+    }
+    .intel-sidebar-hdr {
+      background:linear-gradient(135deg,#1a0d2e 0%,#0f0a1e 100%);
+      border-bottom:1px solid var(--border); padding:12px 16px;
+      display:flex; align-items:center; gap:10px; flex-shrink:0;
+    }
+    .intel-sidebar-title { font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:700; color:var(--text); letter-spacing:2px; text-transform:uppercase; }
+    .intel-sidebar-body  { overflow-y:auto; flex:1; }
 
     /* ── Comment feed ── */
     .feed { display:flex; flex-direction:column; gap:12px; }
@@ -179,7 +217,7 @@
     .rank-2 { background:rgba(180,180,180,0.12); color:#aaa; border:1px solid rgba(180,180,180,0.3); }
     .rank-3 { background:rgba(180,100,40,0.12); color:#c87a3a; border:1px solid rgba(180,100,40,0.3); }
 
-    /* ── Discord panel ── */
+    /* ── Discord shared elements ── */
     .discord-event { padding:10px 14px; border-bottom:1px solid var(--border); font-family:'Share Tech Mono',monospace; font-size:0.68rem; line-height:1.5; }
     .discord-event:last-child { border-bottom:none; }
     .discord-event-author { color:var(--gold); font-weight:700; margin-bottom:2px; }
@@ -189,11 +227,6 @@
     .discord-event-time { color:var(--text-dim); font-size:0.58rem; margin-top:3px; }
     .discord-join-btn { display:block; width:calc(100% - 36px); margin:14px 18px; padding:9px; background:transparent; border:1px solid var(--gold); border-radius:6px; color:var(--gold); font-family:'Orbitron',sans-serif; font-size:0.6rem; letter-spacing:1px; cursor:pointer; text-align:center; text-decoration:none; transition:background 0.2s; }
     .discord-join-btn:hover { background:rgba(255,200,0,0.08); }
-    .discord-panel {
-      position:sticky; top:100px;
-      background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px;
-      overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.45);
-    }
     .discord-header {
       background:linear-gradient(135deg, #1a0d2e 0%, #0f0a1e 100%);
       border-bottom:1px solid var(--border); padding:14px 18px;
@@ -201,42 +234,12 @@
     }
     .discord-title { font-family:'Orbitron',sans-serif; font-size:0.62rem; font-weight:700; color:var(--text); letter-spacing:2px; text-transform:uppercase; }
     .discord-dot { width:8px; height:8px; border-radius:50%; background:var(--text-dim); margin-left:auto; }
-    .discord-body { padding:24px 18px; display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center; }
-    .discord-icon {
-      width:64px; height:64px; border-radius:50%;
-      background:linear-gradient(135deg, #5865F2 0%, #7983f5 100%);
-      display:flex; align-items:center; justify-content:center;
-      font-size:1.8rem; box-shadow:0 0 30px rgba(88,101,242,0.35);
-      opacity:0.7;
-    }
-    .discord-coming { font-family:'Orbitron',sans-serif; font-size:0.68rem; font-weight:700; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; }
-    .discord-desc { font-family:'Share Tech Mono',monospace; font-size:0.72rem; color:var(--text-dim); line-height:1.65; }
-    .discord-desc strong { color:var(--text); }
-    .discord-placeholder-btn {
-      width:100%; background:rgba(88,101,242,0.12); border:1px solid rgba(88,101,242,0.35);
-      border-radius:6px; color:rgba(88,101,242,0.7); cursor:default;
-      font-family:'Orbitron',sans-serif; font-size:0.56rem; font-weight:700;
-      letter-spacing:1.5px; padding:10px; text-transform:uppercase; opacity:0.6;
-    }
-    .discord-footer { padding:12px 18px; border-top:1px solid var(--border); font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:var(--text-dim); text-align:center; }
-
-    /* ── Live chat section ── */
-    .chat-section { margin-top:40px; }
-    .chat-section-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-    .chat-section-title { font-family:'Orbitron',sans-serif; font-size:0.9rem; font-weight:700; color:var(--text); letter-spacing:2px; text-transform:uppercase; }
-    .chat-section-tag { font-family:'Orbitron',sans-serif; font-size:0.44rem; font-weight:700; letter-spacing:2px; padding:3px 10px; border-radius:3px; background:rgba(88,101,242,0.14); color:#7983f5; border:1px solid rgba(88,101,242,0.35); text-transform:uppercase; }
-    .chat-section-sub { font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:var(--text-dim); margin-left:auto; }
-    .chat-frame-wrap {
-      border:1px solid rgba(88,101,242,0.3); border-radius:12px; overflow:hidden;
-      box-shadow:0 4px 32px rgba(0,0,0,0.5), 0 0 40px rgba(88,101,242,0.06);
-      background:#0d0b1a;
-    }
-    .chat-frame-wrap iframe { display:block; width:100%; height:580px; border:none; }
 
     /* ── Mobile ── */
     @media(max-width:860px){
       .community-body { grid-template-columns:1fr; }
-      .discord-panel { position:static; }
+      .intel-sidebar { position:static; max-height:none; }
+      .intel-frame iframe { height:500px; }
     }
     @media(max-width:600px){
       .page-wrap { padding:20px 14px 40px; }
@@ -343,11 +346,32 @@
 <div class="page-wrap">
   <div class="page-hero">
     <div class="page-title">Grand Line <span>Community</span></div>
-    <div class="page-sub">The best takes from across the exchange — sorted by community votes. Drop your analysis on any character card, then come here to see what rose to the top.</div>
+    <div class="page-sub">Live server chat, community intel, and the best takes from the exchange.</div>
   </div>
 
+  <!-- ── Hero: Punk Records Intel + Widgetbot ── -->
+  <div class="intel-hero">
+    <div class="discord-header">
+      <div class="discord-title">◈ Punk Records Intel</div>
+      <span class="intel-tag">Punk Records Node</span>
+      <div class="discord-dot" id="discord-dot" style="background:var(--green,#00d084)"></div>
+    </div>
+    <div class="intel-frame">
+      <iframe
+        src="https://e.widgetbot.io/channels/1505001269776093274/1505001271382376483"
+        allow="clipboard-write; fullscreen"
+        title="Grand Line Exchange — Live Discord Chat">
+      </iframe>
+    </div>
+    <div class="intel-footer">
+      <a class="discord-join-btn" href="https://discord.gg/uqz5EXeVVD" target="_blank" rel="noopener">◈ Join the Server</a>
+      <span class="intel-footer-text">Live character intelligence from the community</span>
+    </div>
+  </div>
+
+  <!-- ── Community takes ── -->
   <div class="scope-bar">
-    <span class="scope-label">Showing</span>
+    <span class="scope-label">Top Takes</span>
     <button class="scope-btn active" id="btn-week" onclick="setScope('week')">This Week</button>
     <button class="scope-btn" id="btn-all"  onclick="setScope('all')">All Time</button>
   </div>
@@ -357,33 +381,15 @@
       <div class="feed-empty">Loading…</div>
     </div>
 
-    <aside class="discord-panel">
-      <div class="discord-header">
-        <div class="discord-title">◈ Punk Records Intel</div>
-        <div class="discord-dot" id="discord-dot" style="background:var(--text-dim)"></div>
+    <aside class="intel-sidebar">
+      <div class="intel-sidebar-hdr">
+        <div class="intel-sidebar-title">◈ Character Intel</div>
+        <div class="discord-dot" id="discord-dot-sidebar" style="background:var(--text-dim)"></div>
       </div>
-      <div id="discord-feed-body">
+      <div class="intel-sidebar-body" id="discord-feed-body">
         <div class="feed-empty" style="padding:30px 0;font-size:0.72rem;">Loading intel…</div>
       </div>
-      <a class="discord-join-btn" href="https://discord.gg/uqz5EXeVVD" id="discord-join-link" target="_blank" rel="noopener">◈ Join the Server</a>
-      <div class="discord-footer">Live character intelligence from the community</div>
     </aside>
-  </div>
-
-  <!-- ── Live Discord Chat ── -->
-  <div class="chat-section">
-    <div class="chat-section-header">
-      <div class="chat-section-title">◈ Live Chat</div>
-      <span class="chat-section-tag">Punk Records Node</span>
-      <span class="chat-section-sub">Powered by Discord · <a href="https://discord.gg/uqz5EXeVVD" target="_blank" rel="noopener" style="color:var(--punk2);text-decoration:none;">Join the server ↗</a></span>
-    </div>
-    <div class="chat-frame-wrap">
-      <iframe
-        src="https://e.widgetbot.io/channels/1505001269776093274/1505001271382376483"
-        allow="clipboard-write; fullscreen"
-        title="Grand Line Exchange — Live Discord Chat">
-      </iframe>
-    </div>
   </div>
 </div>
 
@@ -659,7 +665,7 @@ async function init(){
 // ── Discord intel feed ────────────────────────────────────────────────────────
 async function loadDiscordFeed(){
   const body = document.getElementById('discord-feed-body');
-  const dot  = document.getElementById('discord-dot');
+  const dot  = document.getElementById('discord-dot-sidebar');
   try {
     const res = await fetch(API + '/community/discord-feed?limit=15');
     if(!res.ok) throw new Error(res.status);
