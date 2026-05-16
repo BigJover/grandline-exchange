@@ -44,6 +44,7 @@ class VegapunkBot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = True
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
 
@@ -67,6 +68,17 @@ class VegapunkBot(discord.Client):
             )
         )
         log.info("Vegapunk connected as %s", self.user)
+
+    async def on_member_join(self, member: discord.Member):
+        role = discord.utils.get(member.guild.roles, name="NewKama")
+        if role:
+            try:
+                await member.add_roles(role, reason="Auto-assigned on join")
+                log.info("Assigned NewKama role to %s", member)
+            except Exception as e:
+                log.warning("Could not assign NewKama role to %s: %s", member, e)
+        else:
+            log.warning("NewKama role not found in guild %s", member.guild.id)
 
     async def on_interaction(self, interaction: discord.Interaction):
         log.info("Interaction received: type=%s name=%s user=%s",
