@@ -12,6 +12,8 @@ Environment variables:
 import os
 import random
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -241,9 +243,25 @@ async def cmd_satellite(interaction: discord.Interaction, satellite: str, subjec
     await interaction.response.send_message(personality.satellite_response(satellite, subject))
 
 
+# ── Health check server (keeps Railway happy) ─────────────────────────────────
+
+class _Health(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Punk Records online.")
+    def log_message(self, *args):
+        pass  # suppress access logs
+
+def _start_health_server():
+    port = int(os.getenv("PORT", "8080"))
+    HTTPServer(("0.0.0.0", port), _Health).serve_forever()
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     if not TOKEN:
         raise SystemExit("VEGAPUNK_BOT_TOKEN is not set.")
+    threading.Thread(target=_start_health_server, daemon=True).start()
     client.run(TOKEN)
