@@ -159,7 +159,16 @@ class VegapunkBot(discord.Client):
         char = random.choice(chars[:30])
         pct = api.recent_change_pct(char)
         message = personality.hot_take(char["name"], pct, char.get("faction", "other"))
-        for ch_id in TRANSMISSION_CHS:
+
+        # Hot takes go to #general (set by /setup-server), fallback to env var
+        target_ids: set[int] = set()
+        kv_ch = await api.get_kv("general_channel_id")
+        if kv_ch:
+            target_ids.add(int(kv_ch))
+        else:
+            target_ids.update(TRANSMISSION_CHS)
+
+        for ch_id in target_ids:
             ch = self.get_channel(ch_id)
             if ch:
                 await ch.send(message)
