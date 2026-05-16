@@ -68,6 +68,11 @@ class VegapunkBot(discord.Client):
         )
         log.info("Vegapunk connected as %s", self.user)
 
+    async def on_interaction(self, interaction: discord.Interaction):
+        log.info("Interaction received: type=%s name=%s user=%s",
+                 interaction.type, getattr(interaction, 'command', None) and interaction.command.name, interaction.user)
+        await super().on_interaction(interaction)
+
     async def on_message(self, message: discord.Message):
         if message.author.bot:
             return
