@@ -1250,3 +1250,46 @@ def approve_all_proposed_prices(
     db.commit()
     invalidate_char_cache()
     return {"status": "ok", "applied": applied, "total": len(proposals)}
+
+
+# ── Character meta sync ────────────────────────────────────────────────────────
+
+@router.post("/sync-character-meta")
+def sync_character_meta(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Read data/character_meta.json and patch bio, events, sbs, and related
+    for every character in the DB that has a matching name entry in the file.
+    Does NOT touch beri, price_history, or any financial fields.
+    """
+    _check_secret(x_admin_secret)
+
+    meta_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "character_meta.json")
+    meta_path = os.path.normpath(meta_path)
+
+    try:
+        with open(meta_path) as f:
+            meta: dict = _json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="character_meta.json not found")
+
+    chars = db.query(models.Character).all()
+    updated = []
+    skipped = []
+
+    for char in chars:
+        entry = meta.get(char.name)
+        if not entry:
+            skipped.append(char.name)
+            continue
+        char.bio     = entry.get("bio", char.bio or "")
+        char.events  = entry.get("events", char.events or "")
+        char.sbs     = entry.get("sbs", char.sbs or [])
+        char.related = entry.get("related", char.related or [])
+        updated.append(char.name)
+
+    db.commit()
+    invalidate_char_cache()
+    return {"status": "ok", "updated": len(updated), "skipped": len(skipped), "updated_names": updated}
