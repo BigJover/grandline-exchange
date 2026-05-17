@@ -3,7 +3,8 @@ Discord notifications from the site — chapter drops, price alerts, character r
 Uses Discord webhooks (no bot required, fire-and-forget HTTP POST).
 
 Env vars:
-  DISCORD_CHAPTER_WEBHOOK          — webhook URL for chapter drop announcements
+  DISCORD_CHAPTER_WEBHOOK           — webhook URL for #chapter-intel (detailed analysis)
+  DISCORD_ANNOUNCEMENTS_WEBHOOK     — webhook URL for #announcements (chapter drop @everyone alert)
   DISCORD_CHARACTER_REQUEST_WEBHOOK — webhook URL for character request channel
 """
 import os
@@ -12,9 +13,10 @@ import random
 import urllib.request
 import urllib.error
 
-CHAPTER_WEBHOOK   = os.getenv("DISCORD_CHAPTER_WEBHOOK", "")
-REQUEST_WEBHOOK   = os.getenv("DISCORD_CHARACTER_REQUEST_WEBHOOK", "")
-SITE_URL          = os.getenv("SITE_URL", "").rstrip("/")
+CHAPTER_WEBHOOK        = os.getenv("DISCORD_CHAPTER_WEBHOOK", "")
+ANNOUNCEMENTS_WEBHOOK  = os.getenv("DISCORD_ANNOUNCEMENTS_WEBHOOK", "")
+REQUEST_WEBHOOK        = os.getenv("DISCORD_CHARACTER_REQUEST_WEBHOOK", "")
+SITE_URL               = os.getenv("SITE_URL", "").rstrip("/")
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -64,12 +66,11 @@ _CHAPTER_DARK = [
 
 def announce_chapter_drop(chapter_num: int, characters: list[str], proposals: int) -> bool:
     """
-    Fire a @everyone chapter drop announcement to the chapter webhook.
+    Fire a chapter drop alert:
+    - #announcements: @everyone community alert with site link
+    - #chapter-intel: detailed character detection breakdown for analysis
     characters — top detected character names (up to 8 shown).
     """
-    if not CHAPTER_WEBHOOK:
-        return False
-
     char_list = ""
     if characters:
         top = characters[:8]
@@ -80,20 +81,36 @@ def announce_chapter_drop(chapter_num: int, characters: list[str], proposals: in
     site_link = f"\n🔗 {SITE_URL}" if SITE_URL else ""
     dark = random.choice(_CHAPTER_DARK) if random.random() < 0.40 else ""
 
-    content = (
-        f"@everyone\n"
-        f"📡 **PUNK RECORDS — CHAPTER {chapter_num} ALERT**\n\n"
+    # ── #announcements — simple @everyone alert ───────────────────────────────
+    if ANNOUNCEMENTS_WEBHOOK:
+        announce_content = (
+            f"@everyone\n"
+            f"📡 **PUNK RECORDS — CHAPTER {chapter_num} ALERT**\n\n"
+            f"{random.choice(_CHAPTER_OPENERS)}"
+            f"{site_link}"
+            f"\n\n*— Punk Records, Egghead Island*"
+        )
+        _post_webhook(ANNOUNCEMENTS_WEBHOOK, {
+            "content": announce_content,
+            "allowed_mentions": {"parse": ["everyone"]},
+            "username": "Vegapunk — Punk Records",
+        })
+
+    # ── #chapter-intel — detailed character breakdown ─────────────────────────
+    if not CHAPTER_WEBHOOK:
+        return bool(ANNOUNCEMENTS_WEBHOOK)
+
+    intel_content = (
+        f"📡 **Ch.{chapter_num} — Intel Uplink**\n\n"
         f"{random.choice(_CHAPTER_OPENERS)}"
         f"{char_list}\n\n"
         f"{random.choice(_CHAPTER_CLOSERS)}"
         f"\n{dark}"
-        f"{site_link}"
+        f"\n*Price proposals queued for admin review.*"
         f"\n\n*— Punk Records, Egghead Island*"
     )
-
     payload = {
-        "content": content,
-        "allowed_mentions": {"parse": ["everyone"]},
+        "content": intel_content,
         "username": "Vegapunk — Punk Records",
     }
     return _post_webhook(CHAPTER_WEBHOOK, payload)

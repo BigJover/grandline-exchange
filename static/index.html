@@ -4162,6 +4162,18 @@ init();
       }).join('');
     }
   }).catch(function(){});
+  // Auto-update Last Uplink from pipeline-detected chapter (no admin action needed)
+  fetch('/public/latest-chapter').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+    if(!d || !d.chapter) return;
+    var uplink = document.getElementById('stat-uplink');
+    var label  = document.getElementById('tx-label');
+    var current = parseInt((uplink ? uplink.textContent : '').replace('Ch. ','')) || 0;
+    if(d.chapter > current){
+      if(uplink) uplink.textContent = 'Ch. ' + d.chapter;
+      if(label && label.textContent.indexOf('Uplink:') === 0)
+        label.textContent = 'Uplink: Ch.' + d.chapter + ' \u25c8 Elbaf Node Active';
+    }
+  }).catch(function(){});
 })();
 
 // ── Prediction toast ───────────────────────────────────────────────────────

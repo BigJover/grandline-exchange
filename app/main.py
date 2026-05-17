@@ -598,6 +598,15 @@ def get_transmission(db: Session = Depends(get_db)):
     }
 
 
+@app.get("/public/latest-chapter")
+def get_latest_chapter(db: Session = Depends(get_db)):
+    """Returns the highest chapter number detected by the pipeline (no auth required).
+    Used by the frontend to auto-update 'Last Uplink' without a manual HTML edit."""
+    from sqlalchemy import func as _func
+    max_ch = db.query(_func.max(models.Chapter.number)).scalar()
+    return {"chapter": max_ch}
+
+
 @app.get("/panel")
 def admin_panel(request: Request, db: Session = Depends(get_db)):
     """Serve admin panel — only to logged-in admin users."""
