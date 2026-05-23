@@ -578,6 +578,14 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     except Exception as e:
         print(f"[ChapterPipeline] Discord notify failed (non-fatal): {e}")
 
+    # ── 11. Beri drop — fires on chapter release instead of fixed weekly cron ──
+    try:
+        from app.scheduler import run_beri_drop
+        run_beri_drop()
+        print(f"[ChapterPipeline] Beri drop fired for Ch.{chapter_num}")
+    except Exception as e:
+        print(f"[ChapterPipeline] Beri drop failed (non-fatal): {e}")
+
     sources_str = ", ".join(sources_used) if sources_used else "manual"
     print(f"[ChapterPipeline] Ch.{chapter_num} — {proposals_created} proposals | sources: {sources_str}")
     return {
