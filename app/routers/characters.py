@@ -9,8 +9,8 @@ from app import models, schemas
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
-_CACHE_300  = {"Cache-Control": "public, max-age=300"}
-_CHAR_CACHE_TTL = 300  # 5 min — prices stay fresh via WebSocket on index.html
+_CACHE_300  = {"Cache-Control": "private, max-age=30"}
+_CHAR_CACHE_TTL = 30  # 30s — keeps browser cache short so price updates land quickly
 _char_cache: dict        = {"data": None, "ts": 0.0}
 _ticker_cache: dict      = {"data": None, "ts": 0.0}
 _detail_cache: dict[int, tuple] = {}   # id → (payload_dict, timestamp)
