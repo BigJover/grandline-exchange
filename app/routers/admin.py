@@ -1267,6 +1267,11 @@ def approve_all_proposed_prices(
                 big_movers.append((char.name, signed, char.beri))
             if not chapter_num:
                 chapter_num = proposal.chapter_number
+            # Append chapter event to Cognitive Analysis
+            arrow = "▲" if proposal.direction == "up" else "▼"
+            ch_label = f"Ch.{proposal.chapter_number}" if proposal.chapter_number else "Latest chapter"
+            event_line = f"{ch_label} — {arrow} {proposal.pct_change:.1f}% | {proposal.reason or 'chapter signal'}"
+            char.events = (char.events + "\n" + event_line).strip() if char.events else event_line
         else:
             proposal.status = "dismissed"
 
