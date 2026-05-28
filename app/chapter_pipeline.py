@@ -312,6 +312,8 @@ def _reddit_pulse_chars(chapter_num: int, char_index: dict) -> dict:
     pulse_sources = [
         "https://www.reddit.com/r/OnePieceLeaks/hot.json?limit=25",
         "https://www.reddit.com/r/OnePieceSpoilers/hot.json?limit=25",
+        f"https://www.reddit.com/r/OnePieceLeaks/search.json?q={chapter_num}&sort=new&t=week&limit=15&restrict_sr=1",
+        f"https://www.reddit.com/r/OnePieceSpoilers/search.json?q={chapter_num}&sort=new&t=week&limit=15&restrict_sr=1",
         f"https://www.reddit.com/r/OnePiece/search.json?q=chapter+{chapter_num}&sort=top&t=week&limit=25&restrict_sr=1",
     ]
     scores: dict = {}
@@ -321,7 +323,7 @@ def _reddit_pulse_chars(chapter_num: int, char_index: dict) -> dict:
             continue
         for child in feed.get("data", {}).get("children", []):
             p = child.get("data", {})
-            text = p.get("title", "") + " " + (p.get("selftext", "") or "")[:500]
+            text = p.get("title", "") + " " + (p.get("selftext", "") or "")[:3000]
             weight = max(1, p.get("score", 1))
             for name in _extract_chars(text, char_index):
                 scores[name] = scores.get(name, 0) + weight
@@ -330,7 +332,7 @@ def _reddit_pulse_chars(chapter_num: int, char_index: dict) -> dict:
 
 # ── Pipeline constants ────────────────────────────────────────────────────────
 
-_MENTION_FLOOR = 3
+_MENTION_FLOOR = 1
 _MIN_PCT       = 1.0
 _BERI_FLOOR    = 100_000
 _RANK_PCT      = [7.0, 5.0, 3.5, 3.5, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0]
