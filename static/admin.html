@@ -240,37 +240,6 @@
     </div>
 
 
-    <!-- Publish Transmission -->
-    <div class="card" style="margin-top:16px">
-      <div class="card-title">📡 PUBLISH TRANSMISSION</div>
-      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:12px">
-        Updates the TRANSMISSION dropdown on all site pages instantly. Use Reddit Pulse data above to inform the summary and movers.
-      </div>
-      <div class="two-col" style="gap:8px">
-        <div class="fr"><label>Chapter Number</label><input type="number" id="tx-ch" placeholder="1183"></div>
-        <div class="fr"><label>Uplink Label</label><input type="text" id="tx-lbl" placeholder="Uplink: Ch.1183 ◈ Elbaf Node Active"></div>
-      </div>
-      <div class="fr"><label>Summary</label><textarea id="tx-summary" rows="3" placeholder="Write a brief market summary for this chapter…"></textarea></div>
-      <div class="fr">
-        <label>Movers <span style="font-weight:normal;text-transform:none;letter-spacing:0">(▲ up / ▼ down / ★ new)</span></label>
-        <div class="opt-list" id="tx-mover-list">
-          <div class="opt-row">
-            <input type="text" placeholder="Character name" style="flex:2">
-            <select style="flex:1;min-width:80px">
-              <option value="up">▲ up</option>
-              <option value="down">▼ down</option>
-              <option value="new">★ new</option>
-            </select>
-            <button class="opt-del" onclick="delMover(this)">✕</button>
-          </div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="addMover()" style="align-self:flex-start;margin-top:4px">+ Add Mover</button>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn btn-ghost" onclick="generateFromData()">Generate from Data</button>
-        <button class="btn btn-punk" onclick="publishTransmission()">PUBLISH</button>
-      </div>
-    </div>
 
   </div>
 
@@ -896,111 +865,7 @@ async function deleteUser(username) {
   } catch(e) { toast('Failed: ' + e.message, true); }
 }
 
-// ── Publish Transmission ──────────────────────────────────────────────────────
-function addMover() {
-  const list = document.getElementById('tx-mover-list');
-  const row = document.createElement('div');
-  row.className = 'opt-row';
-  row.innerHTML = '<input type="text" placeholder="Character name" style="flex:2">' +
-    '<select style="flex:1;min-width:80px"><option value="up">▲ up</option><option value="down">▼ down</option><option value="new">★ new</option></select>' +
-    '<button class="opt-del" onclick="delMover(this)">✕</button>';
-  list.appendChild(row);
-}
-
-function delMover(btn) {
-  const list = document.getElementById('tx-mover-list');
-  if (list.children.length <= 1) { toast('Need at least one mover', true); return; }
-  btn.closest('.opt-row').remove();
-}
-
 let _lastPulseChars = [];
-let _lastGenerateContext = [];   // reddit_context from the last generate call
-
-function prefillFromPulse() {
-  if (!_lastPulseChars.length) { toast('Fetch Reddit Pulse first', true); return; }
-  const top = _lastPulseChars.slice(0, 6);
-  const list = document.getElementById('tx-mover-list');
-  list.innerHTML = top.map(function(c){
-    return '<div class="opt-row">' +
-      '<input type="text" value="' + esc(c.name) + '" style="flex:2">' +
-      '<select style="flex:1;min-width:80px"><option value="up">▲ up</option><option value="down">▼ down</option><option value="new">★ new</option></select>' +
-      '<button class="opt-del" onclick="delMover(this)">✕</button></div>';
-  }).join('');
-  toast('Pre-filled ' + top.length + ' movers from Reddit Pulse');
-}
-
-async function generateFromData() {
-  const btn = document.querySelector('[onclick="generateFromData()"]');
-  if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
-  try {
-    const d = await api('GET', '/admin/transmission/generate');
-    // Fill chapter number
-    const chEl = document.getElementById('tx-ch');
-    if (d.chapter_number) chEl.value = d.chapter_number;
-    // Fill uplink label
-    document.getElementById('tx-lbl').value = d.uplink_label || '';
-    // Fill summary
-    document.getElementById('tx-summary').value = d.summary || '';
-    // Rebuild movers list
-    const dirLabel = { up: '▲ up', down: '▼ down', new: '★ new' };
-    const list = document.getElementById('tx-mover-list');
-    if (d.movers && d.movers.length) {
-      list.innerHTML = d.movers.map(function(m){
-        const dir = m.direction || 'up';
-        return '<div class="opt-row">' +
-          '<input type="text" value="' + esc(m.name) + '" style="flex:2">' +
-          '<select style="flex:1;min-width:80px">' +
-            ['up','down','new'].map(function(v){
-              return '<option value="' + v + '"' + (v === dir ? ' selected' : '') + '>' + dirLabel[v] + '</option>';
-            }).join('') +
-          '</select>' +
-          '<button class="opt-del" onclick="delMover(this)">✕</button></div>';
-      }).join('');
-    }
-    // Store reddit_context for publish call
-    _lastGenerateContext = d.reddit_context || [];
-    // Show source summary
-    const src = d.sources || {};
-    toast('Generated from ' + (src.reddit_posts || 0) + ' Reddit posts · ' +
-          (src.discord_events || 0) + ' Discord events · ' +
-          (src.site_signal_chars || 0) + ' traded chars');
-  } catch(e) {
-    toast('Generate failed: ' + e.message, true);
-  } finally {
-    if (btn) { btn.textContent = 'Generate from Data'; btn.disabled = false; }
-  }
-}
-
-async function publishTransmission() {
-  const ch   = parseInt(document.getElementById('tx-ch').value);
-  const lbl  = document.getElementById('tx-lbl').value.trim();
-  const summ = document.getElementById('tx-summary').value.trim();
-  if (!ch || !lbl || !summ) { toast('Chapter number, label, and summary required', true); return; }
-
-  const rows  = document.querySelectorAll('#tx-mover-list .opt-row');
-  const movers = Array.from(rows).map(function(row){
-    const name = row.querySelector('input').value.trim();
-    const dir  = row.querySelector('select').value;
-    return name ? { name: name, direction: dir } : null;
-  }).filter(Boolean);
-
-  if (!movers.length) { toast('Add at least one mover', true); return; }
-  if (!confirm('Publish Ch.' + ch + ' transmission? This updates all site pages immediately.')) return;
-
-  try {
-    const d = await api('POST', '/admin/transmission/publish', {
-      chapter_number: ch,
-      uplink_label: lbl,
-      summary: summ,
-      movers: movers,
-      reddit_context: _lastGenerateContext.length
-        ? _lastGenerateContext
-        : _lastPulseChars.slice(0, 10).map(function(c){ return c.name; }),
-    });
-    toast('Transmission published — Ch.' + d.chapter_number);
-    _lastGenerateContext = [];
-  } catch(e) { toast('Publish failed: ' + e.message, true); }
-}
 
 // ── Grant / Revoke Admin ──────────────────────────────────────────────────────
 async function doGrantAdmin() {

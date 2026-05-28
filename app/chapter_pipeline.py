@@ -578,6 +578,33 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     except Exception as e:
         print(f"[ChapterPipeline] Discord notify failed (non-fatal): {e}")
 
+    # ── 10b. Auto-publish transmission ───────────────────────────────────────
+    try:
+        movers = [
+            {"name": e["name"], "direction": "up" if e["net_buy"] >= 0 else "down"}
+            for e in top[:10]
+        ]
+        up_names   = [m["name"] for m in movers if m["direction"] == "up"][:3]
+        down_names = [m["name"] for m in movers if m["direction"] == "down"][:2]
+        parts = []
+        if up_names:
+            parts.append(f"▲ {', '.join(up_names)}")
+        if down_names:
+            parts.append(f"▼ {', '.join(down_names)}")
+        summary = f"Ch.{chapter_num} price proposals generated. " + ((" · ".join(parts)) if parts else "No strong movers this chapter.")
+        tx = models.ChapterTransmission(
+            chapter_number=chapter_num,
+            uplink_label=f"Uplink: Ch.{chapter_num} ◈ Chapter Drop",
+            summary=summary,
+            movers=movers,
+            reddit_context=[best_url] if best_url else [],
+        )
+        db.add(tx)
+        db.commit()
+        print(f"[ChapterPipeline] Transmission auto-published for Ch.{chapter_num}")
+    except Exception as e:
+        print(f"[ChapterPipeline] Transmission publish failed (non-fatal): {e}")
+
     # ── 11. Beri drop — fires on chapter release instead of fixed weekly cron ──
     try:
         from app.scheduler import run_beri_drop
