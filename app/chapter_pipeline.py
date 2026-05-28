@@ -409,6 +409,12 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
         }
 
     # ── 3. Create or update Chapter record ───────────────────────────────────
+    # Always clear pending proposals from older chapters — they're stale
+    db.query(models.ProposedPriceChange).filter(
+        models.ProposedPriceChange.chapter_number < chapter_num,
+        models.ProposedPriceChange.status == "pending",
+    ).delete(synchronize_session=False)
+
     if not existing:
         chapter_row = models.Chapter(
             number=chapter_num,
@@ -419,7 +425,7 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
         db.flush()
     else:
         chapter_row = existing
-        # Manual re-run: wipe stale pending proposals so we get a clean slate
+        # Manual re-run: wipe this chapter's pending proposals for a clean slate
         if force_chapter is not None:
             db.query(models.ProposedPriceChange).filter(
                 models.ProposedPriceChange.chapter_number == chapter_num,
