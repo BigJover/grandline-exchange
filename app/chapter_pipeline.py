@@ -399,7 +399,7 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     existing = db.query(models.Chapter).filter(
         models.Chapter.number == chapter_num
     ).first()
-    if existing and existing.processed:
+    if existing and existing.processed and force_chapter is None:
         return {
             "detected": False,
             "chapter": chapter_num,
@@ -419,6 +419,14 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
         db.flush()
     else:
         chapter_row = existing
+        # Manual re-run: wipe stale pending proposals so we get a clean slate
+        if force_chapter is not None:
+            db.query(models.ProposedPriceChange).filter(
+                models.ProposedPriceChange.chapter_number == chapter_num,
+                models.ProposedPriceChange.status == "pending",
+            ).delete(synchronize_session=False)
+            chapter_row.processed = False
+            db.flush()
 
     # ── 4. Gather character mentions from all available sources ───────────────
     char_index = _char_index_from_db(db)
