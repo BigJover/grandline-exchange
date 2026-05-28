@@ -225,6 +225,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <button class="btn btn-punk" onclick="detectChapter()">⚡ AUTO-DETECT</button>
+        <button class="btn btn-gold" onclick="detectAndApprove()">⚡ DETECT + PUSH</button>
         <button class="btn btn-ghost" onclick="loadProposals()">↺ Refresh Proposals</button>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
@@ -238,35 +239,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">PRICE ADJUSTMENT</div>
-      <div class="fr-inline">
-        <div class="fr"><label>Character Name</label><input type="text" id="adj-char" placeholder="e.g. Luffy"></div>
-        <div class="fr"><label>New Beri Value</label><input type="number" id="adj-beri" placeholder="4500000000"></div>
-        <button class="btn btn-punk" onclick="applyAdj()" style="margin-bottom:0">APPLY</button>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <button class="btn btn-teal" onclick="loadPulse()">📡 Fetch Reddit Pulse</button>
-      <button class="btn btn-ghost" onclick="loadSignal()">📊 Site Signal (7d)</button>
-    </div>
-
-    <div class="pulse-grid">
-      <div>
-        <div class="sect-label">Character Mentions — Reddit</div>
-        <div id="pulse-chars"><div class="empty">Click Fetch Reddit Pulse</div></div>
-      </div>
-      <div>
-        <div class="sect-label">Site Trading Signal</div>
-        <div id="signal-chars"><div class="empty">Click Site Signal</div></div>
-      </div>
-    </div>
-
-    <div style="margin-top:14px">
-      <div class="sect-label">Reddit Posts</div>
-      <div id="pulse-posts"></div>
-    </div>
 
     <!-- Publish Transmission -->
     <div class="card" style="margin-top:16px">
@@ -648,6 +620,25 @@ async function detectChapter() {
   }
 }
 
+async function detectAndApprove() {
+  const status = document.getElementById('pipeline-status');
+  status.textContent = 'Scanning for new chapter…';
+  try {
+    const d = await api('POST', '/admin/chapter-detect');
+    if (!d.detected) {
+      status.textContent = d.message || 'No new chapter found.';
+      await loadProposals();
+      return;
+    }
+    status.textContent = `Ch.${d.chapter} detected — approving ${d.proposals} proposal(s)…`;
+    await api('POST', `/admin/proposed-prices/approve-all?chapter=${d.chapter}`);
+    status.textContent = `✓ Ch.${d.chapter} live — ${d.proposals} price(s) pushed.`;
+    await loadProposals();
+  } catch(e) {
+    status.textContent = '⚠ ' + e.message;
+  }
+}
+
 async function detectChapterManual() {
   const num = parseInt(document.getElementById('manual-chapter-num').value, 10);
   if (!num || num < 1 || num > 9999) {
@@ -786,22 +777,10 @@ document.querySelectorAll('.tab-btn[data-tab="pulse"]').forEach(function(btn) {
 });
 
 // ── Chapter Pulse ─────────────────────────────────────────────────────────────
-async function loadPulse() {
-  document.getElementById('pulse-chars').innerHTML = '<div class="empty">Fetching from Reddit…</div>';
-  document.getElementById('pulse-posts').innerHTML = '';
-  try {
-    const d = await api('GET', '/admin/chapter-pulse?refresh=true');
-    renderPulseChars(d.characters || []);
-    renderPosts(d.posts || []);
-  } catch(e) {
-    document.getElementById('pulse-chars').innerHTML = '<div class="empty neg">' + esc(e.message) + '</div>';
-  }
-}
-
 function renderPulseChars(chars) {
   _lastPulseChars = chars || [];
   const el = document.getElementById('pulse-chars');
-  if (!chars.length) { el.innerHTML = '<div class="empty">No character mentions found.</div>'; return; }
+  if (!el || !chars.length) return;
   el.innerHTML = '<table class="atbl"><thead><tr><th>Character</th><th>Score</th><th>Posts</th><th>Price</th><th></th></tr></thead><tbody>' +
     chars.slice(0,20).map(function(c){
       const name = esc(c.name).replace(/'/g, "\\'");
@@ -823,48 +802,6 @@ function renderPosts(posts) {
   }).join('');
 }
 
-async function loadSignal() {
-  document.getElementById('signal-chars').innerHTML = '<div class="empty">Loading…</div>';
-  try {
-    const d = await api('GET', '/admin/community-signal?days=7');
-    renderSignal(d.characters || []);
-  } catch(e) {
-    document.getElementById('signal-chars').innerHTML = '<div class="empty neg">' + esc(e.message) + '</div>';
-  }
-}
-
-function renderSignal(chars) {
-  const el = document.getElementById('signal-chars');
-  if (!chars.length) { el.innerHTML = '<div class="empty">No trading activity this week.</div>'; return; }
-  el.innerHTML = '<table class="atbl"><thead><tr><th>Character</th><th>Net</th><th>↑/↓</th><th>Price</th><th></th></tr></thead><tbody>' +
-    chars.slice(0,20).map(function(c){
-      const cls = c.net_qty >= 0 ? 'pos' : 'neg';
-      const sign = c.net_qty >= 0 ? '+' : '';
-      const name = esc(c.name).replace(/'/g, "\\'");
-      return '<tr><td>' + esc(c.name) + '</td><td class="' + cls + '">' + sign + c.net_qty +
-        '</td><td class="dim">' + c.buy_qty + '↑ ' + c.sell_qty + '↓</td><td>' + fB(c.current_price) +
-        '</td><td><button class="btn btn-ghost btn-sm" onclick="fillAdj(\'' + name + '\',' + (c.current_price||0) + ')">Adj</button></td></tr>';
-    }).join('') + '</tbody></table>';
-}
-
-function fillAdj(name, price) {
-  document.getElementById('adj-char').value = name;
-  document.getElementById('adj-beri').value = price;
-  document.getElementById('adj-char').focus();
-}
-
-async function applyAdj() {
-  const name = document.getElementById('adj-char').value.trim();
-  const beri = parseFloat(document.getElementById('adj-beri').value);
-  if (!name || !beri) { toast('Character name and beri value required', true); return; }
-  if (!confirm('Set ' + name + ' to ' + fB(beri) + '?')) return;
-  try {
-    const d = await api('POST', '/admin/set-beri?name=' + encodeURIComponent(name) + '&beri=' + beri);
-    toast(d.name + ': ' + fB(d.old_beri) + ' → ' + fB(d.new_beri));
-    document.getElementById('adj-char').value = '';
-    document.getElementById('adj-beri').value = '';
-  } catch(e) { toast('Price adjust failed: ' + e.message, true); }
-}
 
 // ── Economy ───────────────────────────────────────────────────────────────────
 async function fireDrop() {
