@@ -446,6 +446,14 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
             print(f"[ChapterPipeline] Wiki chars found: {len(wiki_chars)}")
 
     # 4b. Reddit top-comment character mentions
+    # For manual/force runs, try to find the Reddit post even if step 1 skipped it
+    if not best_post_id and force_chapter is not None:
+        _, reddit_post_id2, _, _ = _reddit_find_chapter(chapter_num)
+        if reddit_post_id2:
+            best_post_id = reddit_post_id2
+            if "reddit" not in sources_used:
+                sources_used.append("reddit")
+
     comment_chars: dict = {}
     if best_post_id:
         comment_chars = _reddit_comment_chars(best_post_id, char_index)
@@ -453,8 +461,9 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
             sources_used.append("reddit-comments")
 
     # 4c. Reddit pulse (spoiler/leak subreddits, post-level score weighting)
+    # Always run for manual/force triggers so spoiler subs are swept
     pulse_chars: dict = {}
-    if "reddit" in sources_used or best_post_id:
+    if "reddit" in sources_used or best_post_id or force_chapter is not None:
         pulse_chars = _reddit_pulse_chars(chapter_num, char_index)
         if pulse_chars:
             sources_used.append("reddit-pulse")
