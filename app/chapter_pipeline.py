@@ -203,6 +203,32 @@ def _wiki_latest_chapter(db: Session) -> Optional[int]:
     return latest
 
 
+def _wiki_chapter_new_names(chapter_num: int, char_index: dict) -> list:
+    """
+    Return Char Box names from the wiki chapter page that don't match any known character.
+    Used to propose new characters for admin review.
+    """
+    url = (f"{_WIKI_API}?action=parse&page=Chapter_{chapter_num}"
+           f"&prop=wikitext&format=json")
+    data = _fetch_json(url)
+    if not data:
+        return []
+    wikitext = data.get("parse", {}).get("wikitext", {}).get("*", "")
+    if not wikitext:
+        return []
+
+    unknown = []
+    for m in re.finditer(r'\{\{Char Box\|([^|}\n]{2,50})', wikitext, re.IGNORECASE):
+        raw = m.group(1).strip()
+        if not raw or len(raw) < 3:
+            continue
+        # Skip if any known character matches this raw name
+        matched = bool(_extract_chars(raw, char_index))
+        if not matched and raw not in unknown:
+            unknown.append(raw)
+    return unknown
+
+
 def _wiki_chapter_chars(chapter_num: int, char_index: dict) -> dict:
     """
     Fetch the wiki page for a chapter and extract character appearances.
@@ -629,6 +655,30 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
         print(f"[ChapterPipeline] Transmission auto-published for Ch.{chapter_num}")
     except Exception as e:
         print(f"[ChapterPipeline] Transmission publish failed (non-fatal): {e}")
+
+    # ── 10c. Propose new characters found in wiki Char Box but not in DB ─────
+    try:
+        new_names = _wiki_chapter_new_names(chapter_num, char_index)
+        if new_names:
+            existing_proposals = {
+                r[0] for r in db.query(models.ProposedNewCharacter.name).filter(
+                    models.ProposedNewCharacter.chapter_number == chapter_num,
+                    models.ProposedNewCharacter.status == "pending",
+                ).all()
+            }
+            for raw_name in new_names:
+                if raw_name in existing_proposals:
+                    continue
+                db.add(models.ProposedNewCharacter(
+                    chapter_number=chapter_num,
+                    name=raw_name,
+                    proposed_beri=500_000_000,   # conservative default — admin sets real value
+                    reason=f"Ch.{chapter_num} — wiki Char Box debut, not in roster",
+                ))
+            db.commit()
+            print(f"[ChapterPipeline] {len(new_names)} potential new character(s) proposed for Ch.{chapter_num}: {new_names}")
+    except Exception as e:
+        print(f"[ChapterPipeline] New character proposal failed (non-fatal): {e}")
 
     # ── 11. Beri drop — fires on chapter release instead of fixed weekly cron ──
     try:

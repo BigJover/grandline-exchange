@@ -1295,6 +1295,139 @@ def approve_all_proposed_prices(
     return {"status": "ok", "applied": applied, "total": len(proposals)}
 
 
+# ── Proposed New Characters ───────────────────────────────────────────────────
+
+@router.get("/proposed-characters")
+def list_proposed_characters(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """List all pending proposed new characters."""
+    _check_secret(x_admin_secret)
+    rows = (
+        db.query(models.ProposedNewCharacter)
+        .filter(models.ProposedNewCharacter.status == "pending")
+        .order_by(models.ProposedNewCharacter.chapter_number.desc(), models.ProposedNewCharacter.created_at)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "chapter_number": r.chapter_number,
+            "name": r.name,
+            "aliases": r.aliases or [],
+            "faction": r.faction,
+            "category": r.category,
+            "proposed_beri": r.proposed_beri,
+            "base_beri": r.base_beri,
+            "canon_bounty": r.canon_bounty,
+            "bio": r.bio,
+            "events": r.events,
+            "reason": r.reason,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/proposed-characters")
+def create_proposed_character(
+    payload: dict,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Manually propose a new character for admin review."""
+    _check_secret(x_admin_secret)
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    proposed_beri = float(payload.get("proposed_beri", 0) or 0)
+    if proposed_beri <= 0:
+        raise HTTPException(status_code=400, detail="proposed_beri must be > 0")
+    row = models.ProposedNewCharacter(
+        chapter_number=payload.get("chapter_number"),
+        name=name,
+        aliases=payload.get("aliases") or [],
+        faction=payload.get("faction", ""),
+        category=payload.get("category", ""),
+        proposed_beri=proposed_beri,
+        base_beri=payload.get("base_beri") or proposed_beri,
+        canon_bounty=payload.get("canon_bounty"),
+        bio=payload.get("bio", ""),
+        events=payload.get("events", ""),
+        reason=payload.get("reason", ""),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"status": "ok", "id": row.id, "name": row.name}
+
+
+@router.post("/proposed-characters/{proposal_id}/approve")
+def approve_proposed_character(
+    proposal_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Approve a proposed new character — creates the Character row and marks the proposal approved."""
+    _check_secret(x_admin_secret)
+    proposal = db.query(models.ProposedNewCharacter).filter(
+        models.ProposedNewCharacter.id == proposal_id
+    ).first()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if proposal.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Proposal already {proposal.status}")
+
+    existing = db.query(models.Character).filter(models.Character.name == proposal.name).first()
+    if existing:
+        proposal.status = "approved"
+        db.commit()
+        raise HTTPException(status_code=409, detail=f"Character '{proposal.name}' already exists (id={existing.id})")
+
+    beri = max(100_000, proposal.proposed_beri)
+    char = models.Character(
+        name=proposal.name,
+        aliases=proposal.aliases or [],
+        faction=proposal.faction or "",
+        category=proposal.category or "",
+        beri=beri,
+        base_beri=proposal.base_beri or beri,
+        canon_bounty=proposal.canon_bounty,
+        status="active",
+        price_history=[],
+        img="",
+        bio=proposal.bio or "",
+        events=proposal.events or "",
+        sbs=[],
+        related=[],
+    )
+    db.add(char)
+    proposal.status = "approved"
+    db.commit()
+    db.refresh(char)
+    invalidate_char_cache()
+    return {"status": "approved", "character_id": char.id, "name": char.name, "beri": char.beri}
+
+
+@router.post("/proposed-characters/{proposal_id}/dismiss")
+def dismiss_proposed_character(
+    proposal_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Dismiss a proposed new character without adding them."""
+    _check_secret(x_admin_secret)
+    proposal = db.query(models.ProposedNewCharacter).filter(
+        models.ProposedNewCharacter.id == proposal_id
+    ).first()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    proposal.status = "dismissed"
+    db.commit()
+    return {"status": "dismissed", "id": proposal_id}
+
+
 # ── Character meta sync ────────────────────────────────────────────────────────
 
 @router.post("/sync-character-meta")

@@ -281,6 +281,26 @@ class ProposedPriceChange(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class ProposedNewCharacter(Base):
+    """A new character proposed by the chapter pipeline or admin, awaiting approval."""
+    __tablename__ = "proposed_new_characters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chapter_number = Column(Integer, nullable=True, index=True)
+    name = Column(String, nullable=False)
+    aliases = Column(JSON, default=list)
+    faction = Column(String, default="")
+    category = Column(String, default="")
+    proposed_beri = Column(Float, nullable=False)
+    base_beri = Column(Float, nullable=True)
+    canon_bounty = Column(Float, nullable=True)
+    bio = Column(String, default="")
+    events = Column(String, default="")
+    reason = Column(String, default="")
+    status = Column(String, default="pending")  # pending | approved | dismissed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class BotKV(Base):
     """Persistent key-value store for the Vegapunk bot (survives restarts)."""
     __tablename__ = "bot_kv"

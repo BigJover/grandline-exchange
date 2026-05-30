@@ -363,6 +363,57 @@ def seed_trivia_questions():
 seed_trivia_questions()
 
 
+def seed_character_drop_proposals():
+    """Insert Ch.1184 character drop proposals (Reuven, Candelle) if not already present."""
+    db = SessionLocal()
+    try:
+        proposals = [
+            {
+                "chapter_number": 1184,
+                "name": "King Reuven",
+                "faction": "Esperia Kingdom",
+                "category": "Royalty",
+                "proposed_beri": 2_000_000_000,
+                "bio": "The king of the Esperia Kingdom and Brook's former liege. Brook served him directly and considered him the source of everything he had. Revealed in a flashback during Ch.1184.",
+                "events": "Ch.1184 — Debut | Appears in Brook's Esperia Kingdom flashback as the king Brook swore loyalty to.",
+                "reason": "Ch.1184 debut — Brook flashback, Esperia Kingdom",
+            },
+            {
+                "chapter_number": 1184,
+                "name": "Queen Candelle",
+                "faction": "Esperia Kingdom",
+                "category": "Royalty",
+                "proposed_beri": 2_000_000_000,
+                "bio": "A figure of tremendous power from the Esperia Kingdom, connected to Brook's past. In the present day she appears in a private meeting with a Gorosei member, suggesting ties to the World Government that predate her public persona.",
+                "events": "Ch.1184 — Debut | Appears in Brook's Esperia Kingdom flashback. Also seen in a present-day meeting with one of the Gorosei (Saturn), hinting at a deep World Government connection.\nAnalyst Note: Popular community theory — Candelle may be related to Dracule Mihawk. The physical profile and her willingness to meet privately with the Gorosei has led to widespread speculation about a Mihawk bloodline link, possibly placing her within the lineage that produced the world's greatest swordsman.",
+                "reason": "Ch.1184 debut — Brook flashback + present-day Gorosei meeting",
+            },
+        ]
+        existing_names = {
+            r[0] for r in db.query(models.ProposedNewCharacter.name).filter(
+                models.ProposedNewCharacter.chapter_number == 1184
+            ).all()
+        }
+        known_chars = {r[0] for r in db.query(models.Character.name).all()}
+        added = 0
+        for p in proposals:
+            if p["name"] in existing_names or p["name"] in known_chars:
+                continue
+            db.add(models.ProposedNewCharacter(**p))
+            added += 1
+        if added:
+            db.commit()
+            print(f"[seed_character_drop_proposals] Added {added} proposed new character(s)")
+    except Exception as e:
+        db.rollback()
+        print(f"[seed_character_drop_proposals] Error: {e}")
+    finally:
+        db.close()
+
+
+seed_character_drop_proposals()
+
+
 def correct_beri_outliers():
     """One-time corrections for characters whose seeded beri was miscalibrated.
     Each entry only fires while the live value is above the correction threshold."""

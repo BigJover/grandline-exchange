@@ -239,7 +239,39 @@
       </div>
     </div>
 
+    <!-- ── Character Drops ── -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">🆕 CHARACTER DROPS</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:12px">
+        New characters proposed by the pipeline (wiki Char Box debut) or added manually. Approve to add them to the roster.
+      </div>
 
+      <!-- Manual propose form -->
+      <details style="margin-bottom:14px">
+        <summary style="cursor:pointer;font-family:Share Tech Mono,monospace;font-size:0.72rem;color:var(--text-dim);user-select:none">+ Propose New Character</summary>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <div class="two-col" style="gap:8px">
+            <div class="fr"><label>Name *</label><input type="text" id="nc-name" placeholder="e.g. King Reuven"></div>
+            <div class="fr"><label>Chapter #</label><input type="number" id="nc-chapter" placeholder="1184"></div>
+          </div>
+          <div class="two-col" style="gap:8px">
+            <div class="fr"><label>Faction</label><input type="text" id="nc-faction" placeholder="e.g. Esperia Kingdom"></div>
+            <div class="fr"><label>Category</label><input type="text" id="nc-category" placeholder="e.g. Royalty"></div>
+          </div>
+          <div class="fr"><label>Starting Beri *</label><input type="number" id="nc-beri" placeholder="2000000000" step="50000000"></div>
+          <div class="fr"><label>Bio</label><textarea id="nc-bio" rows="2" style="font-family:Share Tech Mono,monospace;font-size:0.75rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);padding:6px;resize:vertical" placeholder="Short canon bio…"></textarea></div>
+          <div class="fr"><label>Cognitive Analysis (events)</label><textarea id="nc-events" rows="3" style="font-family:Share Tech Mono,monospace;font-size:0.75rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);padding:6px;resize:vertical" placeholder="Ch.XXXX — Debut | …"></textarea></div>
+          <div class="fr"><label>Reason</label><input type="text" id="nc-reason" placeholder="e.g. Ch.1184 debut — wiki Char Box"></div>
+          <button class="btn btn-punk" onclick="proposeNewChar()" style="align-self:flex-start">PROPOSE</button>
+        </div>
+      </details>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <button class="btn btn-ghost" onclick="loadCharDrops()">↺ Refresh</button>
+        <span id="char-drop-count" style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim)"></span>
+      </div>
+      <div id="char-drops-wrap"><div class="empty">Click Refresh to load.</div></div>
+    </div>
 
   </div>
 
@@ -739,6 +771,89 @@ async function dismissAll(ch) {
     await loadProposals();
   } catch(e) { toast('⚠ ' + e.message, true); }
 }
+
+// ── Character Drops ───────────────────────────────────────────────────────────
+async function loadCharDrops() {
+  document.getElementById('char-drops-wrap').innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const rows = await api('GET', '/admin/proposed-characters');
+    renderCharDrops(rows);
+  } catch(e) {
+    document.getElementById('char-drops-wrap').innerHTML = '<div class="empty neg">⚠ ' + esc(e.message) + '</div>';
+  }
+}
+
+function renderCharDrops(rows) {
+  const wrap = document.getElementById('char-drops-wrap');
+  const counter = document.getElementById('char-drop-count');
+  counter.textContent = rows.length ? rows.length + ' pending' : '';
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="empty">No pending character drops.</div>';
+    return;
+  }
+  wrap.innerHTML = '<table class="atbl"><thead><tr>'
+    + '<th>Name</th><th>Ch.</th><th>Faction</th><th>Beri</th><th>Reason</th><th></th>'
+    + '</tr></thead><tbody>'
+    + rows.map(function(r) {
+        return '<tr>'
+          + '<td><strong>' + esc(r.name) + '</strong></td>'
+          + '<td class="dim">' + (r.chapter_number || '—') + '</td>'
+          + '<td class="dim">' + esc(r.faction || '—') + '</td>'
+          + '<td class="pos">' + fB(r.proposed_beri) + '</td>'
+          + '<td class="dim" style="max-width:200px;white-space:normal;font-size:0.65rem">' + esc(r.reason) + '</td>'
+          + '<td style="white-space:nowrap">'
+          + '<button class="btn-approve" onclick="approveCharDrop(' + r.id + ',\'' + esc(r.name).replace(/'/g,"\\'") + '\')">✓</button>'
+          + ' <button class="btn-dismiss" onclick="dismissCharDrop(' + r.id + ')">✕</button>'
+          + '</td></tr>';
+      }).join('')
+    + '</tbody></table>';
+}
+
+async function approveCharDrop(id, name) {
+  if (!confirm('Add "' + name + '" to the roster?')) return;
+  try {
+    const d = await api('POST', '/admin/proposed-characters/' + id + '/approve');
+    toast('✓ ' + d.name + ' added — ' + fB(d.beri));
+    await loadCharDrops();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+async function dismissCharDrop(id) {
+  try {
+    await api('POST', '/admin/proposed-characters/' + id + '/dismiss');
+    await loadCharDrops();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+async function proposeNewChar() {
+  const name = document.getElementById('nc-name').value.trim();
+  const beri = parseFloat(document.getElementById('nc-beri').value) || 0;
+  if (!name) { toast('Name is required', true); return; }
+  if (beri <= 0) { toast('Starting beri must be > 0', true); return; }
+  const body = {
+    name,
+    chapter_number: parseInt(document.getElementById('nc-chapter').value) || null,
+    faction: document.getElementById('nc-faction').value.trim(),
+    category: document.getElementById('nc-category').value.trim(),
+    proposed_beri: beri,
+    base_beri: beri,
+    bio: document.getElementById('nc-bio').value.trim(),
+    events: document.getElementById('nc-events').value.trim(),
+    reason: document.getElementById('nc-reason').value.trim(),
+  };
+  try {
+    const d = await api('POST', '/admin/proposed-characters', body);
+    toast('Proposed: ' + d.name);
+    ['nc-name','nc-chapter','nc-faction','nc-category','nc-beri','nc-bio','nc-events','nc-reason']
+      .forEach(function(id){ document.getElementById(id).value = ''; });
+    await loadCharDrops();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+// Auto-load char drops when CHAPTER PULSE tab opens
+document.querySelectorAll('.tab-btn[data-tab="pulse"]').forEach(function(btn) {
+  btn.addEventListener('click', function() { setTimeout(loadCharDrops, 100); });
+});
 
 // Auto-load proposals when CHAPTER PULSE tab opens
 document.querySelectorAll('.tab-btn[data-tab="pulse"]').forEach(function(btn) {
