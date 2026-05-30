@@ -273,6 +273,37 @@
       <div id="char-drops-wrap"><div class="empty">Click Refresh to load.</div></div>
     </div>
 
+    <!-- ── Character Intel Editor ── -->
+    <div class="card">
+      <div class="card-title">📡 CHARACTER INTEL</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:12px">
+        Add or correct bio and cognitive analysis for any character. Use this for community speculation, missed chapter signals, or theory updates.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input type="text" id="intel-search" placeholder="Search character name…"
+          style="flex:1;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);font-family:Share Tech Mono,monospace;font-size:0.82rem;border-radius:4px"
+          oninput="intelSearchDebounce()">
+        <button class="btn btn-ghost btn-sm" onclick="intelSearch()">Search</button>
+      </div>
+      <div id="intel-results" style="margin-bottom:10px"></div>
+      <div id="intel-editor" style="display:none;flex-direction:column;gap:8px">
+        <div style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--punk)" id="intel-char-label"></div>
+        <div class="fr">
+          <label>Bio</label>
+          <textarea id="intel-bio" rows="3" style="font-family:Share Tech Mono,monospace;font-size:0.75rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);padding:6px;resize:vertical"></textarea>
+        </div>
+        <div class="fr">
+          <label>Cognitive Analysis</label>
+          <textarea id="intel-events" rows="5" style="font-family:Share Tech Mono,monospace;font-size:0.75rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);padding:6px;resize:vertical"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-punk" onclick="saveIntel(false)">SAVE (REPLACE)</button>
+          <button class="btn btn-gold" onclick="saveIntel(true)">APPEND TO ANALYSIS</button>
+          <span style="font-size:0.68rem;color:var(--text-dim)">Replace overwrites both fields. Append adds the analysis text below what's already there.</span>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ══ ECONOMY TAB ════════════════════════════════════════════════════════ -->
@@ -847,6 +878,64 @@ async function proposeNewChar() {
     ['nc-name','nc-chapter','nc-faction','nc-category','nc-beri','nc-bio','nc-events','nc-reason']
       .forEach(function(id){ document.getElementById(id).value = ''; });
     await loadCharDrops();
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+// ── Character Intel Editor ────────────────────────────────────────────────────
+let _intelCharId = null;
+let _intelDebounceTimer = null;
+
+function intelSearchDebounce() {
+  clearTimeout(_intelDebounceTimer);
+  _intelDebounceTimer = setTimeout(intelSearch, 350);
+}
+
+async function intelSearch() {
+  const q = document.getElementById('intel-search').value.trim();
+  if (!q) return;
+  const resultsEl = document.getElementById('intel-results');
+  resultsEl.innerHTML = '<span class="dim" style="font-size:0.72rem">Searching…</span>';
+  document.getElementById('intel-editor').style.display = 'none';
+  _intelCharId = null;
+  try {
+    const rows = await api('GET', '/admin/characters/search?name=' + encodeURIComponent(q));
+    if (!rows.length) {
+      resultsEl.innerHTML = '<span class="dim" style="font-size:0.72rem">No match.</span>';
+      return;
+    }
+    resultsEl.innerHTML = rows.map(function(r) {
+      return '<button class="btn btn-ghost btn-sm" style="margin:2px" onclick="intelLoad(' + r.id + ',\'' + esc(r.name).replace(/'/g,"\\'") + '\')">' + esc(r.name) + '</button>';
+    }).join('');
+  } catch(e) {
+    resultsEl.innerHTML = '<span class="neg" style="font-size:0.72rem">⚠ ' + esc(e.message) + '</span>';
+  }
+}
+
+async function intelLoad(id, name) {
+  try {
+    const rows = await api('GET', '/admin/characters/search?name=' + encodeURIComponent(name));
+    const char = rows.find(function(r){ return r.id === id; });
+    if (!char) { toast('Character not found', true); return; }
+    _intelCharId = id;
+    document.getElementById('intel-char-label').textContent = char.name + ' · ' + fB(char.beri);
+    document.getElementById('intel-bio').value = char.bio || '';
+    document.getElementById('intel-events').value = char.events || '';
+    document.getElementById('intel-editor').style.display = 'flex';
+  } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+async function saveIntel(appendEvents) {
+  if (!_intelCharId) { toast('No character selected', true); return; }
+  const bio = document.getElementById('intel-bio').value;
+  const events = document.getElementById('intel-events').value;
+  try {
+    const d = await api('PATCH', '/admin/characters/' + _intelCharId + '/intel', {
+      bio,
+      events,
+      append_events: appendEvents,
+    });
+    toast('✓ ' + d.name + ' intel saved');
+    document.getElementById('intel-events').value = d.events || '';
   } catch(e) { toast('⚠ ' + e.message, true); }
 }
 

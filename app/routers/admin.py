@@ -1428,6 +1428,74 @@ def dismiss_proposed_character(
     return {"status": "dismissed", "id": proposal_id}
 
 
+# ── Character Intel Editor ────────────────────────────────────────────────────
+
+@router.get("/characters/search")
+def search_character(
+    name: str,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Find a character by name (case-insensitive partial match). Returns top 8 matches."""
+    _check_secret(x_admin_secret)
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    rows = (
+        db.query(models.Character)
+        .filter(models.Character.name.ilike(f"%{name}%"))
+        .order_by(models.Character.name)
+        .limit(8)
+        .all()
+    )
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "faction": c.faction,
+            "beri": c.beri,
+            "bio": c.bio or "",
+            "events": c.events or "",
+        }
+        for c in rows
+    ]
+
+
+@router.patch("/characters/{char_id}/intel")
+def update_character_intel(
+    char_id: int,
+    payload: dict,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Update a character's bio and/or events (cognitive analysis). Partial updates supported.
+    Pass append_events=true to append to existing events instead of replacing."""
+    _check_secret(x_admin_secret)
+    char = db.query(models.Character).filter(models.Character.id == char_id).first()
+    if not char:
+        raise HTTPException(status_code=404, detail="Character not found")
+
+    if "bio" in payload:
+        char.bio = payload["bio"]
+    if "events" in payload:
+        if payload.get("append_events"):
+            existing = (char.events or "").strip()
+            new_line = payload["events"].strip()
+            char.events = (existing + "\n" + new_line).strip() if existing else new_line
+        else:
+            char.events = payload["events"]
+
+    db.commit()
+    invalidate_char_cache()
+    return {
+        "status": "ok",
+        "id": char.id,
+        "name": char.name,
+        "bio": char.bio,
+        "events": char.events,
+    }
+
+
 # ── Character meta sync ────────────────────────────────────────────────────────
 
 @router.post("/sync-character-meta")
