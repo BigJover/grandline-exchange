@@ -850,6 +850,27 @@ def delete_proposition(
     return {"status": "ok", "deleted_id": prop_id, "bets_refunded": refunded}
 
 
+@router.delete("/casino/resolved/{prop_id}")
+def delete_resolved_proposition(
+    prop_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Delete a resolved proposition and its bet records (payouts already issued)."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Proposition not found")
+    if prop.status != "resolved":
+        raise HTTPException(status_code=400, detail="Use the standard delete endpoint for non-resolved propositions")
+    db.query(models.PropositionBet).filter(
+        models.PropositionBet.proposition_id == prop_id
+    ).delete()
+    db.delete(prop)
+    db.commit()
+    return {"status": "ok", "deleted_id": prop_id}
+
+
 # ── Auto-prediction pipeline admin endpoints ──────────────────────────────────
 
 def _prop_summary(p: models.Proposition) -> dict:

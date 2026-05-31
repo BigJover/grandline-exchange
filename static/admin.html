@@ -644,9 +644,13 @@ function propHtml(p) {
       '</div>'
     : '';
 
+  const clearBtn = (p.status === 'resolved')
+    ? ' <button onclick="clearResolved(' + p.id + ',this)" title="Clear resolved proposition" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;padding:0 2px;line-height:1;vertical-align:middle;opacity:0.6" onmouseover="this.style.opacity=1;this.style.color=\'var(--red)\'" onmouseout="this.style.opacity=0.6;this.style.color=\'var(--text-dim)\'">✕</button>'
+    : '';
+
   return '<div class="prop-row" id="pr-' + p.id + '">' +
     '<div class="prop-hd"><div class="prop-q">' + esc(p.question) + '</div>' +
-    '<span class="badge ' + statusClass + '">' + p.status.toUpperCase() + '</span>' + predBadge + breakBadge + '</div>' +
+    '<span class="badge ' + statusClass + '">' + p.status.toUpperCase() + '</span>' + clearBtn + predBadge + breakBadge + '</div>' +
     predMeta +
     '<div class="prop-meta">Cat: ' + esc(p.category || '—') + ' · Closes: ' + esc(closesAt) + ' · Pool: ' + pool + ' · ' + betLabel + '</div>' +
     '<div class="prop-pool">' + bd + '</div>' +
@@ -675,6 +679,17 @@ async function confirmResolve(id, btn) {
       toast('Resolved — ' + d.winners + ' winners, ' + fB(d.total_paid_out) + ' paid out');
       loadProps();
     } catch(e) { toast('Resolve failed: ' + e.message, true); }
+  });
+}
+
+function clearResolved(id, btn) {
+  safeConfirm(btn, async function() {
+    try {
+      await api('DELETE', '/admin/casino/resolved/' + id);
+      const el = document.getElementById('pr-' + id);
+      if (el) el.remove();
+      toast('Resolved proposition cleared.');
+    } catch(e) { toast('Clear failed: ' + e.message, true); }
   });
 }
 
