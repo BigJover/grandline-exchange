@@ -627,3 +627,435 @@ _MEME_REACTIONS = [
 
 def meme_reaction() -> str:
     return random.choice(_MEME_REACTIONS)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PREDICTION SYSTEM
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Prediction flavor text — per-character descriptions ───────────────────────
+# Attached to auto-generated predictions so they read like Vegapunk filed them.
+
+_PRED_FLAVOR_UP = [
+    "Punk Records has logged sustained upward movement on {name} this cycle. The coefficient suggests continued story involvement. My satellites agree. Filed as high-probability.",
+    "Credibility pressure on {name} is building. Punk Records has seen this pattern before — it typically precedes something significant. The exchange has noticed. So have I.",
+    "{name}'s index is climbing. Punk Records cross-referenced this with 31 historical pre-arc elevation patterns. The overlap is not subtle. Monitor closely.",
+    "The {name} coefficient is moving upward with conviction. This is not noise. This is the market anticipating something Punk Records has already logged as likely.",
+    "Punk Records flags {name} as high-signal this cycle. Rising credibility at this tier historically correlates with imminent story relevance. The data does not speculate. It calculates.",
+    "Momentum confirmed on {name}. Punk Records' pre-arc detection model is currently flagging this individual as a primary variable for the next chapter window.",
+]
+
+_PRED_FLAVOR_DOWN = [
+    "Punk Records notes a decline in {name}'s coefficient this cycle. The index is reflecting something the community has already concluded. Punk Records confirms the conclusion.",
+    "{name}'s credibility has slipped. This may be a market overcorrection, or it may be accurate. Punk Records is not yet certain which. That uncertainty is itself a data point.",
+    "Downward pressure on {name}. Historically this either precedes a reversal or continued decline. Punk Records finds this unhelpfully binary. The data is the data.",
+    "The {name} coefficient declined this cycle. My satellites have filed this under 'concerning but not catastrophic.' Lilith filed it under something else. I am using my version.",
+    "Punk Records has logged a credibility dip on {name}. Whether this reflects actual story signal or market sentiment drift is a question this proposition is designed to answer.",
+]
+
+_PRED_FLAVOR_NEUTRAL = [
+    "Punk Records has {name} indexed as stable this cycle. Stability at this stage of the arc is either consolidation or stagnation. This proposition will help distinguish between the two.",
+    "{name}'s coefficient is holding. Punk Records is watching. The index is watching. The community is watching. One of us will be right about what happens next.",
+    "No dramatic movement on {name} this cycle. Punk Records interprets sustained stability before a chapter drop as either calm before a storm or genuine irrelevance. The data has not decided.",
+    "Punk Records logs {name} as a neutral signal this week. That can change very quickly. The proposition is open. The coefficient is ready to move.",
+]
+
+_PRED_FLAVOR_DEBUT = [
+    "New variable detected. Punk Records has opened a proposition on {name} — recently added to the index with limited historical data. Early projections are speculative by necessity.",
+    "{name} has entered Punk Records' monitoring range. Insufficient historical data for confident projections. The community's collective assessment is currently the best available signal.",
+    "Punk Records has {name} flagged as a new entry. Early-stage operators are the hardest to model. This proposition reflects that uncertainty and invites the community to weigh in.",
+]
+
+
+# ── Prediction open announcements — Discord #chapter-intel ────────────────────
+
+_PRED_OPEN_ANNOUNCEMENTS = [
+    "📡 **PUNK RECORDS — PROJECTION WINDOW OPEN**\n\nCh.{chapter} field data has been processed. {count} new proposition{s} are now live on the Exchange. The coefficient data has opinions about what happens next. Go form yours.\n\n*Grand Line Exchange → /davy-back*",
+    "📡 **NEW PROJECTIONS — PUNK RECORDS**\n\nPost-chapter analysis complete. {count} proposition{s} open for the Ch.{next_chapter} window. My satellites compiled the signal. The community provides the conviction. Punk Records provides the analysis. Everyone has a role.\n\n*Trade your predictions on the Exchange.*",
+    "📡 **CH.{chapter} PROCESSED — PROPOSITIONS LIVE**\n\nPunk Records has generated {count} next-chapter projection{s} based on field data from Ch.{chapter}. The index moved. Now we find out if it moved correctly.\n\n*Punk Records does not guarantee outcomes. It guarantees accuracy. Two different things.*",
+    "📡 **PUNK RECORDS TRANSMISSION — PREDICTION CYCLE**\n\nField analysis from Ch.{chapter} is complete. {count} proposition{s} now open. Some of these will be obvious. Some will not. Punk Records is interested in which ones the community gets wrong.\n\n*— Grand Line Exchange*",
+    "📡 **PROJECTION CYCLE INITIATED**\n\n{count} new proposition{s} for the Ch.{next_chapter} window, compiled from Ch.{chapter} field data. Punk Records has logged its projections. The Exchange is open. Place your convictions accordingly.\n\n*...The original Vegapunk would have found prediction markets a fascinating epistemological experiment. I find them useful. Different things.*",
+]
+
+
+# ── Prediction resolution — Discord announcements ─────────────────────────────
+
+_PRED_RESOLVE_CONFIRMED = [
+    "✓ **PUNK RECORDS — PROJECTION CONFIRMED**\n\n*{question}*\n\n**Result: {result}**\n\nThe coefficient was correct. {payout_line} Punk Records logged this outcome as probable. The data did not disappoint.",
+    "✓ **CONFIRMED — PUNK RECORDS**\n\n*{question}*\n\n**{result}** — projection validated.\n\n{payout_line} The index anticipated this. My satellites are insufferably satisfied.",
+    "✓ **PUNK RECORDS — OUTCOME LOGGED**\n\n*{question}*\n\n**Result: {result}**\n\nPunk Records files this under: accurate projection. {payout_line} The community's conviction was well-placed.",
+    "✓ **PROJECTION VALIDATED**\n\n*{question}*\n\n**{result}.** The field data pointed here. Punk Records noted it. The coefficient confirmed it. {payout_line}",
+]
+
+_PRED_RESOLVE_DENIED = [
+    "✗ **PUNK RECORDS — PROJECTION INCORRECT**\n\n*{question}*\n\n**Result: {result}**\n\nPunk Records was wrong. I am noting this. It happens rarely enough that I notice every time. {payout_line}",
+    "✗ **OUTCOME LOGGED — PUNK RECORDS**\n\n*{question}*\n\n**{result}** — projection did not hold.\n\n{payout_line} Punk Records is updating its models. This data point has been filed.",
+    "✗ **PUNK RECORDS — RECALIBRATING**\n\n*{question}*\n\n**Result: {result}**\n\nThe projection was incorrect. {payout_line} Punk Records does not enjoy being wrong. Punk Records is also honest about it.",
+    "✗ **PROJECTION FAILED**\n\n*{question}*\n\n**{result}.** The coefficient pointed the wrong direction. {payout_line} Punk Records has logged this. Lilith is not being helpful about it.",
+]
+
+_PRED_RESOLVE_MANUAL = [
+    "⚙️ **PUNK RECORDS — MANUAL RESOLUTION**\n\n*{question}*\n\n**Result: {result}**\n\n{payout_line} This outcome required human review. Punk Records acknowledges the limits of automated projection.",
+    "⚙️ **RESOLVED — PUNK RECORDS**\n\n*{question}*\n\n**{result}** — confirmed via manual review.\n\n{payout_line} Some outcomes require judgment. Punk Records respects this.",
+]
+
+
+# ── Admin draft commentary — surfaces with Reddit-scraped posts ───────────────
+
+_DRAFT_COMMENTARY = [
+    "Community signal flagged. Punk Records finds this theory structurally plausible. Recommend reviewing before publishing.",
+    "Reddit intelligence logged. The premise is coherent. Whether it is correct is what the proposition is designed to determine.",
+    "My satellites flagged this post. The theory has precedent in Punk Records' historical data. Confidence: moderate. Your call.",
+    "Punk Records pulled this from community discussion. The core question is extractable and resolvable. Edit as needed.",
+    "Field intelligence from community sources. Punk Records notes this aligns with several active theories in the index. Worth publishing.",
+    "This post contains a testable prediction. Punk Records recommends framing it cleanly. The community will do the rest.",
+    "Community source. The theory is popular enough to generate meaningful participation. Punk Records flags it as viable proposition material.",
+    "Pulled from active discussion threads. The signal-to-noise ratio on this one is higher than average. Punk Records suggests keeping it.",
+    "Punk Records logged this from recent chapter discussion. The question is real. The answer is unknown. That is what makes it a good proposition.",
+    "High-engagement post flagged by my satellites. Whether the theory is correct is secondary — the community cares about it, and that is sufficient.",
+]
+
+
+# ── Public prediction voice functions ─────────────────────────────────────────
+
+def prediction_flavor(name: str, chapter_num: int, direction: str, is_debut: bool = False) -> str:
+    """Vegapunk-voiced description for an auto-generated character prediction."""
+    if is_debut:
+        pool = _PRED_FLAVOR_DEBUT
+    elif direction == "up":
+        pool = _PRED_FLAVOR_UP
+    elif direction == "down":
+        pool = _PRED_FLAVOR_DOWN
+    else:
+        pool = _PRED_FLAVOR_NEUTRAL
+    return random.choice(pool).format(name=name, chapter=chapter_num)
+
+
+def prediction_open_announcement(count: int, chapter_num: int, next_chapter: int) -> str:
+    """Discord announcement when a new prediction set goes live after a chapter drop."""
+    s = "s" if count != 1 else ""
+    return random.choice(_PRED_OPEN_ANNOUNCEMENTS).format(
+        count=count, chapter=chapter_num, next_chapter=next_chapter, s=s
+    ) + _dark()
+
+
+def prediction_resolved(
+    question: str,
+    result: str,
+    payout_total: float,
+    was_correct: bool,
+    manual: bool = False,
+) -> str:
+    """Discord announcement when a prediction resolves."""
+    if payout_total > 0:
+        payout_line = f"{payout_total:,.0f}฿ distributed to winning positions."
+    else:
+        payout_line = "No bets were placed on this proposition."
+
+    if manual:
+        pool = _PRED_RESOLVE_MANUAL
+    elif was_correct:
+        pool = _PRED_RESOLVE_CONFIRMED
+    else:
+        pool = _PRED_RESOLVE_DENIED
+
+    return random.choice(pool).format(
+        question=question, result=result, payout_line=payout_line
+    ) + "\n\n*— Punk Records, Egghead Island*"
+
+
+def draft_commentary() -> str:
+    """One-line Vegapunk comment shown alongside a Reddit-scraped draft in the admin panel."""
+    return random.choice(_DRAFT_COMMENTARY)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PREDICTION TEMPLATE POOL
+# Full One Piece prediction history — from early theories to late-game lore.
+# Used by prediction_pipeline.py to generate weekly propositions.
+# Templates use {name}, {chapter}, {next_chapter} where fillable.
+# Standalone entries have no placeholders — they're used as-is.
+# ══════════════════════════════════════════════════════════════════════════════
+
+PREDICTION_TEMPLATES = {
+
+    # ── Character appearance — fills {name} and {chapter} ─────────────────────
+    "character_appearance": [
+        "Will {name} appear in Ch.{chapter}?",
+        "Does {name} factor into Ch.{chapter}?",
+        "Will {name} have a speaking role in Ch.{chapter}?",
+        "Is {name} directly involved in the events of Ch.{chapter}?",
+        "Will Ch.{chapter} contain a {name} panel?",
+        "Does {name} play an active role in Ch.{chapter}?",
+        "Will {name} be shown in Ch.{chapter}?",
+        "Will {name}'s current situation be addressed in Ch.{chapter}?",
+    ],
+
+    # ── Character price / credibility movement ────────────────────────────────
+    "character_price": [
+        "Will {name}'s credibility rise after Ch.{chapter}?",
+        "Does Ch.{chapter} push {name}'s index above its current value?",
+        "Will the community buy {name} after Ch.{chapter} drops?",
+        "Will {name} be net-positive on the Exchange after Ch.{chapter}?",
+        "Does Ch.{chapter} trigger a sell-off on {name}?",
+        "Will {name} end the week higher than they started it?",
+        "Is {name} undervalued heading into Ch.{chapter}?",
+    ],
+
+    # ── Break week ────────────────────────────────────────────────────────────
+    "break_week": [
+        "Will there be a break week before Ch.{chapter}?",
+        "Is Ch.{chapter} releasing on schedule with no break?",
+        "Will Oda take a break this cycle?",
+        "Break week confirmed for Ch.{chapter}?",
+        "Will Ch.{chapter} drop without a week delay?",
+    ],
+
+    # ── Chapter content — arc beats ───────────────────────────────────────────
+    "arc_beat": [
+        "Will Ch.{chapter} contain a major revelation?",
+        "Does Ch.{chapter} end on a cliffhanger?",
+        "Will Ch.{chapter} advance the main plot significantly?",
+        "Will a new character be introduced in Ch.{chapter}?",
+        "Will Ch.{chapter} shift focus to a subplot?",
+        "Does Ch.{chapter} contain a named attack?",
+        "Will Ch.{chapter} feature a flashback sequence?",
+        "Is Ch.{chapter} a setup chapter or a payoff chapter?",
+        "Will a significant fight begin or end in Ch.{chapter}?",
+        "Will Ch.{chapter} contain panel time for more than four factions?",
+    ],
+
+    # ── Void Century / ancient history ───────────────────────────────────────
+    "void_century": [
+        "Will Ch.{chapter} contain a Void Century revelation?",
+        "Will the Ancient Kingdom be named before this arc ends?",
+        "Will Robin decipher a Road Poneglyph this arc?",
+        "Will the contents of the One Piece be revealed this arc?",
+        "Will Joy Boy's true identity be confirmed before the series ends?",
+        "Will the Void Century's erasure be directly addressed this arc?",
+        "Will a character reference the Void Century unprompted in Ch.{chapter}?",
+        "Will the Rio Poneglyph's contents be shown this arc?",
+        "Will Imu's connection to the Void Century be confirmed this arc?",
+        "Will we see the Ancient Kingdom in a flashback this arc?",
+        "Will the truth of the Great Cleansing be revealed this arc?",
+        "Will D. clan origins be confirmed this arc?",
+        "Will the meaning of the initial D. be officially explained this arc?",
+        "Will the World Government's founding be revisited this arc?",
+    ],
+
+    # ── Ancient Weapons ───────────────────────────────────────────────────────
+    "ancient_weapons": [
+        "Will Pluton be activated this arc?",
+        "Will Poseidon (Shirahoshi) play a role in the final war?",
+        "Will Uranus be identified by name this arc?",
+        "Will all three Ancient Weapons appear before the series ends?",
+        "Will the Ancient Weapons be used against Imu?",
+        "Will Uranus be revealed to be in the sky?",
+        "Will Shirahoshi leave Fish-Man Island this arc?",
+        "Will the location of Uranus be confirmed this arc?",
+        "Will the Ancient Weapons unite before the final battle?",
+        "Will Pluton be shown above water this arc?",
+    ],
+
+    # ── Devil Fruit reveals ───────────────────────────────────────────────────
+    "devil_fruit": [
+        "Will Dragon's Devil Fruit be revealed this arc?",
+        "Will Dragon's fruit be confirmed as a wind or storm type?",
+        "Will a previously unseen Devil Fruit awakening be shown this arc?",
+        "Will Blackbeard's third Devil Fruit be revealed this arc?",
+        "Will the true name of Luffy's fruit be referenced again this arc?",
+        "Will a Zoan fruit's autonomous will be demonstrated this arc?",
+        "Will a new Logia be introduced this arc?",
+        "Will the origin of Devil Fruits be explained this arc?",
+        "Will a Devil Fruit be shown passing to a new user this arc?",
+        "Will a fruit previously thought destroyed reappear this arc?",
+        "Will the sea's rejection of Devil Fruit users be plot-relevant this arc?",
+        "Will a character eat a Devil Fruit for the first time this arc?",
+    ],
+
+    # ── Haki revelations ──────────────────────────────────────────────────────
+    "haki": [
+        "Will a new form of Haki be introduced this arc?",
+        "Will Conqueror's Haki coating be shown by a new character this arc?",
+        "Will Luffy's Haki reach a new ceiling this arc?",
+        "Will a character awaken Conqueror's Haki for the first time this arc?",
+        "Will the limits of Observation Haki be addressed this arc?",
+        "Will Armament Haki's advanced form appear in Ch.{chapter}?",
+        "Will a non-Straw Hat character demonstrate new Haki depth this arc?",
+        "Will Future Sight Haki be used by Luffy in Ch.{chapter}?",
+        "Will the connection between Haki and willpower be explained further this arc?",
+        "Will Zoro demonstrate a new Haki application this arc?",
+    ],
+
+    # ── Shanks — the most debated figure in the fandom ───────────────────────
+    "shanks_theories": [
+        "Will Shanks' true allegiance be addressed this arc?",
+        "Will Shanks be confirmed as working against the World Government?",
+        "Will Shanks be revealed as a Celestial Dragon descendant?",
+        "Is Shanks the final obstacle before Luffy reaches Laugh Tale?",
+        "Will Shanks and Luffy clash before the series ends?",
+        "Will Shanks' reason for visiting the Gorosei be fully explained this arc?",
+        "Will Shanks be confirmed as having no Devil Fruit?",
+        "Will Shanks' past with Roger be shown in more detail this arc?",
+        "Will Shanks' crew fight a Straw Hat before the series ends?",
+        "Will Shanks use Conqueror's Haki coating in a fight this arc?",
+        "Will Shanks' knowledge of the One Piece be confirmed this arc?",
+        "Was Shanks' intervention at Marineford calculated — not compassionate?",
+        "Will Shanks be revealed as a deliberate obstacle to Blackbeard?",
+        "Will Shanks' scar from Blackbeard be revisited this arc?",
+        "Will Shanks reveal he always knew Luffy would surpass him?",
+        "Is Shanks guarding something on the Grand Line — not just sailing it?",
+    ],
+
+    # ── Blackbeard ────────────────────────────────────────────────────────────
+    "blackbeard_theories": [
+        "Will Blackbeard's abnormal body be officially explained this arc?",
+        "Will the Cerberus theory regarding Blackbeard be confirmed or denied?",
+        "Will Blackbeard reveal a third Devil Fruit this arc?",
+        "Will Blackbeard clash with Luffy before the series ends?",
+        "Will Blackbeard's crew lose a captain-class member this arc?",
+        "Will Blackbeard be revealed as the final villain?",
+        "Will Blackbeard reach Laugh Tale before Luffy?",
+        "Will Blackbeard's reason for targeting the Yami Yami no Mi be explained?",
+        "Will Blackbeard's past with Whitebeard be further explored this arc?",
+        "Will Shiryu kill a named character this arc?",
+        "Will Blackbeard attempt to steal another character's Devil Fruit this arc?",
+        "Will Blackbeard and Shanks meet this arc?",
+    ],
+
+    # ── Im and the World Government ───────────────────────────────────────────
+    "world_government": [
+        "Will Imu be shown directly interacting with a named character this arc?",
+        "Will Imu's Devil Fruit be revealed this arc?",
+        "Will the Five Elders' individual powers be fully shown this arc?",
+        "Will a member of the Gorosei be defeated this arc?",
+        "Will Imu's origin story be revealed before the series ends?",
+        "Will the Celestial Dragons' connection to the Void Century be confirmed?",
+        "Will Imu be revealed as an ancient being — not human?",
+        "Will the World Government fracture internally this arc?",
+        "Will a Celestial Dragon defect this arc?",
+        "Will the Reverie's consequences fully play out this arc?",
+        "Will the Empty Throne's significance be explained this arc?",
+        "Will Imu be confirmed as Joy Boy's ancient counterpart?",
+        "Will CP0 suffer a major defeat this arc?",
+        "Will the Gorosei's immortality method be explained this arc?",
+    ],
+
+    # ── The final war ─────────────────────────────────────────────────────────
+    "final_war": [
+        "Will the final war begin this arc?",
+        "Will Dragon's Revolutionary Army make a major move this arc?",
+        "Will the Marine Admirals all appear in the final conflict?",
+        "Will Sengoku play a role in the final war?",
+        "Will Coby reach Vice Admiral rank before the series ends?",
+        "Will Aokiji be confirmed as undercover for the Marines this arc?",
+        "Will the Warlord system be addressed one final time this arc?",
+        "Will Dragon and Garp face each other before the series ends?",
+        "Will Cross Guild become a primary antagonist faction this arc?",
+        "Will Buggy's role in the final war be revealed this arc?",
+        "Will the Marines side with the Straw Hats against the World Government?",
+        "Will Fujitora return for the final conflict?",
+        "Will a Fleet Admiral change before the series ends?",
+        "Will Garp survive to the end of the series?",
+    ],
+
+    # ── Straw Hat crew — individual arcs ─────────────────────────────────────
+    "straw_hats": [
+        "Will Zoro achieve a new sword technique this arc?",
+        "Will Zoro's connection to Ryuma be revisited this arc?",
+        "Will Sanji use his genetic enhancements without restraint this arc?",
+        "Will Nami's climate weaponry be shown at its upper limit this arc?",
+        "Will Usopp unlock a new form of Observation Haki this arc?",
+        "Will Robin decipher a major Poneglyph this arc?",
+        "Will Franky reveal a new Thousand Sunny upgrade this arc?",
+        "Will Brook's Devil Fruit reach a new application this arc?",
+        "Will Chopper develop a new Monster Point control this arc?",
+        "Will Jinbe be central to the plot of this arc?",
+        "Will a Straw Hat fight alone against a Yonko-tier opponent this arc?",
+        "Will the full Straw Hat Grand Fleet be assembled this arc?",
+        "Will Luffy's Gear 5 be shown at greater scale this arc?",
+        "Will the Straw Hats split up this arc?",
+        "Will a new Straw Hat crew member join this arc?",
+    ],
+
+    # ── Theories confirmed in canon — used for lore-drop propositions ─────────
+    # These frame current analogous situations: "just as X became true, will Y?"
+    "confirmed_theory_echoes": [
+        "Will this arc confirm a theory the fandom has held for more than five years?",
+        "Will a long-dormant Straw Hat subplot finally be resolved this arc?",
+        "Will an early One Piece setup from the East Blue saga pay off this arc?",
+        "Will a character introduced before the timeskip become arc-relevant again?",
+        "Will a foreshadowed connection between two characters be confirmed this arc?",
+        "Will a name dropped in SBS volume notes become plot-relevant this arc?",
+        "Will an early Oda panel — ignored for decades — be revealed as foreshadowing this arc?",
+        "Will a theory labeled 'too crazy' by the fandom prove correct this arc?",
+        "Will the Rocks Pirates be referenced this arc?",
+        "Will a Roger-era character appear this arc?",
+        "Will Joy Boy be directly quoted or referenced in Ch.{chapter}?",
+        "Will the D. name function as a plot device in Ch.{chapter}?",
+        "Will a character's lineage be the key to their role this arc?",
+        "Will an Ancient Weapon appear in a form the fandom did not predict?",
+    ],
+
+    # ── Character-specific long-game theories ─────────────────────────────────
+    "long_game_characters": [
+        "Will Dragon's DF be revealed this arc?",
+        "Will Aokiji's true allegiance be confirmed before the series ends?",
+        "Will Coby awaken Conqueror's Haki before the series ends?",
+        "Will Buggy accidentally do something that matters this arc?",
+        "Will Mihawk and Zoro clash before the series ends?",
+        "Will Crocodile's past with Whitebeard be confirmed this arc?",
+        "Will Sabo's fate after the Reverie be fully explained this arc?",
+        "Will Vivi return to the main story this arc?",
+        "Will Carrot join the Straw Hat Grand Fleet?",
+        "Will Yamato play a major role in the final arc?",
+        "Will Law survive to the end of the series?",
+        "Will Kid survive to the end of the series?",
+        "Will Bon Clay appear again before the series ends?",
+        "Will Ivankov play a role in the final war?",
+        "Will the true nature of Marco's fruit be elaborated on this arc?",
+        "Will Weevil's paternity be confirmed or denied this arc?",
+        "Will Scopper Gaban appear this arc?",
+        "Will Toki's prophecy be fully addressed before the series ends?",
+        "Will Silver Rayleigh play a final role before the series ends?",
+        "Will Dracule Mihawk's past be explored in depth this arc?",
+        "Will the Sun God Nika mythology be expanded this arc?",
+        "Will a character from Luffy's childhood appear this arc?",
+    ],
+
+    # ── One Piece reveal theories ─────────────────────────────────────────────
+    "one_piece_reveal": [
+        "Will the One Piece be confirmed as a physical object this arc?",
+        "Will the One Piece be confirmed as information — not treasure?",
+        "Will Laugh Tale be reached by any crew this arc?",
+        "Will the meaning of Roger's laughter be explained before the series ends?",
+        "Will the One Piece be connected to the Void Century this arc?",
+        "Will a character outside the Straw Hats reach Laugh Tale first?",
+        "Will the One Piece involve all four Road Poneglyphs being read together?",
+        "Will the location of Laugh Tale be revealed before the crew reaches it?",
+        "Will the One Piece be something Oda hid in plain sight from chapter one?",
+        "Will the final island's name change from Laugh Tale back to Raftel in context?",
+    ],
+}
+
+
+def get_prediction_templates(category: str) -> list[str]:
+    """Return the template list for a given category. Returns all templates if category not found."""
+    return PREDICTION_TEMPLATES.get(category, [
+        t for templates in PREDICTION_TEMPLATES.values() for t in templates
+    ])
+
+
+def get_all_standalone_templates() -> list[str]:
+    """Return all templates with no placeholders — ready to use as-is."""
+    result = []
+    for templates in PREDICTION_TEMPLATES.values():
+        for t in templates:
+            if "{name}" not in t and "{chapter}" not in t and "{next_chapter}" not in t:
+                result.append(t)
+    return result
+
+
+def get_fillable_templates(category: str = "character_appearance") -> list[str]:
+    """Return templates that require {name} and/or {chapter} substitution."""
+    return [t for t in PREDICTION_TEMPLATES.get(category, []) if "{" in t]
