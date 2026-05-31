@@ -238,7 +238,7 @@ def slander_response(name: str, change_pct: float) -> str:
 
 
 def transmission_response(movers: list) -> str:
-    """Weekly broadcast — top gainers and losers."""
+    """Weekly broadcast — top gainers and losers, in full Vegapunk voice."""
     if not movers:
         return (
             f"{sat('main')}\n"
@@ -251,33 +251,112 @@ def transmission_response(movers: list) -> str:
     gainers = [m for m in movers if m["change_pct"] > 0][:3]
     losers  = list(reversed([m for m in movers if m["change_pct"] < 0][-3:]))
 
+    top_pct    = movers[0]["change_pct"] if movers else 0
+    bottom_pct = movers[-1]["change_pct"] if movers else 0
+
+    # ── Opening — reads overall market tone ──────────────────────────────────
+    _OPENINGS_BULLISH = [
+        "Strong upward movement this cycle. The index reflects conviction, not noise. Punk Records has learned to tell the difference.",
+        "Credibility coefficients climbed across the board this week. My satellites flagged most of it before the market noticed. They usually do.",
+        "A good week, by the numbers. Punk Records acknowledges this without fully endorsing the market's optimism. Caution is always warranted.",
+        "The index moved upward this cycle. Significantly, in some cases. I have cross-referenced the movement with 23 historical precedents. The precedents are cautiously encouraging.",
+    ]
+    _OPENINGS_BEARISH = [
+        "The credibility index declined this cycle. Punk Records is not surprised. Punk Records is rarely surprised, and almost never pleased about it.",
+        "A rough week. Multiple high-profile coefficients moved in directions that concern me structurally. I am not being dramatic. The data is being dramatic on my behalf.",
+        "The market retreated this week. The index reflects this with the accuracy it always reflects everything — completely, and without mercy.",
+        "Several operators declined sharply this cycle. Punk Records has logged the movement, analyzed the patterns, and arrived at conclusions it is not ready to share publicly yet.",
+    ]
+    _OPENINGS_MIXED = [
+        "A volatile cycle. Some operators rose sharply. Others corrected just as sharply. Punk Records finds volatility informative, if exhausting.",
+        "Mixed signals this week — the index moved in both directions with conviction. This is either healthy market behavior or the early stage of something more complicated. I am monitoring.",
+        "The credibility data this cycle is what I would classify as 'chaotic but legible.' The legible part is not entirely reassuring.",
+        "Significant divergence across the board this cycle. The coefficient does not agree with itself this week. That is, in my experience, always worth noting.",
+    ]
+
+    if top_pct > 5 and (not losers or abs(bottom_pct) < 3):
+        opening = random.choice(_OPENINGS_BULLISH)
+    elif bottom_pct < -5 and (not gainers or top_pct < 3):
+        opening = random.choice(_OPENINGS_BEARISH)
+    else:
+        opening = random.choice(_OPENINGS_MIXED)
+
     lines = [
         sat("main"),
-        "📡 **WEEKLY TRANSMISSION — PUNK RECORDS CREDIBILITY REPORT**",
+        "📡 **WEEKLY TRANSMISSION — PUNK RECORDS CREDIBILITY INDEX**",
+        "",
+        opening,
         "",
     ]
 
+    # ── Gainers ───────────────────────────────────────────────────────────────
     if gainers:
+        lines.append(f"{sat('atlas')}")
         lines.append("**▲ RISING CREDIBILITY**")
-        for m in gainers:
-            lines.append(f"  • **{m['name']}** — +{m['change_pct']:.1f}% ({m['beri']:,.0f}฿)")
         lines.append("")
 
+        top = gainers[0]
+        verb, severity = _direction(top["change_pct"])
+
+        _TOP_GAINER_LEADS = [
+            f"**{top['name']}** leads the board at **+{top['change_pct']:.1f}%** — {top['beri']:,.0f}฿. The coefficient doesn't move like this without a reason. Punk Records is currently determining the reason.",
+            f"**{top['name']}** at +{top['change_pct']:.1f}% this cycle — {top['beri']:,.0f}฿. My satellites flagged this before the market caught up. They usually do.",
+            f"Top operator this cycle: **{top['name']}**, +{top['change_pct']:.1f}%. Punk Records has cross-referenced this with 14 historical precedents. The precedents suggest this is not a coincidence.",
+            f"**{top['name']}** has {verb} {top['change_pct']:.1f}% and is currently sitting at {top['beri']:,.0f}฿. The index is responding to something the community already knows. Punk Records confirms it.",
+        ]
+        lines.append(random.choice(_TOP_GAINER_LEADS))
+
+        for m in gainers[1:]:
+            _GAINER_SHORT = [
+                f"**{m['name']}** — +{m['change_pct']:.1f}% · {m['beri']:,.0f}฿. Filed under: notable. Monitoring continues.",
+                f"**{m['name']}** registered +{m['change_pct']:.1f}% this cycle. {m['beri']:,.0f}฿. Punk Records is watching.",
+                f"**{m['name']}** up {m['change_pct']:.1f}% — {m['beri']:,.0f}฿. The coefficient doesn't lie. It has never lied.",
+                f"**{m['name']}**: +{m['change_pct']:.1f}% · {m['beri']:,.0f}฿. Punk Records has logged this. Cross-referenced it. Is still thinking about it.",
+            ]
+            lines.append(random.choice(_GAINER_SHORT))
+        lines.append("")
+
+    # ── Losers ────────────────────────────────────────────────────────────────
     if losers:
+        lines.append(f"{sat('lilith')}")
         lines.append("**▼ CREDIBILITY IN DECLINE**")
-        for m in losers:
-            lines.append(f"  • **{m['name']}** — {m['change_pct']:.1f}% ({m['beri']:,.0f}฿)")
         lines.append("")
 
-    closers = [
-        "Punk Records does not editorialize. The numbers do that on their own.",
-        "My satellites logged every fluctuation. Some of them are still processing the implications.",
-        "This data was compiled without bias. Lilith tried to add some. I removed it.",
-        "The index is a reflection of reality, not a judgment. Though reality is, in some cases, quite bad.",
-        "End of transmission. Punk Records continues monitoring. As it always has. As it always will.",
+        worst = losers[0]
+        verb_w, severity_w = _direction(worst["change_pct"])
+        warning = " ⚠️" if worst["change_pct"] <= -15 else ""
+
+        _TOP_LOSER_LEADS = [
+            f"**{worst['name']}** — {worst['change_pct']:.1f}%{warning} · {worst['beri']:,.0f}฿. I have seen Marine admirals with better numbers than this. The coefficient is not being unkind. It is being precise.",
+            f"**{worst['name']}** leads the decline at {worst['change_pct']:.1f}%{warning}. {worst['beri']:,.0f}฿ remaining. Punk Records has filed this under '{severity_w}.' Lilith filed it under something considerably worse. I edited her entry.",
+            f"Worst movement this cycle: **{worst['name']}** at {worst['change_pct']:.1f}%{warning}. Current index: {worst['beri']:,.0f}฿. The data is not an opinion. It is a diagnosis.",
+            f"**{worst['name']}** {verb_w} {worst['change_pct']:.1f}%{warning} this week — {worst['beri']:,.0f}฿. I am noting this without editorializing. Lilith is editorializing in the background. Extensively.",
+        ]
+        lines.append(random.choice(_TOP_LOSER_LEADS))
+
+        for m in losers[1:]:
+            warning_m = " ⚠️" if m["change_pct"] <= -15 else ""
+            _LOSER_SHORT = [
+                f"**{m['name']}** — {m['change_pct']:.1f}%{warning_m} · {m['beri']:,.0f}฿. The index has noted this. Punk Records has noted the index noting this.",
+                f"**{m['name']}** down {abs(m['change_pct']):.1f}%{warning_m}. {m['beri']:,.0f}฿. Filed. Cross-referenced. Concerning.",
+                f"**{m['name']}** — {m['change_pct']:.1f}%{warning_m} · {m['beri']:,.0f}฿. Punk Records has no further comment at this time. Punk Records has several further comments but is choosing restraint.",
+                f"**{m['name']}**: {m['change_pct']:.1f}%{warning_m} · {m['beri']:,.0f}฿. I am logging this without judgment. The judgment is implicit in the number.",
+            ]
+            lines.append(random.choice(_LOSER_SHORT))
+        lines.append("")
+
+    # ── Closer ────────────────────────────────────────────────────────────────
+    _CLOSERS = [
+        "Punk Records continues monitoring. The index does not sleep. Neither do I, technically. I have chosen not to examine the implications of that.",
+        "End of transmission. The credibility data speaks for itself. Punk Records has simply chosen to speak loudly on its behalf.",
+        "That is the cycle. The data is accurate. The coefficient is neutral. The implications, as always, are left as an exercise for the community.",
+        "The index does not speculate. It calculates. Everything above is calculation. If it reads like an opinion, that is the data's fault, not mine.",
+        "Transmission complete. The market will continue moving. Punk Records will continue watching. One of us finds this more interesting than the other.",
+        "Filed, transmitted, archived. The credibility index represents the collective conviction of everyone on this exchange. Punk Records finds that, genuinely, remarkable.",
+        "Punk Records does not editorialize. I want to be clear about that. Everything above is strictly neutral scientific observation. Lilith is laughing. I am ignoring her.",
     ]
 
-    lines.append(random.choice(closers))
+    lines.append(random.choice(_CLOSERS))
     lines.append(_dark())
     lines.append("\n*— Punk Records, Egghead Island*")
     return "\n".join(lines)
