@@ -13,3 +13,4 @@ apscheduler==3.10.4
 slowapi==0.1.9
 discord.py==2.3.2
 aiohttp==3.9.5
+anthropic>=0.40.0
