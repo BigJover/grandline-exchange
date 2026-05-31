@@ -212,6 +212,14 @@
 
     </div>
 
+    <!-- Prediction controls -->
+    <div style="display:flex;gap:8px;align-items:center;margin-top:14px;margin-bottom:0">
+      <button class="btn btn-punk" onclick="triggerPredictions()">🔮 GEN PREDICTIONS</button>
+      <input type="number" id="pred-chapter-num" placeholder="Chapter # (optional)" min="1" max="9999"
+        style="width:180px;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);font-family:Share Tech Mono,monospace;font-size:0.82rem;border-radius:4px">
+      <span id="pred-gen-status" style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim)"></span>
+    </div>
+
     <!-- Draft Propositions + Needs Review — full-width below the two-col -->
     <div class="two-col" style="margin-top:14px">
 
@@ -257,7 +265,6 @@
         <input type="number" id="manual-chapter-num" placeholder="Chapter #  e.g. 1183" min="1" max="9999"
           style="width:180px;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);font-family:Share Tech Mono,monospace;font-size:0.82rem;border-radius:4px">
         <button class="btn btn-punk" onclick="detectChapterManual()">▶ RUN FOR CHAPTER</button>
-        <button class="btn btn-ghost" onclick="triggerPredictions()" style="margin-left:8px">🔮 GEN PREDICTIONS</button>
         <span id="pipeline-status" style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim)"></span>
       </div>
       <div id="proposals-wrap">
@@ -858,21 +865,22 @@ async function detectChapterManual() {
 }
 
 async function triggerPredictions() {
-  const numEl = document.getElementById('manual-chapter-num');
+  const numEl = document.getElementById('pred-chapter-num');
+  const statusEl = document.getElementById('pred-gen-status');
   const num = numEl ? parseInt(numEl.value, 10) : NaN;
   const url = (!isNaN(num) && num > 0) ? `/admin/predictions/generate?chapter=${num}&force=true` : '/admin/predictions/generate';
-  document.getElementById('pipeline-status').textContent = 'Generating predictions…';
+  statusEl.textContent = 'Generating…';
   try {
     const d = await api('POST', url);
     if (d.skipped) {
-      document.getElementById('pipeline-status').textContent = `Ch.${d.chapter} predictions already generated (pass force=true or use the chapter input)`;
+      statusEl.textContent = `Ch.${d.chapter} already generated — enter chapter # and retry to force`;
     } else {
-      document.getElementById('pipeline-status').textContent = `Ch.${d.chapter}: ${d.created} live, ${d.drafts} drafts queued`;
+      statusEl.textContent = `✓ Ch.${d.chapter}: ${d.created} live, ${d.drafts} drafts`;
       loadDrafts();
       loadProps();
     }
   } catch(e) {
-    document.getElementById('pipeline-status').textContent = '⚠ ' + e.message;
+    statusEl.textContent = '⚠ ' + e.message;
   }
 }
 
