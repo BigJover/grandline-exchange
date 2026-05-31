@@ -509,6 +509,16 @@ async def casino_create(
             "question": p.question,
             "closes_at": p.closes_at.isoformat() if p.closes_at else None,
         })
+    try:
+        from app.discord_notify import announce_prediction_open
+        announce_prediction_open(
+            question=p.question,
+            options=p.options,
+            closes_at=p.closes_at,
+            category=p.category,
+        )
+    except Exception as e:
+        print(f"[Admin] Prediction Discord notify failed (non-fatal): {e}")
     return {"status": "ok", "id": p.id, "question": p.question}
 
 
@@ -806,6 +816,17 @@ def casino_publish_draft(
 
     prop.status = "open"
     db.commit()
+    try:
+        from app.discord_notify import announce_prediction_open
+        announce_prediction_open(
+            question=prop.question,
+            options=prop.options,
+            closes_at=prop.closes_at,
+            category=prop.category,
+            chapter_num=prop.source_chapter or 0,
+        )
+    except Exception as e:
+        print(f"[Admin] Prediction Discord notify failed (non-fatal): {e}")
     return {"status": "ok", "id": prop.id, "question": prop.question}
 
 

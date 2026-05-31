@@ -186,6 +186,20 @@ def generate_chapter_predictions(db: Session, chapter_num: int, force: bool = Fa
     _mark_ran(db, chapter_num)
 
     print(f"[PredictionPipeline] Ch.{chapter_num} → {created} live, {drafts} drafts")
+
+    if created > 0:
+        try:
+            from app.discord_notify import announce_prediction_open
+            announce_prediction_open(
+                question="",
+                options=[],
+                closes_at=closes,
+                chapter_num=chapter_num,
+                batch_count=created,
+            )
+        except Exception as e:
+            print(f"[PredictionPipeline] Discord notify failed (non-fatal): {e}")
+
     return {"created": created, "drafts": drafts, "skipped": False, "chapter": chapter_num}
 
 

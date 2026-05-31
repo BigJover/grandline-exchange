@@ -1035,6 +1035,29 @@ async function init(){
   updateAuthUI();
   updateFreePlayStatus();
   await Promise.all([loadProps(), loadTrivia(), loadCharacters()]);
+  _handleChallengeParam();
+}
+
+function _handleChallengeParam() {
+  if (!new URLSearchParams(window.location.search).has('challenge')) return;
+  const featured = document.getElementById('c-featured');
+  if (featured) featured.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (!currentUser) {
+    const loginBtn = document.getElementById('header-login-btn');
+    if (loginBtn) {
+      loginBtn.style.cssText += ';box-shadow:0 0 18px var(--punk-glow),0 0 36px var(--punk-glow);border-color:var(--punk);';
+      loginBtn.textContent = 'LOG IN TO BET';
+      setTimeout(function(){ loginBtn.textContent = 'LOG IN'; loginBtn.style.boxShadow = ''; }, 4000);
+    }
+    const featCard = featured ? featured.querySelector('.c-featured-card, .c-featured-empty') : null;
+    if (featCard) {
+      const nudge = document.createElement('div');
+      nudge.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--punk);text-align:center;padding:8px 0 2px;letter-spacing:1px;';
+      nudge.textContent = '→ Log in to place your call';
+      featCard.parentNode.insertBefore(nudge, featCard.nextSibling);
+      setTimeout(function(){ nudge.remove(); }, 6000);
+    }
+  }
 }
 
 async function loadProps(){

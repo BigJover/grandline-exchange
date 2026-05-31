@@ -15,6 +15,7 @@ import urllib.error
 
 CHAPTER_WEBHOOK        = os.getenv("DISCORD_CHAPTER_WEBHOOK", "")
 ANNOUNCEMENTS_WEBHOOK  = os.getenv("DISCORD_ANNOUNCEMENTS_WEBHOOK", "")
+PREDICTIONS_WEBHOOK    = os.getenv("DISCORD_PREDICTIONS_WEBHOOK", "")
 REQUEST_WEBHOOK        = os.getenv("DISCORD_CHARACTER_REQUEST_WEBHOOK", "")
 SITE_URL               = os.getenv("SITE_URL", "").rstrip("/")
 
@@ -278,3 +279,76 @@ def announce_price_alert(character_name: str, pct_change: float, new_beri: float
         "username": "Vegapunk — Punk Records",
     }
     return _post_webhook(_PRICE_ALERT_WEBHOOK, payload)
+
+
+# ── Prediction open notification ──────────────────────────────────────────────
+
+def announce_prediction_open(
+    question: str,
+    options: list,
+    closes_at,          # datetime or None
+    category: str = "",
+    chapter_num: int = 0,
+    batch_count: int = 1,  # >1 when pipeline fires multiple at once
+) -> bool:
+    """
+    Fire a @here ping to DISCORD_PREDICTIONS_WEBHOOK when a prediction goes live.
+    Works for single predictions (admin create/publish) and batch pipeline runs.
+    """
+    if not PREDICTIONS_WEBHOOK:
+        return False
+
+    site_url = SITE_URL or ""
+    challenge_link = f"{site_url}/casino?challenge=1" if site_url else "/casino?challenge=1"
+
+    # Format closes_at as a readable string
+    if closes_at:
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+            if hasattr(closes_at, "strftime"):
+                closes_str = closes_at.strftime("%a %b %-d · %H:%M UTC")
+            else:
+                closes_str = str(closes_at)
+        except Exception:
+            closes_str = str(closes_at)
+    else:
+        closes_str = "—"
+
+    # Vegapunk voice line — use personality pool if available
+    voice_line = ""
+    try:
+        import sys as _sys, os as _os
+        _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), ".."))
+        from vegapunk.personality import prediction_open_announcement
+        next_ch = chapter_num + 1 if chapter_num else 0
+        voice_line = "\n" + prediction_open_announcement(batch_count, chapter_num, next_ch)
+    except Exception:
+        voice_line = "\n*Punk Records has opened a new projection window.*"
+
+    if batch_count > 1:
+        # Batch announcement — don't list every question, just the count
+        content = (
+            f"@here\n"
+            f"{voice_line}\n\n"
+            f"**Closes:** {closes_str}\n"
+            f"→ **Place your call:** {challenge_link}"
+        )
+    else:
+        # Single prediction — show the full question and options
+        opts_str = "  ".join(f"⬥ **{o}**" for o in (options or []))
+        cat_str  = f" · *{category}*" if category else ""
+        content = (
+            f"@here\n"
+            f"📡 **PUNK RECORDS — PROJECTION OPEN**{cat_str}\n\n"
+            f"*\"{question}\"*\n\n"
+            f"{opts_str}\n"
+            f"**Closes:** {closes_str}\n"
+            f"{voice_line}\n\n"
+            f"→ **Place your call:** {challenge_link}"
+        )
+
+    return _post_webhook(PREDICTIONS_WEBHOOK, {
+        "content": content,
+        "allowed_mentions": {"parse": ["everyone"]},
+        "username": "Vegapunk — Punk Records",
+    })
