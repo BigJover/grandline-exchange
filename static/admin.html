@@ -249,6 +249,23 @@
   <!-- ══ CHAPTER PULSE TAB ═════════════════════════════════════════════════ -->
   <div class="tab-content" id="tab-pulse">
 
+    <!-- ── Live Transmission Regen ── -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">📡 LIVE TRANSMISSION</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:12px">
+        Regenerate the transmission using the full Vegapunk personality voice. Takes the current live transmission's movers and rewrites the summary in the new format. Goes live immediately.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn btn-punk" id="regen-tx-btn" onclick="regenTransmission()">🔄 REGENERATE TRANSMISSION</button>
+        <span id="regen-tx-status" style="font-family:Share Tech Mono,monospace;font-size:0.7rem;color:var(--text-dim)"></span>
+      </div>
+      <div id="regen-tx-preview" style="display:none">
+        <div class="sect-label" style="margin-bottom:6px">Preview — now live</div>
+        <textarea id="regen-tx-text" rows="14" readonly
+          style="width:100%;font-family:Share Tech Mono,monospace;font-size:0.7rem;background:var(--bg2);border:1px solid var(--border);color:var(--text-main);padding:8px;resize:vertical;box-sizing:border-box;border-radius:4px"></textarea>
+      </div>
+    </div>
+
     <!-- ── Chapter Pipeline ── -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">🔴 CHAPTER PIPELINE</div>
@@ -1205,6 +1222,36 @@ document.querySelectorAll('.tab-btn[data-tab="pulse"]').forEach(function(btn) {
 document.querySelectorAll('.tab-btn[data-tab="pulse"]').forEach(function(btn) {
   btn.addEventListener('click', function() { setTimeout(loadProposals, 50); });
 });
+
+// ── Transmission Regen ────────────────────────────────────────────────────────
+async function regenTransmission() {
+  const btn = document.getElementById('regen-tx-btn');
+  const status = document.getElementById('regen-tx-status');
+  const preview = document.getElementById('regen-tx-preview');
+  const textArea = document.getElementById('regen-tx-text');
+
+  btn.disabled = true;
+  status.textContent = 'Regenerating…';
+
+  try {
+    const res = await fetch('/admin/transmission/regen', {
+      method: 'POST',
+      headers: { 'X-Admin-Secret': SECRET },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Request failed');
+
+    status.textContent = '✓ Transmission live — Ch.' + (data.chapter_number || '?');
+    textArea.value = data.summary || '';
+    preview.style.display = 'block';
+    toast('📡 Transmission regenerated and published.');
+  } catch (e) {
+    status.textContent = '⚠ ' + e.message;
+    toast('⚠ ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 // ── Chapter Pulse ─────────────────────────────────────────────────────────────
 function renderPulseChars(chars) {

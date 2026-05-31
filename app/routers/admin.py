@@ -474,6 +474,105 @@ def generate_transmission(
     }
 
 
+@router.post("/transmission/regen")
+def regen_transmission(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Regenerate the live transmission using the Vegapunk personality voice.
+    Takes the latest ChapterTransmission, enriches its movers with actual
+    pct_change + current beri values, runs them through transmission_response(),
+    and saves a new ChapterTransmission record.
+    Returns {"status": "ok", "summary": <new text>, "chapter_number": int}
+    """
+    _check_secret(x_admin_secret)
+
+    tx = (
+        db.query(models.ChapterTransmission)
+        .order_by(models.ChapterTransmission.id.desc())
+        .first()
+    )
+    if not tx:
+        raise HTTPException(status_code=404, detail="No transmission found — publish one first.")
+
+    chapter_num = tx.chapter_number or 0
+    raw_movers  = tx.movers or []
+
+    # ── 1. Build a name→pct_change lookup from ProposedPriceChange ───────────
+    ppc_lookup: dict = {}   # name → {"pct_change": float, "direction": str, "proposed_beri": float}
+    if chapter_num:
+        rows = db.query(models.ProposedPriceChange).filter(
+            models.ProposedPriceChange.chapter_number == chapter_num,
+        ).all()
+        for r in rows:
+            ppc_lookup[r.character_name] = {
+                "pct_change": r.pct_change,
+                "direction":  r.direction,
+                "proposed_beri": r.proposed_beri,
+            }
+
+    # ── 2. Build current beri lookup from characters table ───────────────────
+    all_names = [m["name"] for m in raw_movers if isinstance(m, dict) and "name" in m]
+    beri_lookup: dict = {}
+    if all_names:
+        chars = db.query(models.Character.name, models.Character.beri).filter(
+            models.Character.name.in_(all_names)
+        ).all()
+        for c in chars:
+            beri_lookup[c.name] = c.beri
+
+    # ── 3. Build transmission_response() movers ──────────────────────────────
+    tr_movers = []
+    for m in raw_movers:
+        if not isinstance(m, dict) or "name" not in m:
+            continue
+        name = m["name"]
+        direction = m.get("direction", "up")
+
+        # Prefer real ppc data; fall back to direction-based defaults
+        if name in ppc_lookup:
+            ppc = ppc_lookup[name]
+            signed_pct = ppc["pct_change"] if ppc["direction"] == "up" else -ppc["pct_change"]
+            beri = ppc["proposed_beri"]
+        else:
+            signed_pct = {"up": 5.0, "down": -7.0, "new": 3.0}.get(direction, 5.0)
+            beri = beri_lookup.get(name, 0)
+
+        tr_movers.append({"name": name, "change_pct": signed_pct, "beri": beri})
+
+    # Sort: biggest gain first → biggest loss last (transmission_response expects this)
+    tr_movers.sort(key=lambda x: x["change_pct"], reverse=True)
+
+    # ── 4. Generate the new voiced summary ───────────────────────────────────
+    try:
+        import sys as _sys, os as _os
+        _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), "../.."))
+        from vegapunk.personality import transmission_response
+        new_summary = transmission_response(tr_movers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"transmission_response() failed: {e}")
+
+    # ── 5. Save new ChapterTransmission record ────────────────────────────────
+    new_tx = models.ChapterTransmission(
+        chapter_number=tx.chapter_number,
+        uplink_label=tx.uplink_label,
+        summary=new_summary,
+        movers=tx.movers,
+        reddit_context=tx.reddit_context,
+    )
+    db.add(new_tx)
+    db.commit()
+    db.refresh(new_tx)
+
+    return {
+        "status": "ok",
+        "id": new_tx.id,
+        "chapter_number": new_tx.chapter_number,
+        "summary": new_summary,
+    }
+
+
 # ── Casino admin ──────────────────────────────────────────────────────────────
 
 @router.post("/casino/create")
