@@ -273,6 +273,36 @@
       <div id="char-drops-wrap"><div class="empty">Click Refresh to load.</div></div>
     </div>
 
+    <!-- ── Manual Character Drop ── -->
+    <div class="card">
+      <div class="card-title">⚡ MANUAL CHARACTER DROP</div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:12px">
+        Directly add a character to the roster. Use for retroactive or missed additions — skips the proposal queue and goes live immediately.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="two-col" style="gap:8px">
+          <div class="fr"><label>Name *</label><input type="text" id="mcd-name" placeholder="e.g. King Reuven"></div>
+          <div class="fr"><label>Starting Beri *</label><input type="number" id="mcd-beri" placeholder="2000000000" step="50000000"></div>
+        </div>
+        <div class="two-col" style="gap:8px">
+          <div class="fr"><label>Faction</label><input type="text" id="mcd-faction" placeholder="e.g. Esperia Kingdom"></div>
+          <div class="fr"><label>Category</label><input type="text" id="mcd-category" placeholder="e.g. Royalty"></div>
+        </div>
+        <div class="fr">
+          <label>Bio</label>
+          <textarea id="mcd-bio" rows="3" style="font-family:Share Tech Mono,monospace;font-size:0.75rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);padding:6px;resize:vertical" placeholder="Short canon bio…"></textarea>
+        </div>
+        <div class="fr">
+          <label>Cognitive Analysis (events)</label>
+          <textarea id="mcd-events" rows="4" style="font-family:Share Tech Mono,monospace;font-size:0.75rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-main);padding:6px;resize:vertical" placeholder="Ch.XXXX — Debut | …"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-punk" onclick="addCharDirect()">ADD TO ROSTER</button>
+          <span id="mcd-status" style="font-size:0.7rem;color:var(--text-dim)"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Character Intel Editor ── -->
     <div class="card">
       <div class="card-title">📡 CHARACTER INTEL</div>
@@ -937,6 +967,34 @@ async function saveIntel(appendEvents) {
     toast('✓ ' + d.name + ' intel saved');
     document.getElementById('intel-events').value = d.events || '';
   } catch(e) { toast('⚠ ' + e.message, true); }
+}
+
+// ── Manual Character Drop ────────────────────────────────────────────────────
+async function addCharDirect() {
+  const name = document.getElementById('mcd-name').value.trim();
+  const beri = parseFloat(document.getElementById('mcd-beri').value) || 0;
+  const status = document.getElementById('mcd-status');
+  if (!name) { toast('Name is required', true); return; }
+  if (beri <= 0) { toast('Starting beri must be > 0', true); return; }
+  if (!confirm('Add "' + name + '" directly to the roster at ' + fB(beri) + '? This goes live immediately.')) return;
+  status.textContent = 'Adding…';
+  try {
+    const d = await api('POST', '/admin/characters/add', {
+      name,
+      beri,
+      faction: document.getElementById('mcd-faction').value.trim(),
+      category: document.getElementById('mcd-category').value.trim(),
+      bio: document.getElementById('mcd-bio').value.trim(),
+      events: document.getElementById('mcd-events').value.trim(),
+    });
+    toast('✓ ' + d.name + ' added — ' + fB(d.beri));
+    status.textContent = '✓ ' + d.name + ' added (id=' + d.id + ')';
+    ['mcd-name','mcd-beri','mcd-faction','mcd-category','mcd-bio','mcd-events']
+      .forEach(function(id){ document.getElementById(id).value = ''; });
+  } catch(e) {
+    status.textContent = '';
+    toast('⚠ ' + e.message, true);
+  }
 }
 
 // Auto-load char drops when CHAPTER PULSE tab opens

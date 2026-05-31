@@ -1496,6 +1496,51 @@ def update_character_intel(
     }
 
 
+# ── Direct Character Add ──────────────────────────────────────────────────────
+
+@router.post("/characters/add")
+def add_character_direct(
+    payload: dict,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Directly add a new character to the roster without going through the proposal queue.
+    Use for retroactive additions or characters missed by the pipeline."""
+    _check_secret(x_admin_secret)
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    beri = float(payload.get("beri", 0) or 0)
+    if beri <= 0:
+        raise HTTPException(status_code=400, detail="beri must be > 0")
+
+    existing = db.query(models.Character).filter(models.Character.name == name).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"'{name}' already exists (id={existing.id})")
+
+    char = models.Character(
+        name=name,
+        aliases=payload.get("aliases") or [],
+        faction=payload.get("faction", ""),
+        category=payload.get("category", ""),
+        beri=max(100_000, beri),
+        base_beri=max(100_000, beri),
+        canon_bounty=payload.get("canon_bounty"),
+        status="active",
+        price_history=[],
+        img="",
+        bio=payload.get("bio", ""),
+        events=payload.get("events", ""),
+        sbs=[],
+        related=[],
+    )
+    db.add(char)
+    db.commit()
+    db.refresh(char)
+    invalidate_char_cache()
+    return {"status": "ok", "id": char.id, "name": char.name, "beri": char.beri}
+
+
 # ── Character meta sync ────────────────────────────────────────────────────────
 
 @router.post("/sync-character-meta")
