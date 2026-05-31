@@ -631,23 +631,60 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
 
     # ── 10b. Auto-publish transmission ───────────────────────────────────────
     try:
-        movers = [
+        raw_movers = [
             {"name": e["name"], "direction": "up" if e["net_buy"] >= 0 else "down"}
             for e in top[:10]
         ]
-        up_names   = [m["name"] for m in movers if m["direction"] == "up"][:3]
-        down_names = [m["name"] for m in movers if m["direction"] == "down"][:2]
-        parts = []
-        if up_names:
-            parts.append(f"▲ {', '.join(up_names)}")
-        if down_names:
-            parts.append(f"▼ {', '.join(down_names)}")
-        summary = f"Ch.{chapter_num} price proposals generated. " + ((" · ".join(parts)) if parts else "No strong movers this chapter.")
+
+        # Build transmission_response() movers using real ProposedPriceChange data
+        ppc_rows = db.query(models.ProposedPriceChange).filter(
+            models.ProposedPriceChange.chapter_number == chapter_num,
+        ).all()
+        ppc_map = {r.character_name: r for r in ppc_rows}
+
+        # Current beri lookup for movers
+        mover_names = [m["name"] for m in raw_movers]
+        beri_map = {}
+        if mover_names:
+            for c in db.query(models.Character.name, models.Character.beri).filter(
+                models.Character.name.in_(mover_names)
+            ).all():
+                beri_map[c.name] = c.beri
+
+        tr_movers = []
+        for m in raw_movers:
+            name = m["name"]
+            ppc = ppc_map.get(name)
+            if ppc:
+                signed_pct = ppc.pct_change if ppc.direction == "up" else -ppc.pct_change
+                beri = ppc.proposed_beri
+            else:
+                signed_pct = 5.0 if m["direction"] == "up" else -7.0
+                beri = beri_map.get(name, 0)
+            tr_movers.append({"name": name, "change_pct": signed_pct, "beri": beri})
+        tr_movers.sort(key=lambda x: x["change_pct"], reverse=True)
+
+        try:
+            import sys as _sys, os as _os
+            _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), ".."))
+            from vegapunk.personality import transmission_response
+            summary = transmission_response(tr_movers)
+        except Exception as voice_err:
+            print(f"[ChapterPipeline] Vegapunk voice failed, using plain summary: {voice_err}")
+            up_names   = [m["name"] for m in raw_movers if m["direction"] == "up"][:3]
+            down_names = [m["name"] for m in raw_movers if m["direction"] == "down"][:2]
+            parts = []
+            if up_names:
+                parts.append(f"▲ {', '.join(up_names)}")
+            if down_names:
+                parts.append(f"▼ {', '.join(down_names)}")
+            summary = f"Ch.{chapter_num} price proposals generated. " + ((" · ".join(parts)) if parts else "No strong movers this chapter.")
+
         tx = models.ChapterTransmission(
             chapter_number=chapter_num,
             uplink_label=f"Uplink: Ch.{chapter_num} ◈ Chapter Drop",
             summary=summary,
-            movers=movers,
+            movers=raw_movers,
             reddit_context=[best_url] if best_url else [],
         )
         db.add(tx)
