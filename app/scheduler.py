@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-_BERI_LOCK    = "/tmp/beri_drop.lock"
-_PURGE_LOCK   = "/tmp/comment_purge.lock"
-_BOT_LOCK     = "/tmp/bot_tick.lock"
-_CHAPTER_LOCK = "/tmp/chapter_detect.lock"
-_MIN_INTERVAL = 23 * 3600  # must be at least 23h since last run
+_BERI_LOCK       = "/tmp/beri_drop.lock"
+_PURGE_LOCK      = "/tmp/comment_purge.lock"
+_BOT_LOCK        = "/tmp/bot_tick.lock"
+_CHAPTER_LOCK    = "/tmp/chapter_detect.lock"
+_PREDICTION_LOCK = "/tmp/prediction_gen.lock"
+_MIN_INTERVAL    = 23 * 3600  # must be at least 23h since last run
 
 
 def _should_run(lock_path: str, min_seconds: int = _MIN_INTERVAL) -> bool:
@@ -269,6 +270,34 @@ def _run_bot_tick_guarded():
     run_bot_tick()
 
 
+def _run_prediction_generate_guarded():
+    """Generate predictions for the most recently detected chapter.
+    Fires Saturday 14:00 UTC — ~24h after typical Friday chapter drop.
+    Idempotent: skips if already ran for the same chapter."""
+    if not _should_run(_PREDICTION_LOCK, min_seconds=20 * 3600):
+        return
+    try:
+        from app.database import SessionLocal
+        from app import models as _m
+        from sqlalchemy import func as sqlfunc
+        from app.prediction_pipeline import generate_chapter_predictions
+        db = SessionLocal()
+        try:
+            latest = db.query(sqlfunc.max(_m.Chapter.number)).scalar()
+            if not latest:
+                print("[PredictionScheduler] No chapters in DB yet — skipping")
+                return
+            result = generate_chapter_predictions(db, latest)
+            if result["skipped"]:
+                print(f"[PredictionScheduler] Ch.{latest} predictions already generated")
+            else:
+                print(f"[PredictionScheduler] Ch.{latest}: {result['created']} live, {result['drafts']} drafts")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[PredictionScheduler] Error: {e}")
+
+
 def _run_chapter_detect_guarded():
     """Run chapter drop detection. Called Thu 03:00 UTC (chapter drop + leak window)
     and Sun 03:00 UTC (episode release / second-wave discussion).
@@ -310,6 +339,12 @@ scheduler.add_job(
     _run_chapter_detect_guarded,
     CronTrigger(day_of_week="sun", hour=3, minute=0, second=0),  # episode release / second-wave discussion
     id="chapter_detect_sun",
+    replace_existing=True,
+)
+scheduler.add_job(
+    _run_prediction_generate_guarded,
+    CronTrigger(day_of_week="sat", hour=14, minute=0, second=0),  # ~24h after Friday chapter drop
+    id="prediction_generate_sat",
     replace_existing=True,
 )
 # Comment purge disabled until there's a surplus of comments

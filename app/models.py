@@ -156,6 +156,11 @@ class Proposition(Base):
     chapter_drop_time = Column(DateTime(timezone=True), nullable=True)  # when chapter releases
     is_break_week = Column(Boolean, default=False)
 
+    # Auto-prediction pipeline fields
+    source_chapter = Column(Integer, nullable=True)          # chapter this prediction resolves on
+    llm_confidence = Column(Float, nullable=True)            # 0.0–1.0 auto-resolve confidence
+    llm_reasoning = Column(Text, nullable=True)              # Vegapunk's reasoning string
+
     bets = relationship("PropositionBet", back_populates="proposition")
 
 

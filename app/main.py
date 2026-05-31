@@ -55,6 +55,9 @@ def run_column_migrations():
         ("is_chapter_prediction", "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
         ("chapter_drop_time",     "TIMESTAMPTZ" if is_postgres else "DATETIME"),
         ("is_break_week",         "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+        ("source_chapter",        "INTEGER"),
+        ("llm_confidence",        "DOUBLE PRECISION" if is_postgres else "FLOAT"),
+        ("llm_reasoning",         "TEXT"),
     ]
     prop_bet_migrations = [
         ("is_free_play",    "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),

@@ -680,7 +680,20 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     except Exception as e:
         print(f"[ChapterPipeline] New character proposal failed (non-fatal): {e}")
 
-    # ── 11. Beri drop — fires on chapter release instead of fixed weekly cron ──
+    # ── 11. Auto-resolve predictions that targeted this chapter ─────────────
+    try:
+        from app.prediction_pipeline import auto_resolve_predictions
+        resolve_result = auto_resolve_predictions(db, chapter_num, wiki_chars)
+        if resolve_result["resolved"] or resolve_result["needs_review"]:
+            print(
+                f"[ChapterPipeline] Predictions for Ch.{chapter_num}: "
+                f"{resolve_result['resolved']} resolved, "
+                f"{resolve_result['needs_review']} flagged for review"
+            )
+    except Exception as e:
+        print(f"[ChapterPipeline] Prediction auto-resolve failed (non-fatal): {e}")
+
+    # ── 12. Beri drop — fires on chapter release instead of fixed weekly cron ──
     try:
         from app.scheduler import run_beri_drop
         run_beri_drop()

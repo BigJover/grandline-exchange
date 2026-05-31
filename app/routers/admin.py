@@ -741,6 +741,197 @@ def delete_proposition(
     return {"status": "ok", "deleted_id": prop_id, "bets_refunded": refunded}
 
 
+# ── Auto-prediction pipeline admin endpoints ──────────────────────────────────
+
+def _prop_summary(p: models.Proposition) -> dict:
+    """Shared serialiser for proposition rows."""
+    total = sum(b.amount for b in p.bets)
+    return {
+        "id": p.id,
+        "question": p.question,
+        "category": p.category,
+        "status": p.status,
+        "options": p.options,
+        "closes_at": str(p.closes_at) if p.closes_at else None,
+        "is_chapter_prediction": bool(p.is_chapter_prediction),
+        "source_chapter": p.source_chapter,
+        "llm_confidence": p.llm_confidence,
+        "llm_reasoning": p.llm_reasoning,
+        "total_pool": total,
+        "bet_count": len(p.bets),
+    }
+
+
+@router.get("/casino/drafts")
+def casino_list_drafts(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """List Vegapunk-generated draft propositions awaiting admin publish/dismiss."""
+    _check_secret(x_admin_secret)
+    props = (
+        db.query(models.Proposition)
+        .filter(models.Proposition.status == "draft")
+        .order_by(models.Proposition.created_at.desc())
+        .all()
+    )
+    return [_prop_summary(p) for p in props]
+
+
+@router.post("/casino/publish/{prop_id}")
+def casino_publish_draft(
+    prop_id: int,
+    payload: dict = {},
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Publish a draft proposition — sets status to 'open', optionally updates question/closes_at."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(404, "Proposition not found")
+    if prop.status != "draft":
+        raise HTTPException(400, f"Proposition is '{prop.status}', not 'draft'")
+
+    if payload.get("question"):
+        prop.question = payload["question"].strip()
+    if payload.get("closes_at"):
+        try:
+            from datetime import datetime as _dt
+            prop.closes_at = _dt.fromisoformat(payload["closes_at"].replace("Z", "+00:00"))
+        except Exception:
+            pass
+    if payload.get("category"):
+        prop.category = payload["category"]
+
+    prop.status = "open"
+    db.commit()
+    return {"status": "ok", "id": prop.id, "question": prop.question}
+
+
+@router.delete("/casino/draft/{prop_id}")
+def casino_dismiss_draft(
+    prop_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Dismiss (delete) a draft proposition — no bets exist so safe to hard-delete."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(404, "Proposition not found")
+    if prop.status != "draft":
+        raise HTTPException(400, f"Use DELETE /casino/{prop_id} to delete non-draft propositions")
+    db.delete(prop)
+    db.commit()
+    return {"status": "ok", "dismissed_id": prop_id}
+
+
+@router.get("/casino/needs-review")
+def casino_needs_review(
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """List propositions Vegapunk couldn't auto-resolve — awaiting admin decision."""
+    _check_secret(x_admin_secret)
+    props = (
+        db.query(models.Proposition)
+        .filter(models.Proposition.status == "needs_review")
+        .order_by(models.Proposition.created_at.desc())
+        .all()
+    )
+    return [_prop_summary(p) for p in props]
+
+
+@router.post("/casino/accept-resolve/{prop_id}")
+def casino_accept_auto_resolve(
+    prop_id: int,
+    correct_option: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Admin manually resolves a needs_review proposition (uses same payout logic as casino_resolve)."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(404, "Proposition not found")
+    if prop.status not in ("needs_review", "open", "closed"):
+        raise HTTPException(400, f"Cannot resolve from status '{prop.status}'")
+    if correct_option < 0 or correct_option >= len(prop.options):
+        raise HTTPException(400, "correct_option index out of range")
+
+    # Reuse the full resolve logic from casino_resolve
+    prop.correct_option = correct_option
+    prop.status = "resolved"
+    prop.resolved_at = datetime.now(timezone.utc)
+
+    bets = db.query(models.PropositionBet).filter(
+        models.PropositionBet.proposition_id == prop_id
+    ).all()
+    total_pool = sum(b.amount for b in bets)
+    house_take = total_pool * (prop.house_cut or 0.05)
+    payout_pool = total_pool - house_take
+    winners = [b for b in bets if b.option_index == correct_option]
+    winner_stake = sum(b.amount for b in winners) or 0
+
+    paid_out = 0
+    for bet in bets:
+        user = db.query(models.User).filter(models.User.id == bet.user_id).first()
+        if not user:
+            continue
+        if bet.option_index == correct_option and winner_stake > 0:
+            share = bet.amount / winner_stake
+            payout = payout_pool * share * (getattr(bet, "multiplier", 1.0) or 1.0)
+            user.beri_balance += payout
+            bet.payout = payout
+            paid_out += payout
+            db.add(models.BeriEvent(
+                user_id=user.id,
+                event_type="casino_win",
+                amount=payout,
+                description=f"Prediction win — {prop.question[:60]}",
+            ))
+        else:
+            penalty = getattr(bet, "penalty_amount", 0) or 0
+            if penalty > 0 and not getattr(bet, "is_free_play", False):
+                user.beri_balance = max(0, user.beri_balance - penalty)
+                db.add(models.BeriEvent(
+                    user_id=user.id,
+                    event_type="casino_penalty",
+                    amount=-penalty,
+                    description=f"Prediction penalty — {prop.question[:60]}",
+                ))
+            bet.payout = 0
+
+    db.commit()
+    return {
+        "status": "resolved",
+        "winners": len(winners),
+        "total_paid_out": paid_out,
+    }
+
+
+@router.post("/predictions/generate")
+def trigger_prediction_generation(
+    chapter: Optional[int] = None,
+    force: bool = False,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Manually trigger prediction generation for the latest (or specified) chapter."""
+    _check_secret(x_admin_secret)
+    from sqlalchemy import func as sqlfunc
+    from app.prediction_pipeline import generate_chapter_predictions
+
+    if chapter is None:
+        chapter = db.query(sqlfunc.max(models.Chapter.number)).scalar()
+    if not chapter:
+        raise HTTPException(400, "No chapters in DB — run chapter detection first")
+
+    result = generate_chapter_predictions(db, chapter, force=force)
+    return result
+
+
 # ── Reddit prediction suggestions ─────────────────────────────────────────────
 
 REDDIT_SUBS = ["OnePiece", "OnePieceLeaks", "OnePieceSpoilers", "Piratefolk"]
