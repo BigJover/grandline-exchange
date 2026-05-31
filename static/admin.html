@@ -1251,7 +1251,7 @@ async function regenTransmission() {
   try {
     const res = await fetch('/admin/transmission/regen', {
       method: 'POST',
-      headers: { 'X-Admin-Secret': SECRET },
+      headers: { 'X-Admin-Secret': sec(), 'Content-Type': 'application/json' },
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Request failed');
