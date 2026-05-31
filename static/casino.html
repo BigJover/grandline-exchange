@@ -617,8 +617,8 @@
         <div style="display:flex;flex-direction:column;gap:8px" id="archive-list"></div>
       </div>
 
-      <!-- Admin Panel — only shown when currentUser.is_admin -->
-      <div id="admin-panel" style="display:none;margin-top:32px">
+      <!-- Admin Panel removed — use /panel (Davy Back tab) to manage predictions -->
+      <div id="admin-panel" style="display:none">
         <div class="c-section-hdr" style="color:var(--red)">⚙ Admin — Create Prediction</div>
         <div style="background:var(--surface);border:1px solid rgba(255,68,85,0.3);border-radius:12px;padding:22px 24px;display:flex;flex-direction:column;gap:12px;font-family:'Share Tech Mono',monospace;font-size:0.72rem">
           <div style="display:flex;flex-direction:column;gap:4px">
@@ -888,7 +888,7 @@ function updateAuthUI(){
       });
     }
     block.style.display = 'flex';
-    if(currentUser.is_admin) showAdminPanel();
+    // Admin panel moved to /panel → Davy Back tab
   } else {
     loginBtn.style.visibility = 'visible';
     const block = document.getElementById('header-user-block');

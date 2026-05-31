@@ -546,6 +546,30 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Two-click confirmation — avoids browser confirm() dialog blocking.
+// First click: button turns red and reads "SURE?". Second click within 3s: executes cb.
+function safeConfirm(btn, cb) {
+  if (!btn) { cb(); return; }
+  if (btn.dataset.confirming === '1') {
+    btn.dataset.confirming = '';
+    clearTimeout(btn._confirmTimer);
+    cb();
+    return;
+  }
+  const origText  = btn.textContent;
+  const origStyle = btn.getAttribute('style') || '';
+  btn.dataset.confirming = '1';
+  btn.textContent = 'SURE?';
+  btn.style.cssText = origStyle + ';background:#b91c1c !important;border-color:#ef4444 !important;color:#fff !important;';
+  btn._confirmTimer = setTimeout(function() {
+    if (btn.dataset.confirming === '1') {
+      btn.dataset.confirming = '';
+      btn.textContent = origText;
+      btn.setAttribute('style', origStyle);
+    }
+  }, 3000);
+}
+
 // ── Davy Back ─────────────────────────────────────────────────────────────────
 async function loadProps() {
   const el = document.getElementById('prop-list');
@@ -598,7 +622,7 @@ function propHtml(p) {
         '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">Correct answer:</div>' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
           '<div class="resolve-opts" id="ro-' + p.id + '">' + optBtns + '</div>' +
-          '<button class="btn btn-punk btn-sm" onclick="confirmResolve(' + p.id + ')">✓ RESOLVE</button>' +
+          '<button class="btn btn-punk btn-sm" onclick="confirmResolve(' + p.id + ',this)">✓ RESOLVE</button>' +
         '</div>' +
       '</div>'
     : '';
@@ -626,14 +650,15 @@ function pickOpt(btn, id) {
   _picks[id] = parseInt(btn.dataset.idx);
 }
 
-async function confirmResolve(id) {
-  if (_picks[id] === undefined) { toast('Select an option first', true); return; }
-  if (!confirm('Confirm resolve? This pays out all bets and cannot be undone.')) return;
-  try {
-    const d = await api('POST', '/admin/casino/resolve/' + id + '?correct_option=' + _picks[id]);
-    toast('Resolved — ' + d.winners + ' winners, ' + fB(d.total_paid_out) + ' paid out');
-    loadProps();
-  } catch(e) { toast('Resolve failed: ' + e.message, true); }
+async function confirmResolve(id, btn) {
+  if (_picks[id] === undefined) { toast('Select an answer first', true); return; }
+  safeConfirm(btn, async function() {
+    try {
+      const d = await api('POST', '/admin/casino/resolve/' + id + '?correct_option=' + _picks[id]);
+      toast('Resolved — ' + d.winners + ' winners, ' + fB(d.total_paid_out) + ' paid out');
+      loadProps();
+    } catch(e) { toast('Resolve failed: ' + e.message, true); }
+  });
 }
 
 async function closeProp(id) {
@@ -732,31 +757,33 @@ function draftHtml(p) {
     '<div class="prop-meta">Cat: ' + esc(cat) + ch + '</div>' +
     '<div style="margin:6px 0 4px"><input type="text" id="dq-' + p.id + '" value="' + esc(p.question) + '" style="width:100%;font-size:0.78rem;padding:4px 8px"></div>' +
     '<div class="prop-acts">' +
-      '<button class="btn btn-punk btn-sm" onclick="publishDraft(' + p.id + ')">PUBLISH</button> ' +
-      '<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="dismissDraft(' + p.id + ')">DISMISS</button>' +
+      '<button class="btn btn-punk btn-sm" onclick="publishDraft(' + p.id + ',this)">PUBLISH</button> ' +
+      '<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="dismissDraft(' + p.id + ',this)">DISMISS</button>' +
     '</div>' +
   '</div>';
 }
 
-async function publishDraft(id) {
-  const qEl = document.getElementById('dq-' + id);
-  const question = qEl ? qEl.value.trim() : '';
-  if (!confirm('Publish this prediction? It will go live immediately and users can bet on it.')) return;
-  try {
-    await api('POST', '/admin/casino/publish/' + id, question ? { question } : {});
-    toast('Prediction published');
-    loadDrafts();
-    loadProps();
-  } catch(e) { toast('Publish failed: ' + e.message, true); }
+async function publishDraft(id, btn) {
+  safeConfirm(btn, async function() {
+    const qEl = document.getElementById('dq-' + id);
+    const question = qEl ? qEl.value.trim() : '';
+    try {
+      await api('POST', '/admin/casino/publish/' + id, question ? { question } : null);
+      toast('Prediction published');
+      loadDrafts();
+      loadProps();
+    } catch(e) { toast('Publish failed: ' + e.message, true); }
+  });
 }
 
-async function dismissDraft(id) {
-  if (!confirm('Dismiss this draft? It will be permanently deleted.')) return;
-  try {
-    await api('DELETE', '/admin/casino/draft/' + id);
-    toast('Draft dismissed');
-    loadDrafts();
-  } catch(e) { toast('Dismiss failed: ' + e.message, true); }
+async function dismissDraft(id, btn) {
+  safeConfirm(btn, async function() {
+    try {
+      await api('DELETE', '/admin/casino/draft/' + id);
+      toast('Draft dismissed');
+      loadDrafts();
+    } catch(e) { toast('Dismiss failed: ' + e.message, true); }
+  });
 }
 
 // ── Needs Review ──────────────────────────────────────────────────────────────
@@ -798,7 +825,7 @@ function reviewHtml(p) {
       '<div class="resolve-opts" id="rro-' + p.id + '">' + optBtns + '</div>' +
     '</div>' +
     '<div class="prop-acts">' +
-      '<button class="btn btn-punk btn-sm" onclick="confirmReviewResolve(' + p.id + ')">✓ RESOLVE</button> ' +
+      '<button class="btn btn-punk btn-sm" onclick="confirmReviewResolve(' + p.id + ',this)">✓ RESOLVE</button> ' +
       '<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="deleteProp(' + p.id + ',' + p.bet_count + ')">DEL</button>' +
     '</div>' +
   '</div>';
@@ -810,15 +837,16 @@ function pickReview(btn, id) {
   _reviewPicks[id] = parseInt(btn.dataset.idx);
 }
 
-async function confirmReviewResolve(id) {
+async function confirmReviewResolve(id, btn) {
   if (_reviewPicks[id] === undefined) { toast('Select an answer first', true); return; }
-  if (!confirm('Confirm resolve? This pays out all bets and cannot be undone.')) return;
-  try {
-    const d = await api('POST', '/admin/casino/accept-resolve/' + id + '?correct_option=' + _reviewPicks[id]);
-    toast('Resolved — ' + d.winners + ' winner(s), ' + fB(d.total_paid_out) + ' paid out');
-    loadNeedsReview();
-    loadProps();
-  } catch(e) { toast('Resolve failed: ' + e.message, true); }
+  safeConfirm(btn, async function() {
+    try {
+      const d = await api('POST', '/admin/casino/accept-resolve/' + id + '?correct_option=' + _reviewPicks[id]);
+      toast('Resolved — ' + d.winners + ' winner(s), ' + fB(d.total_paid_out) + ' paid out');
+      loadNeedsReview();
+      loadProps();
+    } catch(e) { toast('Resolve failed: ' + e.message, true); }
+  });
 }
 
 // ── Chapter Pipeline ──────────────────────────────────────────────────────────
