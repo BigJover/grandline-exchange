@@ -584,9 +584,7 @@ function propHtml(p) {
     acts = '<span class="dim" style="font-size:0.72rem">Resolved → ' + esc(p.correct_option || '') + '</span>';
   } else {
     if (p.status === 'open') acts += '<button class="btn btn-ghost btn-sm" onclick="closeProp(' + p.id + ')">CLOSE</button> ';
-    acts += '<button class="btn btn-punk btn-sm" onclick="toggleResolve(' + p.id + ')">RESOLVE ▾</button> ';
   }
-  // Delete button — always available unless resolved
   if (p.status !== 'resolved') {
     acts += '<button class="btn btn-red btn-sm" onclick="deleteProp(' + p.id + ',' + betCount + ')" style="margin-left:auto">DEL</button>';
   }
@@ -595,18 +593,24 @@ function propHtml(p) {
     return '<button class="ro-btn" data-idx="' + i + '" onclick="pickOpt(this,' + p.id + ')">' + esc(opt) + '</button>';
   }).join('');
 
+  const resolveZone = (p.status !== 'resolved')
+    ? '<div class="resolve-zone open" id="rz-' + p.id + '">' +
+        '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">Correct answer:</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+          '<div class="resolve-opts" id="ro-' + p.id + '">' + optBtns + '</div>' +
+          '<button class="btn btn-punk btn-sm" onclick="confirmResolve(' + p.id + ')">✓ RESOLVE</button>' +
+        '</div>' +
+      '</div>'
+    : '';
+
   return '<div class="prop-row" id="pr-' + p.id + '">' +
     '<div class="prop-hd"><div class="prop-q">' + esc(p.question) + '</div>' +
     '<span class="badge ' + statusClass + '">' + p.status.toUpperCase() + '</span>' + predBadge + breakBadge + '</div>' +
     predMeta +
     '<div class="prop-meta">Cat: ' + esc(p.category || '—') + ' · Closes: ' + esc(closesAt) + ' · Pool: ' + pool + ' · ' + betLabel + '</div>' +
     '<div class="prop-pool">' + bd + '</div>' +
+    resolveZone +
     '<div class="prop-acts">' + acts + '</div>' +
-    '<div class="resolve-zone" id="rz-' + p.id + '">' +
-      '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">Select correct answer:</div>' +
-      '<div class="resolve-opts" id="ro-' + p.id + '">' + optBtns + '</div>' +
-      '<button class="btn btn-punk btn-sm" onclick="confirmResolve(' + p.id + ')">✓ CONFIRM RESOLVE</button>' +
-    '</div>' +
   '</div>';
 }
 

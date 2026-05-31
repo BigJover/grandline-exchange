@@ -5,7 +5,7 @@ import time as _time
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -791,7 +791,7 @@ def casino_list_drafts(
 @router.post("/casino/publish/{prop_id}")
 def casino_publish_draft(
     prop_id: int,
-    payload: dict = {},
+    payload: Optional[dict] = Body(default=None),
     x_admin_secret: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
@@ -803,16 +803,17 @@ def casino_publish_draft(
     if prop.status != "draft":
         raise HTTPException(400, f"Proposition is '{prop.status}', not 'draft'")
 
-    if payload.get("question"):
-        prop.question = payload["question"].strip()
-    if payload.get("closes_at"):
-        try:
-            from datetime import datetime as _dt
-            prop.closes_at = _dt.fromisoformat(payload["closes_at"].replace("Z", "+00:00"))
-        except Exception:
-            pass
-    if payload.get("category"):
-        prop.category = payload["category"]
+    if payload:
+        if payload.get("question"):
+            prop.question = payload["question"].strip()
+        if payload.get("closes_at"):
+            try:
+                from datetime import datetime as _dt
+                prop.closes_at = _dt.fromisoformat(payload["closes_at"].replace("Z", "+00:00"))
+            except Exception:
+                pass
+        if payload.get("category"):
+            prop.category = payload["category"]
 
     prop.status = "open"
     db.commit()
