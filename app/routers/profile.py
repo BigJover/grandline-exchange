@@ -75,6 +75,10 @@ def update_profile_picture(
     pic = payload.profile_picture.strip()
     if not pic:
         raise HTTPException(status_code=400, detail="profile_picture cannot be empty")
+    # ~300KB string cap — a canvas-resized 300×300 avatar is well under this;
+    # prevents multi-MB base64 blobs landing in the users table
+    if len(pic) > 300_000:
+        raise HTTPException(status_code=400, detail="Image too large — please use a smaller picture")
     # Allow: "char:<id>" references, http/https URLs, or base64 image data URLs
     if not (pic.startswith("char:") or pic.startswith("http://") or pic.startswith("https://")
             or pic.startswith("data:image/jpeg;base64,") or pic.startswith("data:image/png;base64,")):
@@ -99,7 +103,10 @@ def update_username(
         raise HTTPException(status_code=400, detail="Username may only contain letters, numbers, _ and -")
     if new_name.lower() == current_user.username.lower():
         raise HTTPException(status_code=400, detail="That is already your username")
-    if db.query(models.User).filter(models.User.username == new_name).first():
+    from sqlalchemy import func
+    if db.query(models.User).filter(
+        func.lower(models.User.username) == new_name.lower()
+    ).first():
         raise HTTPException(status_code=400, detail="Username already taken")
     current_user.username = new_name
     db.add(current_user)

@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, auth
+from app.main import limiter
 
 router = APIRouter(tags=["comments"])
 
@@ -56,7 +57,9 @@ def get_comments(
 
 
 @router.post("/characters/{char_id}/comments", status_code=201)
+@limiter.limit("6/minute")
 def post_comment(
+    request: Request,
     char_id: int,
     payload: CommentIn,
     db: Session = Depends(get_db),

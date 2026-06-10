@@ -137,6 +137,7 @@ def get_leaderboard(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
+    limit = max(1, min(limit, 100))
     now = datetime.now(timezone.utc)
     top = (
         db.query(models.User)

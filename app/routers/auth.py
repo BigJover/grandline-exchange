@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -25,9 +26,14 @@ def signup(request: Request, response: Response, user_in: schemas.UserCreate, db
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     if len(user_in.password) > 72:
         raise HTTPException(status_code=400, detail="Password must be 72 characters or fewer")
-    if db.query(models.User).filter(models.User.username == user_in.username).first():
+    # Case-insensitive uniqueness — blocks "Luffy" vs "luffy" impersonation
+    if db.query(models.User).filter(
+        func.lower(models.User.username) == user_in.username.lower()
+    ).first():
         raise HTTPException(status_code=400, detail="Username already taken")
-    if db.query(models.User).filter(models.User.email == user_in.email).first():
+    if db.query(models.User).filter(
+        func.lower(models.User.email) == user_in.email.lower()
+    ).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     # Resolve referral code

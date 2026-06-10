@@ -140,7 +140,9 @@ def _fetch_json(url: str, headers: Optional[dict] = None, timeout: int = 8) -> O
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())
     except Exception as e:
-        print(f"[ChapterPipeline] fetch failed ({url}): {e}")
+        # Redact API keys (e.g. YouTube ?key=...) before the URL hits the logs
+        safe_url = re.sub(r'([?&]key=)[^&]+', r'\1REDACTED', url)
+        print(f"[ChapterPipeline] fetch failed ({safe_url}): {e}")
         return None
 
 

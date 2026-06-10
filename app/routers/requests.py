@@ -2,14 +2,22 @@ import os
 import json as _json
 import urllib.request as _urllib
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, auth
+from app.main import limiter
 
 router = APIRouter(tags=["requests"])
+
+
+def _require_user(user: Optional[models.User]) -> models.User:
+    """Friendly 401 for the request forms — shown verbatim in the frontend."""
+    if user is None:
+        raise HTTPException(401, "Sign in to submit requests")
+    return user
 
 
 def _post_to_discord(req: "models.CharacterRequest") -> Optional[str]:
@@ -83,19 +91,22 @@ class PriceRequestIn(BaseModel):
 # ── Public submission endpoints ───────────────────────────────────────────────
 
 @router.post("/requests/character", status_code=201)
+@limiter.limit("5/hour")
 def submit_character_request(
+    request: Request,
     payload: CharacterRequestIn,
     db: Session = Depends(get_db),
     user: Optional[models.User] = Depends(auth.get_optional_user),
 ):
+    user = _require_user(user)
     if not payload.name.strip():
         raise HTTPException(400, "Character name is required")
     if not payload.reason.strip():
         raise HTTPException(400, "Reason is required")
 
     req = models.CharacterRequest(
-        user_id=user.id if user else None,
-        username=user.username if user else "anonymous",
+        user_id=user.id,
+        username=user.username,
         name=payload.name.strip(),
         aliases=payload.aliases,
         faction=payload.faction,
@@ -121,19 +132,22 @@ def submit_character_request(
 
 
 @router.post("/requests/price", status_code=201)
+@limiter.limit("5/hour")
 def submit_price_request(
+    request: Request,
     payload: PriceRequestIn,
     db: Session = Depends(get_db),
     user: Optional[models.User] = Depends(auth.get_optional_user),
 ):
+    user = _require_user(user)
     if not payload.character_name.strip():
         raise HTTPException(400, "Character name is required")
     if not payload.reason.strip():
         raise HTTPException(400, "Reason is required")
 
     req = models.PriceRequest(
-        user_id=user.id if user else None,
-        username=user.username if user else "anonymous",
+        user_id=user.id,
+        username=user.username,
         character_name=payload.character_name.strip(),
         proposed_beri=payload.proposed_beri,
         reason=payload.reason.strip(),
@@ -255,19 +269,5 @@ def dismiss_price_request(
     return {"status": "dismissed"}
 
 
-@router.post("/admin/promote")
-def promote_user(
-    username: str,
-    secret: str,
-    db: Session = Depends(get_db),
-):
-    """One-time: promote a user to admin using the ADMIN_SECRET env var."""
-    expected = os.getenv("ADMIN_SECRET", "").strip()
-    if not expected or secret.strip() != expected:
-        raise HTTPException(403, "Forbidden")
-    user = db.query(models.User).filter(models.User.username == username).first()
-    if not user:
-        raise HTTPException(404, "User not found")
-    user.is_admin = True
-    db.commit()
-    return {"status": "promoted", "username": user.username}
+# /admin/promote removed — use POST /admin/grant-admin (X-Admin-Secret header)
+# instead. The query-string secret leaked into proxy/access logs.

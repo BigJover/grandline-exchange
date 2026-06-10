@@ -36,7 +36,11 @@ def rename_user(old_username: str, new_username: str, x_admin_secret: Optional[s
     user = db.query(models.User).filter(models.User.username == old_username).first()
     if not user:
         raise HTTPException(status_code=404, detail=f"User '{old_username}' not found")
-    taken = db.query(models.User).filter(models.User.username == new_username).first()
+    from sqlalchemy import func as _func
+    taken = db.query(models.User).filter(
+        _func.lower(models.User.username) == new_username.lower(),
+        models.User.username != old_username,   # allow case-only renames of the same user
+    ).first()
     if taken:
         raise HTTPException(status_code=409, detail=f"Username '{new_username}' is already taken")
     user.username = new_username
