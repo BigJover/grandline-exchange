@@ -1095,6 +1095,42 @@ def casino_accept_auto_resolve(
     }
 
 
+@router.post("/predictions/mark-break-week")
+def mark_break_week(
+    chapter: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Mark all predictions targeting `chapter` as a break week.
+    - Sets is_break_week=True on all propositions with source_chapter == chapter
+    - Extends closes_at by 7 days for those that have one
+    - Sets next_is_break=True on the previous Chapter row (chapter - 1)
+    """
+    _check_secret(x_admin_secret)
+    from datetime import timedelta
+
+    props = db.query(models.Proposition).filter(
+        models.Proposition.source_chapter == chapter,
+        models.Proposition.status != "resolved",
+    ).all()
+
+    updated = 0
+    for p in props:
+        p.is_break_week = True
+        if p.closes_at and not p.is_break_week:
+            p.closes_at = p.closes_at + timedelta(days=7)
+        updated += 1
+
+    # Also flag the previous chapter so prediction pipeline knows retroactively
+    prev = db.query(models.Chapter).filter(models.Chapter.number == chapter - 1).first()
+    if prev:
+        prev.next_is_break = True
+
+    db.commit()
+    return {"status": "ok", "chapter": chapter, "propositions_updated": updated}
+
+
 @router.post("/predictions/generate")
 def trigger_prediction_generation(
     chapter: Optional[int] = None,

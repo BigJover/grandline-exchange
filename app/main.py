@@ -62,6 +62,9 @@ def run_column_migrations():
     proposed_price_migrations = [
         ("signal_scores", "JSON" if is_postgres else "TEXT"),
     ]
+    chapter_migrations = [
+        ("next_is_break", "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
+    ]
     prop_bet_migrations = [
         ("is_free_play",    "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
         ("multiplier",      "DOUBLE PRECISION DEFAULT 1.0" if is_postgres else "FLOAT DEFAULT 1.0"),
@@ -112,6 +115,18 @@ def run_column_migrations():
                     conn.execute(text(f"ALTER TABLE propositions ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                 else:
                     conn.execute(text(f"ALTER TABLE propositions ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+        for col, col_type in chapter_migrations:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE chapters ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE chapters ADD COLUMN {col} {col_type}"))
                 conn.commit()
             except Exception:
                 try:

@@ -267,6 +267,7 @@ class Chapter(Base):
     reddit_url = Column(String, default="")
     detected_at = Column(DateTime(timezone=True), server_default=func.now())
     processed = Column(Boolean, default=False)   # True once price proposals have been generated
+    next_is_break = Column(Boolean, default=False)  # True if the week after this chapter is a break
 
 
 class ProposedPriceChange(Base):

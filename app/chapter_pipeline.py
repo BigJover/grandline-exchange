@@ -367,6 +367,46 @@ def _reddit_pulse_chars(chapter_num: int, char_index: dict) -> dict:
     return scores
 
 
+# ── Break week detection ──────────────────────────────────────────────────────
+
+_BREAK_RE = re.compile(
+    r'\b(?:no\s+chapter|break\s+week|on\s+break|hiatus|no\s+op\s+this\s+week|'
+    r'chapter\s+break|one\s+piece\s+break|jump\s+break)\b',
+    re.IGNORECASE,
+)
+
+
+def _detect_break_week(chapter_num: int) -> bool:
+    """
+    Scan r/OnePiece for break week announcements following chapter_num.
+    Returns True if strong evidence of a break next week is found.
+    Checks the chapter discussion thread and recent top posts.
+    """
+    sources = [
+        f"https://www.reddit.com/r/OnePiece/search.json?q=break+week+{chapter_num}&sort=new&t=week&limit=10&restrict_sr=1",
+        f"https://www.reddit.com/r/OnePiece/search.json?q=no+chapter+{chapter_num}&sort=new&t=week&limit=10&restrict_sr=1",
+        "https://www.reddit.com/r/OnePiece/hot.json?limit=25",
+    ]
+    hits = 0
+    for url in sources:
+        feed = _fetch_reddit(url)
+        if not feed:
+            continue
+        for child in feed.get("data", {}).get("children", []):
+            p = child.get("data", {})
+            text = p.get("title", "") + " " + (p.get("selftext", "") or "")[:500]
+            if _BREAK_RE.search(text):
+                # Require at least a mod post OR 2+ matching posts to confirm
+                if p.get("distinguished") == "moderator":
+                    print(f"[ChapterPipeline] Break week confirmed by mod post for Ch.{chapter_num}")
+                    return True
+                hits += 1
+                if hits >= 2:
+                    print(f"[ChapterPipeline] Break week detected ({hits} posts) for Ch.{chapter_num}")
+                    return True
+    return False
+
+
 # ── Source: YouTube ───────────────────────────────────────────────────────────
 
 _YT_API = "https://www.googleapis.com/youtube/v3"
@@ -886,8 +926,14 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
         ))
         proposals_created += 1
 
-    # ── 9. Mark chapter as processed ─────────────────────────────────────────
+    # ── 9. Mark chapter as processed + detect break week ─────────────────────
     chapter_row.processed = True
+    try:
+        chapter_row.next_is_break = _detect_break_week(chapter_num)
+        if chapter_row.next_is_break:
+            print(f"[ChapterPipeline] Ch.{chapter_num}: break week next — predictions will be extended")
+    except Exception as e:
+        print(f"[ChapterPipeline] Break week detection failed (non-fatal): {e}")
     db.commit()
 
     # ── 10. Discord announcement ──────────────────────────────────────────────

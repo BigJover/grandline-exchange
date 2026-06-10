@@ -34,12 +34,13 @@ from app import models
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _next_thursday() -> datetime:
-    """Next Thursday at 18:00 UTC — standard prediction close window."""
+def _next_thursday(extra_weeks: int = 0) -> datetime:
+    """Next Thursday at 18:00 UTC. extra_weeks=1 for break week (two weeks out)."""
     now = datetime.now(timezone.utc)
     days_ahead = (3 - now.weekday()) % 7   # 3 = Thursday
     if days_ahead == 0:
         days_ahead = 7
+    days_ahead += extra_weeks * 7
     target = now + timedelta(days=days_ahead)
     return target.replace(hour=18, minute=0, second=0, microsecond=0)
 
@@ -73,6 +74,7 @@ def _create_prop(
     source_chapter: int,
     closes_at: Optional[datetime] = None,
     is_chapter_prediction: bool = True,
+    is_break_week: bool = False,
 ) -> models.Proposition:
     prop = models.Proposition(
         question=question,
@@ -80,9 +82,10 @@ def _create_prop(
         options=options,
         status=status,
         house_cut=0.05,
-        closes_at=closes_at or _next_thursday(),
+        closes_at=closes_at,   # None = no close date for non-chapter predictions
         is_chapter_prediction=is_chapter_prediction,
         source_chapter=source_chapter,
+        is_break_week=is_break_week,
     )
     db.add(prop)
     return prop
@@ -131,16 +134,28 @@ def generate_chapter_predictions(db: Session, chapter_num: int, force: bool = Fa
     source_chapter is set to chapter_num+1 so the auto-resolve hook can find
     these propositions when that next chapter drops.
 
+    Reads Chapter.next_is_break to determine if the following week is a break:
+    - Chapter predictions get closes_at two weeks out and is_break_week=True
+    - Non-chapter (standalone) drafts get no closes_at — open until resolved
+
     Returns {"created": int, "drafts": int, "skipped": bool, "chapter": int}
     """
     if not force and _already_ran(db, chapter_num):
         print(f"[PredictionPipeline] Already ran for Ch.{chapter_num} — skipping")
         return {"created": 0, "drafts": 0, "skipped": True, "chapter": chapter_num}
 
+    # Check if the week after this chapter is a break
+    chapter_row = db.query(models.Chapter).filter(models.Chapter.number == chapter_num).first()
+    is_break = bool(chapter_row and chapter_row.next_is_break)
+    extra_weeks = 1 if is_break else 0
+
     next_ch = chapter_num + 1
-    closes = _next_thursday()
+    closes = _next_thursday(extra_weeks=extra_weeks)
     created = 0
     drafts = 0
+
+    if is_break:
+        print(f"[PredictionPipeline] Ch.{chapter_num}: break week — predictions close {closes.date()}, is_break_week=True")
 
     # ── 1. Character appearance predictions ──────────────────────────────────
     # "Will {char} appear in Ch.{next_ch}?" — resolves when next_ch drops
@@ -149,7 +164,7 @@ def generate_chapter_predictions(db: Session, chapter_num: int, force: bool = Fa
         q = f"Will {char_name} appear in Ch.{next_ch}?"
         if _exists(db, q):
             continue
-        _create_prop(db, q, "chapter", ["Yes", "No"], "open", next_ch, closes)
+        _create_prop(db, q, "chapter", ["Yes", "No"], "open", next_ch, closes, is_break_week=is_break)
         created += 1
 
     # ── 2. Price movement predictions ────────────────────────────────────────
@@ -160,11 +175,11 @@ def generate_chapter_predictions(db: Session, chapter_num: int, force: bool = Fa
         q = f"Will {char_name}'s beri value increase after Ch.{next_ch}?"
         if _exists(db, q):
             continue
-        _create_prop(db, q, "chapter", ["Yes", "No"], "open", next_ch, closes)
+        _create_prop(db, q, "chapter", ["Yes", "No"], "open", next_ch, closes, is_break_week=is_break)
         created += 1
 
     # ── 3. Standalone template drafts ────────────────────────────────────────
-    # Pull from the big PREDICTION_TEMPLATES pool and save as drafts for admin review
+    # Not chapter-specific — no close date, stay open until manually resolved
     try:
         from vegapunk.personality import get_all_standalone_templates
         pool = [t for t in get_all_standalone_templates() if "{" not in t]
@@ -176,7 +191,7 @@ def generate_chapter_predictions(db: Session, chapter_num: int, force: bool = Fa
                 continue
             _create_prop(
                 db, template, "endgame", ["Yes", "No"], "draft",
-                source_chapter=next_ch, closes_at=closes, is_chapter_prediction=False,
+                source_chapter=next_ch, closes_at=None, is_chapter_prediction=False,
             )
             drafts += 1
     except Exception as e:
