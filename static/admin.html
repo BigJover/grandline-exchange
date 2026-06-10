@@ -846,7 +846,7 @@ function reviewHtml(p) {
   }).join('');
 
   return '<div class="prop-row" id="rv-' + p.id + '">' +
-    '<div class="prop-hd"><div class="prop-q">' + esc(p.question) + '</div>' +
+    '<div class="prop-hd"><div class="prop-q" id="rv-q-' + p.id + '">' + esc(p.question) + '</div>' +
     '<span class="badge" style="background:rgba(255,107,107,0.12);color:var(--red);border:1px solid rgba(255,107,107,0.3)">REVIEW</span></div>' +
     '<div class="prop-meta">' + ch + 'Pool: ' + pool + ' · ' + p.bet_count + ' bets</div>' +
     '<div style="font-size:0.66rem;color:var(--text-dim);margin:4px 0;border-left:2px solid rgba(255,107,107,0.3);padding-left:8px">' +
@@ -856,8 +856,13 @@ function reviewHtml(p) {
       '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:4px">Select correct answer:</div>' +
       '<div class="resolve-opts" id="rro-' + p.id + '">' + optBtns + '</div>' +
     '</div>' +
+    '<div id="rv-edit-' + p.id + '" style="display:none;margin:8px 0">' +
+      '<textarea id="rv-edit-q-' + p.id + '" rows="2" style="width:100%;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:6px;font-size:0.75rem;resize:vertical;box-sizing:border-box"></textarea>' +
+      '<button class="btn btn-punk btn-sm" style="margin-top:4px" onclick="saveReviewEdit(' + p.id + ',this)">SAVE</button>' +
+    '</div>' +
     '<div class="prop-acts">' +
-      '<button class="btn btn-punk btn-sm" onclick="confirmReviewResolve(' + p.id + ',this)">✓ RESOLVE</button> ' +
+      '<button class="btn btn-punk btn-sm" onclick="confirmReviewResolve(' + p.id + ',this)">✓ APPROVE</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="toggleReviewEdit(' + p.id + ')">EDIT</button>' +
       '<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="deleteProp(' + p.id + ',' + p.bet_count + ')">DEL</button>' +
     '</div>' +
   '</div>';
@@ -878,6 +883,31 @@ async function confirmReviewResolve(id, btn) {
       loadNeedsReview();
       loadProps();
     } catch(e) { toast('Resolve failed: ' + e.message, true); }
+  });
+}
+
+function toggleReviewEdit(id) {
+  const zone = document.getElementById('rv-edit-' + id);
+  const ta = document.getElementById('rv-edit-q-' + id);
+  if (zone.style.display === 'none') {
+    ta.value = document.getElementById('rv-q-' + id).textContent;
+    zone.style.display = 'block';
+    ta.focus();
+  } else {
+    zone.style.display = 'none';
+  }
+}
+
+async function saveReviewEdit(id, btn) {
+  const q = document.getElementById('rv-edit-q-' + id).value.trim();
+  if (!q) { toast('Question cannot be empty', true); return; }
+  safeConfirm(btn, async function() {
+    try {
+      const d = await api('PATCH', '/admin/casino/' + id, { question: q });
+      document.getElementById('rv-q-' + id).textContent = d.question;
+      document.getElementById('rv-edit-' + id).style.display = 'none';
+      toast('Question updated');
+    } catch(e) { toast('Save failed: ' + e.message, true); }
   });
 }
 

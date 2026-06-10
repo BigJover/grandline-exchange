@@ -621,6 +621,29 @@ async def casino_create(
     return {"status": "ok", "id": p.id, "question": p.question}
 
 
+@router.patch("/casino/{prop_id}")
+def casino_update(
+    prop_id: int,
+    question: Optional[str] = Body(None),
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Update editable fields on a proposition (currently: question text)."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Proposition not found")
+    if prop.status == "resolved":
+        raise HTTPException(status_code=400, detail="Cannot edit a resolved proposition")
+    if question is not None:
+        question = question.strip()
+        if not question:
+            raise HTTPException(status_code=400, detail="Question cannot be empty")
+        prop.question = question
+    db.commit()
+    return {"status": "ok", "prop_id": prop_id, "question": prop.question}
+
+
 @router.post("/casino/close/{prop_id}")
 def casino_close(
     prop_id: int,
