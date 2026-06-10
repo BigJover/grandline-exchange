@@ -326,69 +326,9 @@ def _do_resolve(
 ):
     """
     Pay out winners for a proposition and mark it resolved.
-    Mirrors the payout logic in admin.py casino_resolve, but called inline.
+    Delegates to app.resolution.resolve_proposition — the same payout math as
+    admin casino_resolve, so all resolve paths stay consistent.
     """
-    from app import models as _m
-
-    prop.correct_option = correct_option
-    prop.resolved_at = datetime.now(timezone.utc)
-    prop.llm_confidence = confidence
-    prop.llm_reasoning = reasoning
-
-    # Collect all bets
-    bets = db.query(_m.PropositionBet).filter(
-        _m.PropositionBet.proposition_id == prop.id
-    ).all()
-
-    if not bets:
-        prop.status = "resolved"
-        return
-
-    total_pool = sum(b.amount for b in bets)
-    house_take = total_pool * (prop.house_cut or 0.05)
-    payout_pool = total_pool - house_take
-
-    # Split payout_pool proportionally among winners
-    winners = [b for b in bets if b.option_index == correct_option]
-    winner_stake = sum(b.amount for b in winners) or 0
-
-    events = []
-    for bet in bets:
-        user = db.query(_m.User).filter(_m.User.id == bet.user_id).first()
-        if not user:
-            continue
-        if bet.option_index == correct_option and winner_stake > 0:
-            # Proportional payout
-            share = bet.amount / winner_stake
-            gross = payout_pool * share
-            multiplier = getattr(bet, "multiplier", 1.0) or 1.0
-            if multiplier > 1.0 and getattr(bet, "is_free_play", False):
-                multiplier = 1.0  # no multiplier boost on free plays
-            payout = gross * multiplier
-            if getattr(bet, "is_free_play", False):
-                user.beri_balance += payout
-            else:
-                user.beri_balance += payout
-            bet.payout = payout
-            events.append(_m.BeriEvent(
-                user_id=user.id,
-                event_type="casino_win",
-                amount=payout,
-                description=f"Prediction win — {prop.question[:60]}",
-            ))
-        else:
-            penalty = getattr(bet, "penalty_amount", 0) or 0
-            if penalty > 0 and not getattr(bet, "is_free_play", False):
-                user.beri_balance = max(0, user.beri_balance - penalty)
-                events.append(_m.BeriEvent(
-                    user_id=user.id,
-                    event_type="casino_penalty",
-                    amount=-penalty,
-                    description=f"Prediction penalty — {prop.question[:60]}",
-                ))
-            bet.payout = 0
-
-    if events:
-        db.bulk_save_objects(events)
-
-    prop.status = "resolved"
+    from app.resolution import resolve_proposition
+    resolve_proposition(db, prop, correct_option,
+                        llm_confidence=confidence, llm_reasoning=reasoning)

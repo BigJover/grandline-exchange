@@ -209,7 +209,21 @@ def patch_character_meta():
             if m:
                 if not char.bio:
                     char.bio = m.get("bio", "")
-                char.events  = m.get("events", "")
+                # Merge events: meta file is the base, but lines that exist only in
+                # the DB (chapter-pipeline appends, admin appends) must survive deploys.
+                meta_events = m.get("events", "")
+                existing_events = char.events or ""
+                if existing_events and existing_events != meta_events:
+                    meta_lines = set(meta_events.split("\n"))
+                    extra = [
+                        ln for ln in existing_events.split("\n")
+                        if ln.strip() and ln not in meta_lines
+                    ]
+                    char.events = (
+                        meta_events + ("\n" + "\n".join(extra) if extra else "")
+                    ).strip()
+                else:
+                    char.events = meta_events
                 char.sbs     = m.get("sbs", [])
                 char.related = m.get("related", [])
             s = seed.get(char.name)
@@ -449,21 +463,26 @@ seed_character_drop_proposals()
 
 def correct_beri_outliers():
     """One-time corrections for characters whose seeded beri was miscalibrated.
-    Each entry only fires while the live value is above the correction threshold."""
+    Each entry fires at most once ever — applied corrections are recorded in bot_kv
+    so restarts never re-apply them and wipe trading-driven price movement.
+
+    List intentionally empty: all price changes go through the admin panel now.
+    The ch.1181/1182 calibration entries were applied in production long ago and
+    were re-firing on every deploy, resetting Dragon/Arlong/Luffy. Add an entry
+    here only for a deliberate one-off correction — it will apply exactly once."""
     from sqlalchemy import text
-    corrections = [
+    corrections: list = [
         # (name, new_beri, only_if_above)
-        ("Lucky Roux",  2_200_000_000, 2_500_000_000),
-        ("Ben Beckman", 2_300_000_000, 2_400_000_000),
-        ("Dragon",      3_200_000_000, 2_800_000_000),  # ch.1182 ZaZa rain = DF theory confirmed
-        ("Bogard",      2_750_000_000, 2_800_000_000),  # swap: Bogard below Dragon
-        ("Arlong",        750_000_000,        19_000_000),  # ch.1182 meme correction (ZaZa real but separate)
-        ("Luffy",       4_500_000_000, 4_300_000_000),  # ch.1181 monster trio
-        ("Manmayer Gunko", 1_800_000_000, 2_200_000_000),  # ch.1182 presumed dead
     ]
     with engine.connect() as conn:
         for name, target, threshold in corrections:
             try:
+                kv_key = f"beri_correction:{name}:{int(target)}"
+                done = conn.execute(
+                    text("SELECT 1 FROM bot_kv WHERE key = :k"), {"k": kv_key}
+                ).fetchone()
+                if done:
+                    continue
                 row = conn.execute(
                     text("SELECT beri FROM characters WHERE name = :n"), {"n": name}
                 ).fetchone()
@@ -472,9 +491,18 @@ def correct_beri_outliers():
                         text("UPDATE characters SET beri = :b, base_beri = :b WHERE name = :n"),
                         {"b": float(target), "n": name},
                     )
-                    conn.commit()
                     print(f"[Correction] {name}: {int(row[0]):,} → {target:,}")
+                # Mark handled either way — if the live value is already at/below the
+                # threshold the correction is unnecessary, permanently.
+                conn.execute(
+                    text("INSERT INTO bot_kv (key, value) VALUES (:k, '1')"), {"k": kv_key}
+                )
+                conn.commit()
             except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
                 print(f"[Correction] {name}: {e}")
 
 

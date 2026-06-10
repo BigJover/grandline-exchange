@@ -174,7 +174,8 @@ def submit_answer(
     if is_correct:
         beri_change = round(TRIVIA_BASE_BERI * multiplier)
     else:
-        beri_change = -TRIVIA_BASE_BERI
+        # Loss is capped at the user's balance — can't go negative
+        beri_change = -round(min(TRIVIA_BASE_BERI, max(0, current_user.beri_balance)))
 
     current_user.beri_balance += beri_change
     db.add(models.BeriEvent(

@@ -679,102 +679,8 @@ def casino_resolve(
     if correct_option < 0 or correct_option >= len(prop.options):
         raise HTTPException(status_code=400, detail="Invalid correct_option index")
 
-    bets = db.query(models.PropositionBet).filter(
-        models.PropositionBet.proposition_id == prop_id
-    ).all()
-
-    # For chapter predictions, use effective_amount = amount × multiplier for pool math
-    is_prediction = bool(prop.is_chapter_prediction)
-
-    def _effective_amount(b: models.PropositionBet) -> float:
-        if is_prediction and not b.is_free_play:
-            return b.amount * (b.multiplier or 1.0)
-        return b.amount
-
-    total_pool = sum(b.amount for b in bets if not b.is_free_play)
-    winner_pool = sum(
-        _effective_amount(b)
-        for b in bets
-        if b.option_index == correct_option
-    )
-    house_take = round(total_pool * prop.house_cut, 2)
-    prize_pool = total_pool - house_take
-
-    winners, losers, total_paid = 0, 0, 0.0
-
-    for bet in bets:
-        user = db.query(models.User).filter(models.User.id == bet.user_id).first()
-        if not user:
-            continue
-
-        multiplier = float(bet.multiplier or 1.0)
-
-        if bet.option_index == correct_option and winner_pool > 0:
-            eff = _effective_amount(bet)
-            base_payout = round((eff / winner_pool) * prize_pool, 2)
-            # Free play winnings are capped at 2× the free play credit to limit house exposure
-            if bet.is_free_play:
-                base_payout = min(base_payout, bet.amount * 2)
-
-            # Sale bonus: house refunds a portion of its cut to sale bettors
-            sale_discount = float(getattr(bet, 'sale_discount', 0.0) or 0.0)
-            sale_bonus = 0.0
-            if sale_discount > 0 and not bet.is_free_play and winner_pool > 0:
-                sale_bonus = round((eff / winner_pool) * house_take * sale_discount, 2)
-
-            payout = base_payout + sale_bonus
-            bet.payout = payout
-            user.beri_balance += payout
-            total_paid += payout
-
-            extra = f" {multiplier}×" if multiplier > 1.0 and not bet.is_free_play else ""
-            free_tag = " [free play]" if bet.is_free_play else ""
-            sale_tag = f" [{int(sale_discount*100)}% sale]" if sale_bonus > 0 else ""
-            db.add(models.BeriEvent(
-                user_id=user.id,
-                event_type="casino_win",
-                amount=payout,
-                description=(
-                    f"Prediction win{free_tag}{sale_tag} — \"{prop.question}\" → "
-                    f"\"{prop.options[correct_option]}\"{extra} "
-                    f"({payout:,.0f}฿ on {bet.amount:,.0f}฿ bet)"
-                ),
-            ))
-            winners += 1
-        else:
-            bet.payout = 0.0
-            penalty = float(bet.penalty_amount or 0)
-            if penalty > 0 and not bet.is_free_play:
-                actual_penalty = min(penalty, user.beri_balance)
-                user.beri_balance -= actual_penalty
-                db.add(models.BeriEvent(
-                    user_id=user.id,
-                    event_type="casino_penalty",
-                    amount=-actual_penalty,
-                    description=(
-                        f"Late prediction penalty — \"{prop.question}\" → "
-                        f"\"{prop.options[correct_option]}\" "
-                        f"({actual_penalty:,.0f}฿ penalty)"
-                    ),
-                ))
-
-            if not bet.is_free_play:
-                free_tag = ""
-                db.add(models.BeriEvent(
-                    user_id=user.id,
-                    event_type="casino_loss",
-                    amount=0,
-                    description=(
-                        f"Prediction loss — \"{prop.question}\" → "
-                        f"\"{prop.options[correct_option]}\" "
-                        f"({bet.amount:,.0f}฿ lost)"
-                    ),
-                ))
-            losers += 1
-
-    prop.correct_option = correct_option
-    prop.status = "resolved"
-    prop.resolved_at = datetime.now(timezone.utc)
+    from app.resolution import resolve_proposition
+    result = resolve_proposition(db, prop, correct_option)
     db.commit()
 
     return {
@@ -782,12 +688,7 @@ def casino_resolve(
         "prop_id": prop_id,
         "correct_option": correct_option,
         "correct_label": prop.options[correct_option],
-        "total_pool": total_pool,
-        "house_take": house_take,
-        "prize_pool": prize_pool,
-        "winners": winners,
-        "losers": losers,
-        "total_paid_out": total_paid,
+        **result,
     }
 
 
@@ -861,7 +762,6 @@ def delete_proposition(
                     user_id=bet.user_id,
                     event_type="admin_refund",
                     amount=bet.amount,
-                    new_balance=user.beri_balance,
                     description=f"Bet refunded — prop #{prop_id} deleted by admin",
                 ))
         db.query(models.PropositionBet).filter(
@@ -1044,54 +944,14 @@ def casino_accept_auto_resolve(
     if correct_option < 0 or correct_option >= len(prop.options):
         raise HTTPException(400, "correct_option index out of range")
 
-    # Reuse the full resolve logic from casino_resolve
-    prop.correct_option = correct_option
-    prop.status = "resolved"
-    prop.resolved_at = datetime.now(timezone.utc)
-
-    bets = db.query(models.PropositionBet).filter(
-        models.PropositionBet.proposition_id == prop_id
-    ).all()
-    total_pool = sum(b.amount for b in bets)
-    house_take = total_pool * (prop.house_cut or 0.05)
-    payout_pool = total_pool - house_take
-    winners = [b for b in bets if b.option_index == correct_option]
-    winner_stake = sum(b.amount for b in winners) or 0
-
-    paid_out = 0
-    for bet in bets:
-        user = db.query(models.User).filter(models.User.id == bet.user_id).first()
-        if not user:
-            continue
-        if bet.option_index == correct_option and winner_stake > 0:
-            share = bet.amount / winner_stake
-            payout = payout_pool * share * (getattr(bet, "multiplier", 1.0) or 1.0)
-            user.beri_balance += payout
-            bet.payout = payout
-            paid_out += payout
-            db.add(models.BeriEvent(
-                user_id=user.id,
-                event_type="casino_win",
-                amount=payout,
-                description=f"Prediction win — {prop.question[:60]}",
-            ))
-        else:
-            penalty = getattr(bet, "penalty_amount", 0) or 0
-            if penalty > 0 and not getattr(bet, "is_free_play", False):
-                user.beri_balance = max(0, user.beri_balance - penalty)
-                db.add(models.BeriEvent(
-                    user_id=user.id,
-                    event_type="casino_penalty",
-                    amount=-penalty,
-                    description=f"Prediction penalty — {prop.question[:60]}",
-                ))
-            bet.payout = 0
-
+    # Same payout logic as casino_resolve — single source of truth
+    from app.resolution import resolve_proposition
+    result = resolve_proposition(db, prop, correct_option)
     db.commit()
     return {
         "status": "resolved",
-        "winners": len(winners),
-        "total_paid_out": paid_out,
+        "winners": result["winners"],
+        "total_paid_out": result["total_paid_out"],
     }
 
 
@@ -1147,9 +1007,10 @@ def mark_break_week(
 
     updated = 0
     for p in props:
-        p.is_break_week = True
+        # Extend only on the first marking — re-running stays idempotent
         if p.closes_at and not p.is_break_week:
             p.closes_at = p.closes_at + timedelta(days=7)
+        p.is_break_week = True
         updated += 1
 
     # Also flag the previous chapter so prediction pipeline knows retroactively

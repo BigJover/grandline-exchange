@@ -249,7 +249,13 @@ def run_bot_tick():
                 elif held < qty:
                     qty = held
 
-            price = max(0.01, round(char.beri / 100_000, 2))
+            # Same post-impact execution pricing as trades.py
+            impact = min(_IMPACT_CAP, qty * _IMPACT_PER_SHARE)
+            if action == "buy":
+                new_beri = char.beri * (1 + impact)
+            else:
+                new_beri = max(_BERI_FLOOR, char.beri * (1 - impact))
+            price = max(0.01, round(new_beri / 100_000, 2))
             cost  = price * qty
 
             if action == "buy":
@@ -276,11 +282,7 @@ def run_bot_tick():
                     share.quantity -= qty
 
             # Move the market — same formula as trades.py
-            impact = min(_IMPACT_CAP, qty * _IMPACT_PER_SHARE)
-            if action == "buy":
-                char.beri = char.beri * (1 + impact)
-            else:
-                char.beri = max(_BERI_FLOOR, char.beri * (1 - impact))
+            char.beri = new_beri
 
             price_push.append({"id": char.id, "beri": char.beri})
 

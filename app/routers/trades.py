@@ -35,7 +35,15 @@ def execute_trade(
     if not character:
         raise HTTPException(status_code=404, detail="Character not found")
 
-    price = share_price(character)
+    # Trades execute at the post-impact price (bid/ask spread): buys fill at the
+    # price the buy pushes up to, sells at the price the sell pushes down to.
+    # An instant buy→sell round trip therefore costs ~impact% instead of minting it.
+    impact = min(IMPACT_CAP, req.quantity * IMPACT_PER_SHARE)
+    if req.action == "buy":
+        new_beri = character.beri * (1 + impact)
+    else:
+        new_beri = max(BERI_FLOOR, character.beri * (1 - impact))
+    price = max(0.01, round(new_beri / 100_000, 2))
     total = price * req.quantity
 
     share = db.query(models.Share).filter(
@@ -79,11 +87,7 @@ def execute_trade(
     ))
 
     # Move the market: buys push beri up, sells push it down
-    impact = min(IMPACT_CAP, req.quantity * IMPACT_PER_SHARE)
-    if req.action == "buy":
-        character.beri = character.beri * (1 + impact)
-    else:
-        character.beri = max(BERI_FLOOR, character.beri * (1 - impact))
+    character.beri = new_beri
 
     db.commit()
     db.refresh(current_user)
