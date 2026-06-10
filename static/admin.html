@@ -623,6 +623,9 @@ function propHtml(p) {
   let acts = '';
   if (p.status === 'resolved') {
     acts = '<span class="dim" style="font-size:0.72rem">Resolved → ' + esc(p.correct_option || '') + '</span>';
+    if (betCount === 0) {
+      acts += ' <button class="btn btn-ghost btn-sm" onclick="reopenProp(' + p.id + ',this)">REOPEN</button>';
+    }
   } else {
     if (p.status === 'open') acts += '<button class="btn btn-ghost btn-sm" onclick="closeProp(' + p.id + ')">CLOSE</button> ';
   }
@@ -690,6 +693,16 @@ function clearResolved(id, btn) {
       if (el) el.remove();
       toast('Resolved proposition cleared.');
     } catch(e) { toast('Clear failed: ' + e.message, true); }
+  });
+}
+
+async function reopenProp(id, btn) {
+  safeConfirm(btn, async function() {
+    try {
+      await api('POST', '/admin/casino/' + id + '/reopen');
+      toast('Proposition reopened');
+      loadProps();
+    } catch(e) { toast('Reopen failed: ' + e.message, true); }
   });
 }
 

@@ -241,6 +241,7 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
         .filter(
             models.Proposition.source_chapter == chapter_num,
             models.Proposition.status.in_(["open", "closed"]),
+            models.Proposition.is_chapter_prediction == True,  # never auto-resolve endgame props
         )
         .all()
     )

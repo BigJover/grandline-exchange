@@ -1095,6 +1095,36 @@ def casino_accept_auto_resolve(
     }
 
 
+@router.post("/casino/{prop_id}/reopen")
+def reopen_proposition(
+    prop_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Reopen a resolved proposition back to 'open'. Only allowed when bet_count == 0
+    (nothing was paid out, so there's nothing to reverse).
+    """
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(404, "Proposition not found")
+    if prop.status != "resolved":
+        raise HTTPException(400, f"Proposition is '{prop.status}', not resolved")
+    bet_count = db.query(models.PropositionBet).filter(
+        models.PropositionBet.proposition_id == prop_id
+    ).count()
+    if bet_count > 0:
+        raise HTTPException(400, f"Cannot reopen — {bet_count} bet(s) were already paid out")
+    prop.status = "open"
+    prop.correct_option = None
+    prop.llm_confidence = None
+    prop.llm_reasoning = None
+    prop.resolved_at = None
+    db.commit()
+    return {"status": "ok", "prop_id": prop_id}
+
+
 @router.post("/predictions/mark-break-week")
 def mark_break_week(
     chapter: int,
