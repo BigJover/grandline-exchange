@@ -192,11 +192,35 @@ def _extract_chars(text: str, char_index: dict) -> list:
 _WIKI_API = "https://onepiece.fandom.com/api.php"
 
 
+_WIKI_STUB_RE   = re.compile(r"is set to be released", re.IGNORECASE)
+_WIKI_TITLED_RE = re.compile(r"is titled", re.IGNORECASE)
+
+
+def _wiki_chapter_released(chapter_num: int) -> bool:
+    """True only when the chapter's wiki page describes a READABLE chapter.
+    The wiki creates stub pages before release ("'''Chapter N''' is set to be
+    released on <date>" with TBA sections) — those must never count, or the
+    site advances to a chapter nobody can read yet."""
+    url = (f"{_WIKI_API}?action=parse&page=Chapter_{chapter_num}"
+           f"&prop=wikitext&format=json")
+    data = _fetch_json(url)
+    wikitext = (data or {}).get("parse", {}).get("wikitext", {}).get("*", "")
+    if not wikitext:
+        return False
+    if _WIKI_STUB_RE.search(wikitext):
+        return False
+    # Released pages have a filled-in Chapter Box title and real summaries
+    m = re.search(r"\|\s*title\s*=\s*([^\n]*)", wikitext)
+    has_title = bool(m and m.group(1).strip())
+    return has_title or bool(_WIKI_TITLED_RE.search(wikitext)) or len(wikitext) >= 4000
+
+
 def _wiki_latest_chapter(db: Session) -> Optional[int]:
     """
-    Check the One Piece fandom wiki for the highest chapter that has a page.
+    Check the One Piece fandom wiki for the highest RELEASED chapter.
     Walks forward from (last known chapter + 1) up to +10.
-    Returns the chapter number, or None if nothing new is found.
+    Pre-release stub pages do not advance the number — only pages with real
+    content (title + summaries) count. Returns the chapter number or None.
     """
     max_known = db.query(sqlfunc.max(models.Chapter.number)).scalar() or 1050
 
@@ -211,7 +235,11 @@ def _wiki_latest_chapter(db: Session) -> Optional[int]:
         # MediaWiki returns page_id == -1 when the page doesn't exist
         if all(str(pid) == "-1" for pid in pages):
             break
-        latest = candidate   # page exists, keep going to find the highest
+        if _wiki_chapter_released(candidate):
+            latest = candidate   # readable, keep going to find the highest
+        else:
+            print(f"[ChapterPipeline] Chapter_{candidate} page exists but is a "
+                  f"pre-release stub — not counting as released")
 
     return latest
 
@@ -277,10 +305,12 @@ def _wiki_chapter_chars(chapter_num: int, char_index: dict) -> dict:
 
 # ── Source: Reddit ────────────────────────────────────────────────────────────
 
-def _reddit_find_chapter(min_chapter: int) -> tuple[Optional[int], Optional[str], str, str]:
+def _reddit_find_chapter(min_chapter: int) -> tuple[Optional[int], Optional[str], str, str, bool]:
     """
     Sweep Reddit for the latest chapter discussion post.
-    Returns (chapter_num, post_id, title, url) or (None, None, "", "").
+    Returns (chapter_num, post_id, title, url, is_mod_post) or (None, None, "", "", False).
+    is_mod_post is True only for moderator-distinguished threads — the official
+    discussion post that goes up when a chapter actually releases.
     """
     sources = [
         "https://www.reddit.com/r/OnePiece/new.json?limit=50",
@@ -318,15 +348,15 @@ def _reddit_find_chapter(min_chapter: int) -> tuple[Optional[int], Optional[str]
 
     if not any_ok:
         print("[ChapterPipeline] Reddit: all sources blocked/failed")
-        return None, None, "", ""
+        return None, None, "", "", False
 
     if not all_posts:
-        return None, None, "", ""
+        return None, None, "", "", False
 
     mod_posts = [p for p in all_posts if p["distinguished"] == "moderator"]
     pool = mod_posts if mod_posts else all_posts
     best = max(pool, key=lambda p: (p["chapter"], p["score"]))
-    return best["chapter"], best["id"], best["title"], best["url"]
+    return best["chapter"], best["id"], best["title"], best["url"], bool(mod_posts)
 
 
 def _reddit_comment_chars(post_id: str, char_index: dict) -> dict:
@@ -725,18 +755,32 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
             print(f"[ChapterPipeline] Wiki detected Ch.{chapter_num}")
 
         # Source B: Reddit (supplementary — adds post ID for comment scraping)
-        reddit_ch, reddit_post_id, reddit_title, reddit_url = _reddit_find_chapter(
+        reddit_ch, reddit_post_id, reddit_title, reddit_url, reddit_is_mod = _reddit_find_chapter(
             max_known + 1
         )
         if reddit_ch:
             sources_used.append("reddit")
-            if chapter_num is None or reddit_ch > chapter_num:
+            # Only a moderator-distinguished discussion thread is release
+            # evidence — spoiler/leak post titles must not advance the chapter.
+            if reddit_is_mod and (chapter_num is None or reddit_ch > chapter_num):
                 chapter_num = reddit_ch
             # Always capture Reddit post metadata if available
             if reddit_post_id:
                 best_post_id = reddit_post_id
                 best_title = reddit_title
                 best_url = reddit_url
+
+        # Break-week gate: if the wiki did NOT confirm readable content and
+        # Reddit chatter says this is a break week, hold the number back —
+        # the uplink must always show the latest chapter people can read.
+        if chapter_num is not None and "wiki" not in sources_used:
+            try:
+                if _detect_break_week(max_known):
+                    print(f"[ChapterPipeline] Break week chatter detected — holding "
+                          f"back Ch.{chapter_num} until the wiki confirms content")
+                    chapter_num = None
+            except Exception:
+                pass
 
         if chapter_num is None:
             wiki_hint = "wiki returned no new chapter" if "wiki" not in sources_used else ""
@@ -803,7 +847,7 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     # 4b. Reddit top-comment character mentions
     # For manual/force runs, try to find the Reddit post even if step 1 skipped it
     if not best_post_id and force_chapter is not None:
-        _, reddit_post_id2, _, _ = _reddit_find_chapter(chapter_num)
+        _, reddit_post_id2, _, _, _ = _reddit_find_chapter(chapter_num)
         if reddit_post_id2:
             best_post_id = reddit_post_id2
             if "reddit" not in sources_used:

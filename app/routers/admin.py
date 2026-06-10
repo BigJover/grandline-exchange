@@ -1430,6 +1430,33 @@ def discord_events_list(
 
 # ── Chapter Pipeline ──────────────────────────────────────────────────────────
 
+@router.delete("/chapters/{chapter_num}")
+def delete_chapter(
+    chapter_num: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Remove a falsely-detected chapter (e.g. detected off a pre-release wiki
+    stub) along with its pending price proposals. Lets the pipeline re-detect
+    the chapter cleanly when it actually releases. Does not touch predictions,
+    resolved proposals, or transmissions."""
+    _check_secret(x_admin_secret)
+    chapter = db.query(models.Chapter).filter(models.Chapter.number == chapter_num).first()
+    if not chapter:
+        raise HTTPException(status_code=404, detail=f"Chapter {chapter_num} not found")
+    pending_deleted = db.query(models.ProposedPriceChange).filter(
+        models.ProposedPriceChange.chapter_number == chapter_num,
+        models.ProposedPriceChange.status == "pending",
+    ).delete(synchronize_session=False)
+    db.delete(chapter)
+    db.commit()
+    return {
+        "status": "deleted",
+        "chapter": chapter_num,
+        "pending_proposals_deleted": pending_deleted,
+    }
+
+
 @router.post("/chapter-detect")
 def chapter_detect(
     chapter: Optional[int] = None,
