@@ -2260,7 +2260,8 @@ init();
         movers=document.getElementById('tx-movers'), uplink=document.getElementById('stat-uplink');
     if(label)  label.textContent  = tx.uplink_label  || label.textContent;
     if(text)   text.textContent   = tx.summary       || text.textContent;
-    if(uplink) uplink.textContent = tx.chapter_number ? 'Ch. '+tx.chapter_number : uplink.textContent;
+    var curUp = parseInt((uplink ? uplink.textContent : '').replace('Ch. ',''))||0;
+    if(uplink && tx.chapter_number && tx.chapter_number > curUp) uplink.textContent = 'Ch. '+tx.chapter_number;
     if(movers && tx.movers && tx.movers.length)
       movers.innerHTML = tx.movers.map(function(m){
         var c=m.direction==='up'?'up':m.direction==='down'?'down':'new', i=m.direction==='up'?'▲':m.direction==='down'?'▼':'★';
