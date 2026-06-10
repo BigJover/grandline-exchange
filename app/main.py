@@ -558,8 +558,15 @@ for _page in ("index.html", "community.html", "casino.html", "profile.html", "ad
 async def price_broadcaster():
     """Every 5 s: drain trade-triggered updates and broadcast.
        Every 60 s: send a full price snapshot — only when clients are connected."""
-    import gc
     from sqlalchemy import text as _text
+
+    def _snapshot() -> dict:
+        # Runs in a worker thread — the sync DB call must NEVER run on the event
+        # loop: it froze all in-flight requests for seconds on every 60 s tick.
+        with engine.connect() as conn:
+            rows = conn.execute(_text("SELECT id, beri FROM characters")).fetchall()
+            return {str(r[0]): r[1] for r in rows}
+
     snapshot_every = 12   # 12 × 5 s = 60 s between snapshots
     tick = 0
     while True:
@@ -581,13 +588,13 @@ async def price_broadcaster():
             except Exception:
                 break
 
-        # Full snapshot every 60 s — raw SQL, no ORM objects held in memory
+        # Full snapshot every 60 s — off the event loop
         if tick >= snapshot_every:
             tick = 0
-            with engine.connect() as conn:
-                rows = conn.execute(_text("SELECT id, beri FROM characters")).fetchall()
-                batch = {str(r[0]): r[1] for r in rows}
-            gc.collect()
+            try:
+                batch = await asyncio.to_thread(_snapshot)
+            except Exception as e:
+                print(f"[Broadcaster] snapshot failed (non-fatal): {e}")
 
         if batch:
             await manager.broadcast({"type": "prices", "data": batch})
