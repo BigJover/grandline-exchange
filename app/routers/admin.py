@@ -1074,6 +1074,29 @@ def trigger_prediction_generation(
     return result
 
 
+# ── YouTube sentiment enrichment ─────────────────────────────────────────────
+
+@router.post("/chapters/{chapter_num}/enrich-youtube")
+def enrich_youtube(
+    chapter_num: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Supplement pending price proposals for a chapter with YouTube reaction video sentiment.
+    Requires YOUTUBE_API_KEY set on Railway. Safe to call multiple times.
+    """
+    _check_secret(x_admin_secret)
+    from app.chapter_pipeline import enrich_chapter_with_youtube
+
+    chapter = db.query(models.Chapter).filter(models.Chapter.number == chapter_num).first()
+    if not chapter:
+        raise HTTPException(404, f"Chapter {chapter_num} not found in DB")
+
+    result = enrich_chapter_with_youtube(db, chapter_num)
+    return result
+
+
 # ── Reddit prediction suggestions ─────────────────────────────────────────────
 
 REDDIT_SUBS = ["OnePiece", "OnePieceLeaks", "OnePieceSpoilers", "Piratefolk"]

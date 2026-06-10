@@ -11,6 +11,7 @@ _PURGE_LOCK      = "/tmp/comment_purge.lock"
 _BOT_LOCK        = "/tmp/bot_tick.lock"
 _CHAPTER_LOCK    = "/tmp/chapter_detect.lock"
 _PREDICTION_LOCK = "/tmp/prediction_gen.lock"
+_YOUTUBE_LOCK    = "/tmp/youtube_enrich.lock"
 _MIN_INTERVAL    = 23 * 3600  # must be at least 23h since last run
 
 
@@ -298,6 +299,39 @@ def _run_prediction_generate_guarded():
         print(f"[PredictionScheduler] Error: {e}")
 
 
+def _run_youtube_enrich_guarded():
+    """Enrich latest chapter proposals with YouTube reaction video sentiment.
+    Fires Sunday 14:00 UTC — ~48h after Friday chapter drop, when reaction
+    videos have meaningful view counts and comment activity.
+    Idempotent: proposals already tagged with YouTube signal are skipped."""
+    if not _should_run(_YOUTUBE_LOCK, min_seconds=20 * 3600):
+        return
+    api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
+    if not api_key:
+        print("[YouTubeEnrich] YOUTUBE_API_KEY not set — skipping")
+        return
+    try:
+        from app.database import SessionLocal
+        from app import models as _m
+        from sqlalchemy import func as sqlfunc
+        from app.chapter_pipeline import enrich_chapter_with_youtube
+        db = SessionLocal()
+        try:
+            latest = db.query(sqlfunc.max(_m.Chapter.number)).scalar()
+            if not latest:
+                print("[YouTubeEnrich] No chapters in DB yet — skipping")
+                return
+            result = enrich_chapter_with_youtube(db, latest)
+            print(
+                f"[YouTubeEnrich] Ch.{latest}: {result['yt_chars_found']} chars found, "
+                f"{result['proposals_updated']} updated, {result['proposals_added']} added"
+            )
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[YouTubeEnrich] Error: {e}")
+
+
 def _run_chapter_detect_guarded():
     """Run chapter drop detection. Called Thu 03:00 UTC (chapter drop + leak window)
     and Sun 03:00 UTC (episode release / second-wave discussion).
@@ -345,6 +379,12 @@ scheduler.add_job(
     _run_prediction_generate_guarded,
     CronTrigger(day_of_week="sat", hour=14, minute=0, second=0),  # ~24h after Friday chapter drop
     id="prediction_generate_sat",
+    replace_existing=True,
+)
+scheduler.add_job(
+    _run_youtube_enrich_guarded,
+    CronTrigger(day_of_week="sun", hour=14, minute=0, second=0),  # ~48h after Friday chapter drop
+    id="youtube_enrich_sun",
     replace_existing=True,
 )
 # Comment purge disabled until there's a surplus of comments

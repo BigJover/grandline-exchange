@@ -1,6 +1,16 @@
 """
 Chapter drop detection + price proposal pipeline.
 
+enrich_chapter_with_youtube(db, chapter_num)
+    - Supplements existing price proposals with YouTube reaction video sentiment.
+    - Requires YOUTUBE_API_KEY env var (YouTube Data API v3, free, ~10k quota/day).
+    - Searches for "One Piece chapter N reaction" videos, fetches top comments,
+      extracts character mentions, and:
+        * Appends YouTube signal to existing pending proposals' reason strings
+        * Creates new +1% proposals for characters only YouTube caught
+    - Returns {"chapter", "yt_chars_found", "proposals_updated", "proposals_added"}
+    - Safe to call repeatedly — idempotent (skips if YouTube note already in reason)
+
 detect_chapter_drop(db, force_chapter=None)
     - Sweeps multiple sources for a new chapter:
         1. One Piece Fandom Wiki  — authoritative, no auth, always works
@@ -31,6 +41,7 @@ Price proposal tiers (by combined-signal rank):
 import os
 import re
 import json
+import math
 import time
 import base64
 import urllib.request
@@ -354,6 +365,179 @@ def _reddit_pulse_chars(chapter_num: int, char_index: dict) -> dict:
             for name in _extract_chars(text, char_index):
                 scores[name] = scores.get(name, 0) + weight
     return scores
+
+
+# ── Source: YouTube ───────────────────────────────────────────────────────────
+
+_YT_API = "https://www.googleapis.com/youtube/v3"
+_YT_MENTION_THRESHOLD = 3.0   # minimum weighted score to act on a character
+
+
+def _youtube_comment_chars(chapter_num: int, char_index: dict) -> dict:
+    """
+    Fetch comments from YouTube reaction videos for the chapter.
+    Requires YOUTUBE_API_KEY env var. Returns {} gracefully if unset or API fails.
+
+    Quota cost per call: ~100 (search) + 1 (stats) + 5 (comment pages) ≈ 106 units.
+    Free tier is 10,000 units/day so this is well within budget.
+
+    Returns canonical_name → weighted_score dict.
+    Scores are weighted by log10(view_count) so viral videos contribute more signal.
+    """
+    api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
+    if not api_key:
+        print("[ChapterPipeline] YOUTUBE_API_KEY not set — skipping YouTube enrichment")
+        return {}
+
+    # Step 1: Search for reaction/review videos
+    query = f"One Piece chapter {chapter_num} reaction"
+    search_url = (
+        f"{_YT_API}/search?part=snippet"
+        f"&q={urllib.parse.quote(query)}"
+        f"&type=video&order=relevance&maxResults=5"
+        f"&key={api_key}"
+    )
+    search_data = _fetch_json(search_url)
+    if not search_data:
+        print(f"[ChapterPipeline] YouTube search failed for Ch.{chapter_num}")
+        return {}
+
+    video_ids = [
+        item["id"]["videoId"]
+        for item in search_data.get("items", [])
+        if item.get("id", {}).get("videoId")
+    ]
+    if not video_ids:
+        print(f"[ChapterPipeline] YouTube: no reaction videos found for Ch.{chapter_num}")
+        return {}
+
+    print(f"[ChapterPipeline] YouTube: found {len(video_ids)} videos for Ch.{chapter_num}")
+
+    # Step 2: Fetch view counts for weighting
+    stats_url = (
+        f"{_YT_API}/videos?part=statistics"
+        f"&id={','.join(video_ids)}"
+        f"&key={api_key}"
+    )
+    stats_data = _fetch_json(stats_url)
+    view_counts: dict = {}
+    if stats_data:
+        for item in stats_data.get("items", []):
+            views = int(item.get("statistics", {}).get("viewCount", 1))
+            view_counts[item["id"]] = views
+
+    # Step 3: Fetch top comments per video, extract character mentions
+    counts: dict = {}
+    for vid_id in video_ids:
+        comments_url = (
+            f"{_YT_API}/commentThreads?part=snippet"
+            f"&videoId={vid_id}&maxResults=100"
+            f"&order=relevance&key={api_key}"
+        )
+        comments_data = _fetch_json(comments_url)
+        if not comments_data:
+            continue
+
+        views = view_counts.get(vid_id, 10)
+        weight = max(1.0, math.log10(max(views, 10)))
+
+        for item in comments_data.get("items", []):
+            text = (
+                item.get("snippet", {})
+                    .get("topLevelComment", {})
+                    .get("snippet", {})
+                    .get("textDisplay", "")
+            )
+            if not text:
+                continue
+            for name in _extract_chars(text, char_index):
+                counts[name] = counts.get(name, 0) + weight
+
+    above_threshold = {k: v for k, v in counts.items() if v >= _YT_MENTION_THRESHOLD}
+    print(f"[ChapterPipeline] YouTube Ch.{chapter_num}: {len(above_threshold)} characters above threshold")
+    return counts
+
+
+def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
+    """
+    Supplement pending price proposals for chapter_num with YouTube sentiment.
+
+    - Updates reason strings on existing proposals when YouTube confirms the signal.
+    - Creates conservative +1% proposals for characters YouTube caught that Reddit missed.
+    - Idempotent: skips proposals that already contain a YouTube note.
+
+    Returns {"chapter", "yt_chars_found", "proposals_updated", "proposals_added"}
+    """
+    char_index = _char_index_from_db(db)
+    yt_chars = _youtube_comment_chars(chapter_num, char_index)
+
+    if not yt_chars:
+        return {
+            "chapter": chapter_num,
+            "yt_chars_found": 0,
+            "proposals_updated": 0,
+            "proposals_added": 0,
+        }
+
+    existing_proposals = {
+        p.character_name: p
+        for p in db.query(models.ProposedPriceChange).filter(
+            models.ProposedPriceChange.chapter_number == chapter_num,
+            models.ProposedPriceChange.status == "pending",
+        ).all()
+    }
+
+    updated = 0
+    added = 0
+
+    for char_name, yt_score in yt_chars.items():
+        if yt_score < _YT_MENTION_THRESHOLD:
+            continue
+
+        if char_name in existing_proposals:
+            prop = existing_proposals[char_name]
+            if "YouTube" not in (prop.reason or ""):
+                prop.reason = (prop.reason or "") + f", YouTube {yt_score:.0f}pts"
+                updated += 1
+        else:
+            char = db.query(models.Character).filter(
+                models.Character.name == char_name
+            ).first()
+            if not char:
+                continue
+
+            current_beri = char.beri
+            base_beri = char.base_beri or current_beri
+            pct = 0.5 if (base_beri > 0 and current_beri > base_beri * 3) else 1.0
+            proposed_beri = current_beri * (1 + pct / 100)
+
+            db.add(models.ProposedPriceChange(
+                chapter_number=chapter_num,
+                character_id=char.id,
+                character_name=char_name,
+                current_beri=current_beri,
+                proposed_beri=proposed_beri,
+                direction="up",
+                pct_change=round(pct, 2),
+                reason=(
+                    f"Ch.{chapter_num} — YouTube community {yt_score:.0f}pts"
+                    " (reaction video comments, Reddit signal absent)"
+                ),
+            ))
+            added += 1
+
+    db.commit()
+    yt_chars_found = len([s for s in yt_chars.values() if s >= _YT_MENTION_THRESHOLD])
+    print(
+        f"[ChapterPipeline] YouTube enrichment Ch.{chapter_num}: "
+        f"{yt_chars_found} chars found, {updated} proposals updated, {added} added"
+    )
+    return {
+        "chapter": chapter_num,
+        "yt_chars_found": yt_chars_found,
+        "proposals_updated": updated,
+        "proposals_added": added,
+    }
 
 
 # ── Pipeline constants ────────────────────────────────────────────────────────
