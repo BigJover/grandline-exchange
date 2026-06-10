@@ -460,11 +460,15 @@ def _youtube_comment_chars(chapter_num: int, char_index: dict) -> dict:
 
 def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
     """
-    Supplement pending price proposals for chapter_num with YouTube sentiment.
+    Re-rank all pending proposals for chapter_num with YouTube signal added.
 
-    - Updates reason strings on existing proposals when YouTube confirms the signal.
-    - Creates conservative +1% proposals for characters YouTube caught that Reddit missed.
-    - Idempotent: skips proposals that already contain a YouTube note.
+    Loads the stored signal_scores from each existing proposal, injects the
+    YouTube score, then re-runs the same tier logic as detect_chapter_drop so
+    every proposal's pct_change reflects the full combined signal (wiki + Reddit
+    + YouTube + site trading). Also creates proposals for characters YouTube
+    found that Reddit/wiki missed entirely.
+
+    Safe to call multiple times — idempotent on the YouTube score itself.
 
     Returns {"chapter", "yt_chars_found", "proposals_updated", "proposals_added"}
     """
@@ -479,6 +483,7 @@ def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
             "proposals_added": 0,
         }
 
+    # ── Load all pending proposals and their stored signal scores ────────────
     existing_proposals = {
         p.character_name: p
         for p in db.query(models.ProposedPriceChange).filter(
@@ -487,42 +492,108 @@ def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
         ).all()
     }
 
+    # ── Build unified signal map: existing signals + YouTube ─────────────────
+    # {char_name: {wiki, reddit_comments, reddit_pulse, youtube, site_net}}
+    all_signals: dict = {}
+
+    for char_name, prop in existing_proposals.items():
+        scores = dict(prop.signal_scores) if prop.signal_scores else {}
+        scores["youtube"] = max(scores.get("youtube", 0), yt_chars.get(char_name, 0))
+        all_signals[char_name] = scores
+
+    # Characters YouTube found that have no existing proposal
+    yt_only_names = [n for n in yt_chars if n not in existing_proposals
+                     and yt_chars[n] >= _YT_MENTION_THRESHOLD]
+    for char_name in yt_only_names:
+        all_signals[char_name] = {"wiki": 0, "reddit_comments": 0,
+                                   "reddit_pulse": 0, "youtube": yt_chars[char_name],
+                                   "site_net": 0}
+
+    if not all_signals:
+        return {
+            "chapter": chapter_num,
+            "yt_chars_found": 0,
+            "proposals_updated": 0,
+            "proposals_added": 0,
+        }
+
+    # ── Recompute combined totals and re-rank ─────────────────────────────────
+    ranked = sorted(
+        [
+            {
+                "name": name,
+                "total": _combined_total(scores),
+                "scores": scores,
+            }
+            for name, scores in all_signals.items()
+        ],
+        key=lambda x: x["total"],
+        reverse=True,
+    )
+
+    # Load character rows for beri data
+    all_names = [r["name"] for r in ranked]
+    char_rows = {
+        c.name: c
+        for c in db.query(models.Character).filter(
+            models.Character.name.in_(all_names)
+        ).all()
+    }
+
     updated = 0
     added = 0
 
-    for char_name, yt_score in yt_chars.items():
-        if yt_score < _YT_MENTION_THRESHOLD:
+    for rank, entry in enumerate(ranked):
+        char_name = entry["name"]
+        scores = entry["scores"]
+        char = char_rows.get(char_name)
+        if not char:
             continue
+
+        current_beri = char.beri
+        base_beri = char.base_beri or current_beri
+        net_buy = scores.get("site_net", 0)
+
+        # Tier assignment — same logic as detect_chapter_drop
+        if net_buy < -10:
+            direction, pct = "down", 4.0
+        elif net_buy < -5:
+            direction, pct = "down", 2.5
+        else:
+            direction = "up"
+            pct = _RANK_PCT[min(rank, len(_RANK_PCT) - 1)]
+            if base_beri > 0 and current_beri > base_beri * 3:
+                pct = min(pct, 0.5)
+
+        if pct < _MIN_PCT and net_buy >= 0:
+            continue
+
+        proposed_beri = (
+            current_beri * (1 + pct / 100) if direction == "up"
+            else max(_BERI_FLOOR, current_beri * (1 - pct / 100))
+        )
+
+        reason = _build_reason(chapter_num, scores)
 
         if char_name in existing_proposals:
             prop = existing_proposals[char_name]
-            if "YouTube" not in (prop.reason or ""):
-                prop.reason = (prop.reason or "") + f", YouTube {yt_score:.0f}pts"
-                updated += 1
+            prop.pct_change = round(pct, 2)
+            prop.direction = direction
+            prop.proposed_beri = proposed_beri
+            prop.reason = reason
+            prop.signal_scores = scores
+            updated += 1
         else:
-            char = db.query(models.Character).filter(
-                models.Character.name == char_name
-            ).first()
-            if not char:
-                continue
-
-            current_beri = char.beri
-            base_beri = char.base_beri or current_beri
-            pct = 0.5 if (base_beri > 0 and current_beri > base_beri * 3) else 1.0
-            proposed_beri = current_beri * (1 + pct / 100)
-
             db.add(models.ProposedPriceChange(
                 chapter_number=chapter_num,
                 character_id=char.id,
                 character_name=char_name,
                 current_beri=current_beri,
                 proposed_beri=proposed_beri,
-                direction="up",
+                direction=direction,
                 pct_change=round(pct, 2),
-                reason=(
-                    f"Ch.{chapter_num} — YouTube community {yt_score:.0f}pts"
-                    " (reaction video comments, Reddit signal absent)"
-                ),
+                reason=reason,
+                signal_scores=scores,
             ))
             added += 1
 
@@ -530,7 +601,7 @@ def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
     yt_chars_found = len([s for s in yt_chars.values() if s >= _YT_MENTION_THRESHOLD])
     print(
         f"[ChapterPipeline] YouTube enrichment Ch.{chapter_num}: "
-        f"{yt_chars_found} chars found, {updated} proposals updated, {added} added"
+        f"{yt_chars_found} chars found, {updated} proposals re-ranked, {added} added"
     )
     return {
         "chapter": chapter_num,
@@ -538,6 +609,36 @@ def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
         "proposals_updated": updated,
         "proposals_added": added,
     }
+
+
+# ── Shared signal helpers ─────────────────────────────────────────────────────
+
+def _combined_total(scores: dict) -> float:
+    """Compute combined signal score from raw per-source counts."""
+    return (
+        scores.get("wiki", 0) * 100
+        + scores.get("reddit_comments", 0) * 500
+        + scores.get("reddit_pulse", 0)
+        + scores.get("youtube", 0) * 150
+        + scores.get("site_net", 0) * 100
+    )
+
+
+def _build_reason(chapter_num: int, scores: dict) -> str:
+    """Build a human-readable reason string from signal scores."""
+    parts = []
+    if scores.get("wiki"):
+        parts.append(f"wiki ×{int(scores['wiki'])}")
+    if scores.get("reddit_comments"):
+        parts.append(f"{int(scores['reddit_comments'])} Reddit comments")
+    if scores.get("reddit_pulse"):
+        parts.append(f"pulse {int(scores['reddit_pulse'])}")
+    if scores.get("youtube"):
+        parts.append(f"YouTube {scores['youtube']:.1f}pts")
+    net = scores.get("site_net", 0)
+    if net:
+        parts.append(f"net {'buy' if net > 0 else 'sell'} {abs(int(net))}")
+    return f"Ch.{chapter_num} — " + (", ".join(parts) if parts else "signal detected")
 
 
 # ── Pipeline constants ────────────────────────────────────────────────────────
@@ -706,37 +807,30 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     }
 
     # ── 6. Combine signals into ranked list ───────────────────────────────────
-    # wiki_chars (already ×5 per occurrence in _wiki_chapter_chars) × 100
-    # comment_chars × 500
-    # pulse_chars (raw weighted by post score)
-    # site_net × 100
+    # Weights applied in _combined_total():
+    #   wiki × 100  |  reddit_comments × 500  |  reddit_pulse × 1  |
+    #   youtube × 150 (added later by enrich pass)  |  site_net × 100
     all_names = set(wiki_chars) | set(comment_chars) | set(pulse_chars) | set(site_net)
     combined = []
     for name in all_names:
-        w_score = wiki_chars.get(name, 0) * 100
-        c_score = comment_chars.get(name, 0) * 500
-        p_score = pulse_chars.get(name, 0)
-        n_score = site_net.get(name, 0) * 100
-        total = w_score + c_score + p_score + n_score
-        if total < _MENTION_FLOOR and site_net.get(name, 0) >= 0:
+        scores = {
+            "wiki":             wiki_chars.get(name, 0),
+            "reddit_comments":  comment_chars.get(name, 0),
+            "reddit_pulse":     pulse_chars.get(name, 0),
+            "youtube":          0,   # filled by Sunday enrichment pass
+            "site_net":         site_net.get(name, 0),
+        }
+        total = _combined_total(scores)
+        if total < _MENTION_FLOOR and scores["site_net"] >= 0:
             continue
-        combined.append({
-            "name": name,
-            "total": total,
-            "wiki_count": wiki_chars.get(name, 0),
-            "comment_count": comment_chars.get(name, 0),
-            "pulse_score": pulse_chars.get(name, 0),
-            "net_buy": site_net.get(name, 0),
-        })
+        combined.append({"name": name, "total": total, "scores": scores})
 
     # Always include heavy sell-pressure chars even if not mentioned
     for name, net in site_net.items():
         if net < -5 and not any(c["name"] == name for c in combined):
-            combined.append({
-                "name": name, "total": net * 100,
-                "wiki_count": 0, "comment_count": 0,
-                "pulse_score": 0, "net_buy": net,
-            })
+            scores = {"wiki": 0, "reddit_comments": 0, "reddit_pulse": 0,
+                      "youtube": 0, "site_net": net}
+            combined.append({"name": name, "total": net * 100, "scores": scores})
 
     combined.sort(key=lambda x: x["total"], reverse=True)
     top = combined[:15]
@@ -756,9 +850,10 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
         if not char:
             continue
 
+        scores = entry["scores"]
         current_beri = char.beri
         base_beri = char.base_beri or current_beri
-        net_buy = entry["net_buy"]
+        net_buy = scores["site_net"]
 
         if net_buy < -10:
             direction, pct = "down", 4.0
@@ -778,18 +873,6 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
             else max(_BERI_FLOOR, current_beri * (1 - pct / 100))
         )
 
-        parts = []
-        if entry["wiki_count"]:
-            parts.append(f"wiki appearances ×{entry['wiki_count']}")
-        if entry["comment_count"]:
-            parts.append(f"{entry['comment_count']} Reddit comment mentions")
-        if entry["pulse_score"]:
-            parts.append(f"pulse score {int(entry['pulse_score'])}")
-        if net_buy:
-            parts.append(f"site net {'buy' if net_buy > 0 else 'sell'} {abs(net_buy)} shares")
-
-        reason = f"Ch.{chapter_num} — " + (", ".join(parts) if parts else "signal detected")
-
         db.add(models.ProposedPriceChange(
             chapter_number=chapter_num,
             character_id=char.id,
@@ -798,7 +881,8 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
             proposed_beri=proposed_beri,
             direction=direction,
             pct_change=round(pct, 2),
-            reason=reason,
+            reason=_build_reason(chapter_num, scores),
+            signal_scores=scores,
         ))
         proposals_created += 1
 
@@ -816,7 +900,7 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     # ── 10b. Auto-publish transmission ───────────────────────────────────────
     try:
         raw_movers = [
-            {"name": e["name"], "direction": "up" if e["net_buy"] >= 0 else "down"}
+            {"name": e["name"], "direction": "up" if e["scores"]["site_net"] >= 0 else "down"}
             for e in top[:10]
         ]
 

@@ -59,6 +59,9 @@ def run_column_migrations():
         ("llm_confidence",        "DOUBLE PRECISION" if is_postgres else "FLOAT"),
         ("llm_reasoning",         "TEXT"),
     ]
+    proposed_price_migrations = [
+        ("signal_scores", "JSON" if is_postgres else "TEXT"),
+    ]
     prop_bet_migrations = [
         ("is_free_play",    "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"),
         ("multiplier",      "DOUBLE PRECISION DEFAULT 1.0" if is_postgres else "FLOAT DEFAULT 1.0"),
@@ -109,6 +112,18 @@ def run_column_migrations():
                     conn.execute(text(f"ALTER TABLE propositions ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                 else:
                     conn.execute(text(f"ALTER TABLE propositions ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+        for col, col_type in proposed_price_migrations:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE proposed_price_changes ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE proposed_price_changes ADD COLUMN {col} {col_type}"))
                 conn.commit()
             except Exception:
                 try:

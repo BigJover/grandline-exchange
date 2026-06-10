@@ -283,6 +283,7 @@ class ProposedPriceChange(Base):
     pct_change = Column(Float, nullable=False)   # e.g. 5.0 = +5%
     reason = Column(String, default="")
     status = Column(String, default="pending")   # pending | approved | dismissed
+    signal_scores = Column(JSON, default=dict)   # raw per-source counts for re-ranking
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
