@@ -1008,6 +1008,25 @@ def casino_needs_review(
     return [_prop_summary(p) for p in props]
 
 
+@router.post("/casino/approve-review/{prop_id}")
+def casino_approve_review(
+    prop_id: int,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Move a needs_review proposition back to 'closed' so it appears in the
+    main Propositions list for manual resolution later."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(404, "Proposition not found")
+    if prop.status != "needs_review":
+        raise HTTPException(400, f"Proposition status is '{prop.status}', expected 'needs_review'")
+    prop.status = "closed"
+    db.commit()
+    return {"status": "ok", "prop_id": prop_id}
+
+
 @router.post("/casino/accept-resolve/{prop_id}")
 def casino_accept_auto_resolve(
     prop_id: int,

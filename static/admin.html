@@ -832,18 +832,12 @@ async function loadNeedsReview() {
   } catch(e) { el.innerHTML = '<div class="empty neg">' + esc(e.message) + '</div>'; }
 }
 
-const _reviewPicks = {};
-
 function reviewHtml(p) {
   const conf = p.llm_confidence != null ? Math.round(p.llm_confidence * 100) + '%' : '—';
   const confColor = p.llm_confidence >= 0.8 ? 'var(--teal)' : p.llm_confidence >= 0.5 ? 'var(--gold)' : 'var(--red)';
   const reasoning = p.llm_reasoning || 'No reasoning stored.';
   const ch = p.source_chapter ? 'Ch.' + p.source_chapter + ' · ' : '';
   const pool = p.total_pool ? fB(p.total_pool) : '0฿';
-
-  const optBtns = (p.options || []).map(function(opt, i){
-    return '<button class="ro-btn" data-idx="' + i + '" onclick="pickReview(this,' + p.id + ')">' + esc(opt) + '</button>';
-  }).join('');
 
   return '<div class="prop-row" id="rv-' + p.id + '">' +
     '<div class="prop-hd"><div class="prop-q" id="rv-q-' + p.id + '">' + esc(p.question) + '</div>' +
@@ -852,37 +846,26 @@ function reviewHtml(p) {
     '<div style="font-size:0.66rem;color:var(--text-dim);margin:4px 0;border-left:2px solid rgba(255,107,107,0.3);padding-left:8px">' +
       '<span style="color:' + confColor + '">Confidence: ' + conf + '</span> — ' + esc(reasoning) +
     '</div>' +
-    '<div style="margin:6px 0 4px">' +
-      '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:4px">Select correct answer:</div>' +
-      '<div class="resolve-opts" id="rro-' + p.id + '">' + optBtns + '</div>' +
-    '</div>' +
     '<div id="rv-edit-' + p.id + '" style="display:none;margin:8px 0">' +
       '<textarea id="rv-edit-q-' + p.id + '" rows="2" style="width:100%;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:6px;font-size:0.75rem;resize:vertical;box-sizing:border-box"></textarea>' +
       '<button class="btn btn-punk btn-sm" style="margin-top:4px" onclick="saveReviewEdit(' + p.id + ',this)">SAVE</button>' +
     '</div>' +
     '<div class="prop-acts">' +
-      '<button class="btn btn-punk btn-sm" onclick="confirmReviewResolve(' + p.id + ',this)">✓ APPROVE</button>' +
+      '<button class="btn btn-punk btn-sm" onclick="approveReview(' + p.id + ',this)">✓ APPROVE</button>' +
       '<button class="btn btn-ghost btn-sm" onclick="toggleReviewEdit(' + p.id + ')">EDIT</button>' +
       '<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="deleteProp(' + p.id + ',' + p.bet_count + ')">DEL</button>' +
     '</div>' +
   '</div>';
 }
 
-function pickReview(btn, id) {
-  document.querySelectorAll('#rro-' + id + ' .ro-btn').forEach(function(b){ b.classList.remove('sel'); });
-  btn.classList.add('sel');
-  _reviewPicks[id] = parseInt(btn.dataset.idx);
-}
-
-async function confirmReviewResolve(id, btn) {
-  if (_reviewPicks[id] === undefined) { toast('Select an answer first', true); return; }
+async function approveReview(id, btn) {
   safeConfirm(btn, async function() {
     try {
-      const d = await api('POST', '/admin/casino/accept-resolve/' + id + '?correct_option=' + _reviewPicks[id]);
-      toast('Resolved — ' + d.winners + ' winner(s), ' + fB(d.total_paid_out) + ' paid out');
+      await api('POST', '/admin/casino/approve-review/' + id);
+      toast('Moved to Propositions — resolve when ready');
       loadNeedsReview();
       loadProps();
-    } catch(e) { toast('Resolve failed: ' + e.message, true); }
+    } catch(e) { toast('Approve failed: ' + e.message, true); }
   });
 }
 
