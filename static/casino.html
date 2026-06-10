@@ -249,8 +249,9 @@
     .c-empty { font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:var(--text-dim); text-align:center; padding:60px 0; border:1px dashed var(--border); border-radius:10px; grid-column:1/-1; }
 
     /* ── Grid prop card ── */
-    .c-prop { background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px; padding:18px; transition:border-color 0.15s; display:flex; flex-direction:column; gap:0; box-shadow:0 4px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(224,64,251,0.04); }
-    .c-prop:hover { border-color:rgba(224,64,251,0.35); box-shadow:0 4px 28px rgba(0,0,0,0.5), 0 0 20px rgba(224,64,251,0.06); }
+    .c-prop { background:var(--surface2); border:1px solid rgba(42,30,66,0.9); border-radius:12px; padding:18px; transition:border-color 0.2s, box-shadow 0.2s; display:flex; flex-direction:column; gap:0; box-shadow:0 4px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(224,64,251,0.04); cursor:pointer; user-select:none; }
+    .c-prop:hover { border-color:rgba(224,64,251,0.45); box-shadow:0 4px 28px rgba(0,0,0,0.5), 0 0 24px rgba(224,64,251,0.1); }
+    .c-prop.c-prop-active { border-color:rgba(224,64,251,0.7); box-shadow:0 4px 28px rgba(0,0,0,0.5), 0 0 32px rgba(224,64,251,0.2), inset 0 1px 0 rgba(224,64,251,0.15); background:var(--surface2); }
     .c-prop-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
     .c-cat-badge { font-family:'Orbitron',sans-serif; font-size:0.48rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; border-radius:3px; padding:3px 8px; border:1px solid; white-space:nowrap; }
     .c-status-open     { font-family:'Share Tech Mono',monospace; font-size:0.6rem; border-radius:3px; padding:3px 8px; background:rgba(0,208,132,0.12); color:#00d084; border:1px solid rgba(0,208,132,0.3); }
@@ -812,6 +813,7 @@ let currentUser = null;
 let allProps = [];
 let activeStatus = '';
 let activeCat = '';
+let currentFeaturedId = null;
 
 function fB(v){
   if(!v && v!==0) return '0 ฿';
@@ -1097,13 +1099,21 @@ function renderFiltered(){
   }
 
   // Featured Prediction = open chapter predictions first (most recent), then fall back to largest pool
+  // (only auto-select if user hasn't manually chosen one)
   const featEl = document.getElementById('c-featured');
   const predProps = openProps.filter(p => p.is_chapter_prediction);
-  const featProp = predProps.length
+  const autoFeatProp = predProps.length
     ? predProps.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0]
     : openProps.sort((a,b) => (b.total_pool||0) - (a.total_pool||0))[0];
-  if(featProp) featEl.innerHTML = renderFeatured(featProp);
-  else featEl.innerHTML = '<div class="c-featured-empty">No active chapter prediction yet — opens after each uplink.</div>';
+  const manualStillExists = currentFeaturedId && allProps.find(p => p.id === currentFeaturedId);
+  const featProp = manualStillExists ? allProps.find(p => p.id === currentFeaturedId) : autoFeatProp;
+  if(featProp){
+    featEl.innerHTML = renderFeatured(featProp);
+    currentFeaturedId = featProp.id;
+  } else {
+    featEl.innerHTML = '<div class="c-featured-empty">No active chapter prediction yet — opens after each uplink.</div>';
+    currentFeaturedId = null;
+  }
 
   // Right panel — your bets
   const myBets = allProps.filter(p => p.user_bet_option !== null && p.user_bet_option !== undefined);
@@ -1147,6 +1157,29 @@ function renderFiltered(){
     return;
   }
   list.innerHTML = filtered.map(renderProp).join('');
+  // Highlight the currently featured tile
+  if(currentFeaturedId){
+    const el = document.getElementById('cp-'+currentFeaturedId);
+    if(el) el.classList.add('c-prop-active');
+  }
+}
+
+function featureProp(propId){
+  const prop = allProps.find(function(p){ return p.id === propId; });
+  if(!prop) return;
+  // Update featured section
+  const featEl = document.getElementById('c-featured');
+  if(featEl) featEl.innerHTML = renderFeatured(prop);
+  // Update active tile highlight
+  if(currentFeaturedId !== null){
+    const prev = document.getElementById('cp-'+currentFeaturedId);
+    if(prev) prev.classList.remove('c-prop-active');
+  }
+  currentFeaturedId = propId;
+  const cur = document.getElementById('cp-'+propId);
+  if(cur) cur.classList.add('c-prop-active');
+  // Scroll featured into view
+  if(featEl) featEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 function renderFeatured(prop){
@@ -1180,19 +1213,35 @@ function renderFeatured(prop){
   // Featured card label: prediction vs general
   const featLabel = prop.is_chapter_prediction ? '⏱ PREDICTION' : '★ FEATURED';
 
-  // Place call — show free play option for predictions
+  // Status badge
+  const isOpen = prop.status === 'open';
+  const isResolved = prop.status === 'resolved';
+  const statusBadge = isOpen
+    ? '<span class="c-status-open">● Open</span>'
+    : isResolved
+      ? '<span class="c-status-resolved">✓ Resolved</span>'
+      : '<span class="c-status-closed">◌ Closed</span>';
+
+  // Resolved answer display
+  const resolvedHtml = isResolved && prop.correct_option !== null
+    ? '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.72rem;color:#00d084">Answer: <strong>'+esc(prop.options[prop.correct_option])+'</strong></span>'
+    : '';
+
+  // Place call — only for open props where user hasn't bet
   let placeBtnHtml = '';
-  if(prop.user_bet_option === null || prop.user_bet_option === undefined){
-    if(currentUser){
-      placeBtnHtml = '<button class="c-place-btn" onclick="selectOpt('+prop.id+',0)">Place Call</button>';
+  if(isOpen){
+    if(prop.user_bet_option === null || prop.user_bet_option === undefined){
+      if(currentUser){
+        placeBtnHtml = '<button class="c-place-btn" onclick="selectOpt('+prop.id+',0)">Place Call</button>';
+      }
+    } else {
+      placeBtnHtml = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.7rem;color:var(--text-dim)">Call locked in — '+fB(prop.user_bet_amount)+(prop.user_bet_multiplier&&prop.user_bet_multiplier>1?' ('+prop.user_bet_multiplier+'×)':'')+'</span>';
     }
-  } else {
-    placeBtnHtml = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.7rem;color:var(--text-dim)">Call locked in — '+fB(prop.user_bet_amount)+(prop.user_bet_multiplier&&prop.user_bet_multiplier>1?' ('+prop.user_bet_multiplier+'×)':'')+'</span>';
   }
 
   return '<div class="c-featured-card" style="'+(prop.is_chapter_prediction?'border-color:rgba(41,182,246,0.45);background:linear-gradient(135deg,rgba(41,182,246,0.06) 0%,rgba(224,64,251,0.05) 100%)':'')+'">'+
     '<div style="position:absolute;top:14px;right:18px;font-family:\'Orbitron\',sans-serif;font-size:0.44rem;font-weight:700;letter-spacing:2px;color:'+(prop.is_chapter_prediction?'var(--punk2)':'var(--punk)')+';opacity:0.65">'+featLabel+'</div>'+
-    '<div class="c-feat-meta"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span><span class="c-status-open">● Open</span>'+breakHtml+saleBadgeHtml(prop)+'</div>'+
+    '<div class="c-feat-meta"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span>'+statusBadge+breakHtml+saleBadgeHtml(prop)+'</div>'+
     '<div class="c-feat-question">'+esc(prop.question)+'</div>'+
     '<div class="c-feat-odds">'+
       '<div class="c-feat-side yes"><div class="c-feat-side-label">YES</div><div class="c-feat-side-pct">'+yesPct+'%</div></div>'+
@@ -1202,11 +1251,11 @@ function renderFeatured(prop){
     '<div class="c-feat-bar"><div class="c-feat-bar-yes" style="width:'+yesPct+'%"></div><div class="c-feat-bar-no" style="width:'+noPct+'%"></div></div>'+
     '<div class="c-feat-footer">'+
       '<span class="c-feat-info">Total Pool <span>'+fB(total)+'</span></span>'+
-      (prop.is_chapter_prediction ? '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">'+saleHouseCutHtml(prop)+'</span>' : '')+
-      (multInfoHtml || closesHtml)+
+      (isOpen && prop.is_chapter_prediction ? '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.68rem;color:var(--text-dim)">'+saleHouseCutHtml(prop)+'</span>' : '')+
+      (resolvedHtml || (isOpen ? (multInfoHtml || closesHtml) : ''))+
       placeBtnHtml+
     '</div>'+
-    '<div class="c-bet-zone" id="bz-'+prop.id+'" style="display:none"></div>'+
+    (isOpen ? '<div class="c-bet-zone" id="bz-'+prop.id+'" style="display:none"></div>' : '')+
   '</div>';
 }
 
@@ -1278,47 +1327,35 @@ function renderProp(prop){
     let badge = '';
     if(isResolved && i===prop.correct_option) badge = ' <span class="c-win-badge">✓</span>';
     if(isResolved && uOpt===i && i!==prop.correct_option) badge = ' <span class="c-loss-badge">✗</span>';
-    const click = (isOpen && uOpt===null && currentUser) ? 'onclick="selectOpt('+prop.id+','+i+')"  style="cursor:pointer"' : '';
-    return '<div class="'+cls+'" '+click+'>'+
+    return '<div class="'+cls+'">'+
       '<div class="c-ring-opt-dot" style="background:'+colors[i]+'"></div>'+
       '<span class="c-ring-opt-label">'+esc(o.label)+badge+'</span>'+
       '<span class="c-ring-opt-pct">'+pct+'%</span>'+
     '</div>';
   }).join('');
 
-  let betZoneHtml = '';
-  if(isOpen){
-    if(!currentUser){
-      betZoneHtml = '<div class="c-bet-zone"><span class="c-login-prompt">→ <a href="/">Log in</a> to place a call</span></div>';
-    } else if(uOpt===null){
-      betZoneHtml = '<div class="c-bet-zone" id="bz-'+prop.id+'" style="display:none"></div>';
+  // Minimal footer hint for my-bet status
+  let myBetHint = '';
+  if(uOpt !== null && uOpt !== undefined){
+    if(isResolved){
+      myBetHint = uOpt===prop.correct_option
+        ? '<span class="c-win-badge" style="font-size:0.44rem">WIN</span>'
+        : '<span class="c-loss-badge" style="font-size:0.44rem">LOSS</span>';
     } else {
-      let lockMsg = 'Call locked in';
-      if(uAmt) lockMsg += ' — '+fB(uAmt);
-      betZoneHtml = '<div class="c-bet-zone"><span style="font-size:0.68rem;color:var(--text-dim)">'+lockMsg+'</span></div>';
-    }
-  } else if(isResolved && uOpt!==null){
-    if(uOpt===prop.correct_option){
-      const wp = prop.odds[uOpt].total_bet;
-      const prize = prop.total_pool*(1-prop.house_cut);
-      const est = wp>0 ? Math.round(uAmt/wp*prize) : 0;
-      betZoneHtml = '<div class="c-bet-zone"><span class="c-win-badge">+'+fB(est)+' payout</span></div>';
-    } else {
-      betZoneHtml = '<div class="c-bet-zone"><span class="c-loss-badge">Lost</span></div>';
+      myBetHint = '<span style="font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;color:var(--text-dim)">Call in</span>';
     }
   }
 
   const footer = '<div class="c-pool-footer">'+
     '<span>Pool: '+fB(total)+'</span>'+
-    (isOpen && prop.is_chapter_prediction ? '<span>'+saleHouseCutHtml(prop)+'</span>' : '')+
-    (isResolved && prop.correct_option!==null ? '<span style="color:#00d084">Answer: <strong>'+esc(prop.options[prop.correct_option])+'</strong></span>' : '')+
+    (isResolved && prop.correct_option!==null ? '<span style="color:#00d084;font-size:0.62rem">Answer: <strong>'+esc(prop.options[prop.correct_option])+'</strong></span>' : '')+
+    (myBetHint ? '<span style="margin-left:auto">'+myBetHint+'</span>' : '')+
   '</div>';
 
-  return '<div class="c-prop" id="cp-'+prop.id+'">'+
+  return '<div class="c-prop" id="cp-'+prop.id+'" onclick="featureProp('+prop.id+')">'+
     '<div class="c-prop-header"><span class="c-cat-badge" style="'+catStyle+'">'+esc(cm.label)+'</span>'+statusHtml+predTagHtml+breakTagHtml+saleBadgeHtml(prop)+closesHtml+'</div>'+
     '<div class="c-question">'+esc(prop.question)+'</div>'+
     '<div class="c-ring-area"><div class="c-ring-wrap">'+ringHtml+'</div><div class="c-ring-opts">'+optRows+'</div></div>'+
-    betZoneHtml+
     footer+
   '</div>';
 }
