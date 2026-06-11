@@ -355,8 +355,14 @@ def _run_chapter_detect_guarded():
 
 
 scheduler = AsyncIOScheduler(timezone="UTC")
-# Beri drop is now fired by detect_chapter_drop() in chapter_pipeline.py
-# when a new chapter is detected — not on a fixed weekly schedule.
+# Weekly beri drop — fixed schedule for consistent user income, decoupled
+# from chapter detection (which can misfire on breaks/early wiki stubs).
+scheduler.add_job(
+    run_beri_drop,
+    CronTrigger(day_of_week="sun", hour=0, minute=0, second=0),
+    id="weekly_beri_drop",
+    replace_existing=True,
+)
 scheduler.add_job(
     _run_bot_tick_guarded,
     CronTrigger(hour=12, minute=0, second=0),   # once daily at noon UTC
