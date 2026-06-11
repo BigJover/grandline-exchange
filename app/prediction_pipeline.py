@@ -236,12 +236,21 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
     wiki_chars: canonical_name → count dict from _wiki_chapter_chars()
     Returns {"resolved": int, "needs_review": int, "skipped": int}
     """
+    from sqlalchemy import or_, and_
     props = (
         db.query(models.Proposition)
         .filter(
-            models.Proposition.source_chapter == chapter_num,
             models.Proposition.status.in_(["open", "closed"]),
             models.Proposition.is_chapter_prediction == True,  # never auto-resolve endgame props
+            or_(
+                models.Proposition.source_chapter == chapter_num,
+                # Safety net: manually re-added chapter predictions created
+                # before source_chapter tagging existed — match by question text
+                and_(
+                    models.Proposition.source_chapter == None,
+                    models.Proposition.question.contains(f"Ch.{chapter_num}"),
+                ),
+            ),
         )
         .all()
     )

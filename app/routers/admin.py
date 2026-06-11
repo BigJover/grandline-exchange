@@ -591,6 +591,13 @@ async def casino_create(
         raise HTTPException(status_code=400, detail="Need at least 2 options")
     if not 0 < prop.house_cut < 1:
         raise HTTPException(status_code=400, detail="house_cut must be between 0 and 1")
+    # Tag manually-created chapter predictions with their target chapter so the
+    # auto-resolver picks them up — pulled from "Ch.1185" in the question text.
+    source_chapter = None
+    if prop.is_chapter_prediction:
+        m = _re.search(r'Ch\.?\s*#?(\d{3,4})', prop.question, _re.IGNORECASE)
+        if m:
+            source_chapter = int(m.group(1))
     p = models.Proposition(
         question=prop.question,
         category=prop.category,
@@ -601,6 +608,7 @@ async def casino_create(
         is_chapter_prediction=prop.is_chapter_prediction,
         chapter_drop_time=prop.chapter_drop_time,
         is_break_week=prop.is_break_week,
+        source_chapter=source_chapter,
     )
     db.add(p)
     db.commit()
