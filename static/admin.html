@@ -796,24 +796,70 @@ async function loadDrafts() {
 function draftHtml(p) {
   const ch = p.source_chapter ? ' · Ch.' + p.source_chapter : '';
   const cat = p.category || 'endgame';
+  const opts = p.options || ['Yes', 'No'];
+  const optInputs = opts.map(function(o, i) {
+    return '<input type="text" id="do-' + p.id + '-' + i + '" value="' + esc(o) + '" style="flex:1;font-size:0.78rem;padding:4px 8px">';
+  }).join('');
   return '<div class="prop-row" id="dr-' + p.id + '">' +
-    '<div class="prop-hd"><div class="prop-q">' + esc(p.question) + '</div>' +
+    '<div class="prop-hd"><div class="prop-q" id="dqt-' + p.id + '">' + esc(p.question) + '</div>' +
     '<span class="badge" style="background:rgba(255,200,60,0.12);color:var(--gold);border:1px solid rgba(255,200,60,0.3)">DRAFT</span></div>' +
-    '<div class="prop-meta">Cat: ' + esc(cat) + ch + '</div>' +
-    '<div style="margin:6px 0 4px"><input type="text" id="dq-' + p.id + '" value="' + esc(p.question) + '" style="width:100%;font-size:0.78rem;padding:4px 8px"></div>' +
+    '<div class="prop-meta">Cat: ' + esc(cat) + ch + ' · Options: ' + opts.map(esc).join(' / ') + '</div>' +
+    '<div id="de-' + p.id + '" data-optcount="' + opts.length + '" style="display:none;margin:6px 0 4px">' +
+      '<div style="font-size:0.6rem;color:var(--text-dim);letter-spacing:1px;margin-bottom:3px">QUESTION</div>' +
+      '<input type="text" id="dq-' + p.id + '" value="' + esc(p.question) + '" style="width:100%;font-size:0.78rem;padding:4px 8px">' +
+      '<div style="font-size:0.6rem;color:var(--text-dim);letter-spacing:1px;margin:6px 0 3px">OPTIONS</div>' +
+      '<div style="display:flex;gap:6px">' + optInputs + '</div>' +
+      '<div style="margin-top:6px">' +
+        '<button class="btn btn-punk btn-sm" onclick="saveDraft(' + p.id + ',this)">SAVE</button> ' +
+        '<button class="btn btn-ghost btn-sm" onclick="toggleDraftEdit(' + p.id + ')">CANCEL</button>' +
+      '</div>' +
+    '</div>' +
     '<div class="prop-acts">' +
+      '<button class="btn btn-ghost btn-sm" onclick="toggleDraftEdit(' + p.id + ')">✎ EDIT</button> ' +
       '<button class="btn btn-punk btn-sm" onclick="publishDraft(' + p.id + ',this)">PUBLISH</button> ' +
       '<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="dismissDraft(' + p.id + ',this)">DISMISS</button>' +
     '</div>' +
   '</div>';
 }
 
+function toggleDraftEdit(id) {
+  const panel = document.getElementById('de-' + id);
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function draftEdits(id) {
+  // Collect current edit-panel values.
+  // Returns undefined if the panel isn't open, null if values are invalid.
+  const panel = document.getElementById('de-' + id);
+  if (!panel || panel.style.display === 'none') return undefined;
+  const question = document.getElementById('dq-' + id).value.trim();
+  const options = [];
+  const n = parseInt(panel.dataset.optcount, 10) || 0;
+  for (let i = 0; i < n; i++) {
+    const v = document.getElementById('do-' + id + '-' + i).value.trim();
+    if (v) options.push(v);
+  }
+  if (!question) { toast('Question cannot be empty', true); return null; }
+  if (options.length < 2) { toast('Need at least 2 options', true); return null; }
+  return { question, options };
+}
+
+async function saveDraft(id, btn) {
+  const edits = draftEdits(id);
+  if (!edits) return;
+  try {
+    await api('PATCH', '/admin/casino/draft/' + id, edits);
+    toast('Draft saved');
+    loadDrafts();
+  } catch(e) { toast('Save failed: ' + e.message, true); }
+}
+
 async function publishDraft(id, btn) {
   safeConfirm(btn, async function() {
-    const qEl = document.getElementById('dq-' + id);
-    const question = qEl ? qEl.value.trim() : '';
+    const edits = draftEdits(id);   // include unsaved edits if the panel is open
+    if (edits === null) return;     // panel open but invalid — fix before publishing
     try {
-      await api('POST', '/admin/casino/publish/' + id, question ? { question } : null);
+      await api('POST', '/admin/casino/publish/' + id, edits);
       toast('Prediction published');
       loadDrafts();
       loadProps();
@@ -1005,6 +1051,7 @@ function renderProposals(proposals, chapters) {
       + 'Last detected: <span style="color:var(--punk)">Ch.' + latest.number + '</span>'
       + (latest.title ? ' — ' + esc(latest.title.slice(0, 60)) : '')
       + ' · <a href="' + esc(latest.reddit_url) + '" target="_blank" style="color:var(--gold)">Reddit ↗</a>'
+      + (latest.next_is_break ? ' · <span style="color:var(--gold)">⏸ BREAK NEXT WEEK</span>' : '')
       + '</div>';
   }
 

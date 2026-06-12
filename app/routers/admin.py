@@ -843,6 +843,43 @@ def casino_list_drafts(
     return [_prop_summary(p) for p in props]
 
 
+def _clean_options(raw) -> Optional[list]:
+    """Validate an options payload: list of 2+ non-empty strings, or None."""
+    if not isinstance(raw, list):
+        return None
+    opts = [str(o).strip() for o in raw if str(o).strip()]
+    return opts if len(opts) >= 2 else None
+
+
+@router.patch("/casino/draft/{prop_id}")
+def casino_edit_draft(
+    prop_id: int,
+    payload: dict = Body(...),
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Edit a draft proposition in place (question/options/category) without publishing."""
+    _check_secret(x_admin_secret)
+    prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
+    if not prop:
+        raise HTTPException(404, "Proposition not found")
+    if prop.status != "draft":
+        raise HTTPException(400, f"Proposition is '{prop.status}', not 'draft' — only drafts can be edited")
+
+    if payload.get("question"):
+        prop.question = payload["question"].strip()
+    if payload.get("options"):
+        opts = _clean_options(payload["options"])
+        if opts is None:
+            raise HTTPException(400, "options must be a list of 2+ non-empty strings")
+        prop.options = opts
+    if payload.get("category"):
+        prop.category = payload["category"]
+
+    db.commit()
+    return _prop_summary(prop)
+
+
 @router.post("/casino/publish/{prop_id}")
 def casino_publish_draft(
     prop_id: int,
@@ -861,6 +898,10 @@ def casino_publish_draft(
     if payload:
         if payload.get("question"):
             prop.question = payload["question"].strip()
+        if payload.get("options"):
+            opts = _clean_options(payload["options"])
+            if opts:
+                prop.options = opts
         if payload.get("closes_at"):
             try:
                 from datetime import datetime as _dt
@@ -1519,6 +1560,7 @@ def list_proposed_prices(
                 "reddit_url": c.reddit_url,
                 "detected_at": c.detected_at.isoformat() if c.detected_at else None,
                 "processed": c.processed,
+                "next_is_break": bool(c.next_is_break),
             }
             for c in chapters
         ],
