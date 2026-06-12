@@ -274,7 +274,11 @@ def _run_bot_tick_guarded():
 def _run_prediction_generate_guarded():
     """Generate predictions for the most recently detected chapter.
     Fires Saturday 14:00 UTC — ~24h after typical Friday chapter drop.
-    Idempotent: skips if already ran for the same chapter."""
+    Idempotent: skips if already ran for the same chapter.
+
+    Pre-pass before generating: the initial scrape at detection time often
+    runs before discussion (and break-week announcements) have accumulated,
+    so re-scrape signals and re-check the break flag with matured data."""
     if not _should_run(_PREDICTION_LOCK, min_seconds=20 * 3600):
         return
     try:
@@ -288,6 +292,34 @@ def _run_prediction_generate_guarded():
             if not latest:
                 print("[PredictionScheduler] No chapters in DB yet — skipping")
                 return
+
+            try:
+                from app.chapter_pipeline import detect_chapter_drop, _detect_break_week
+                from app.prediction_pipeline import _already_ran
+                if not _already_ran(db, latest):
+                    # Re-scrape only if the admin hasn't acted on any proposals
+                    # yet — a forced re-run wipes pending rows, and recreating
+                    # ones that were already approved would risk double-applying
+                    # price changes.
+                    acted = db.query(_m.ProposedPriceChange).filter(
+                        _m.ProposedPriceChange.chapter_number == latest,
+                        _m.ProposedPriceChange.status != "pending",
+                    ).count()
+                    if acted == 0:
+                        rescrape = detect_chapter_drop(db, force_chapter=latest, announce=False)
+                        print(f"[PredictionScheduler] Ch.{latest} re-scrape: {rescrape['proposals']} proposals")
+                    else:
+                        # Proposals already screened — just re-check break week,
+                        # since the one-shot detection at processing time can run
+                        # before break announcements land on Reddit.
+                        chapter_row = db.query(_m.Chapter).filter(_m.Chapter.number == latest).first()
+                        if chapter_row and not chapter_row.next_is_break and _detect_break_week(latest):
+                            chapter_row.next_is_break = True
+                            db.commit()
+                            print(f"[PredictionScheduler] Ch.{latest}: break week detected on re-check")
+            except Exception as e:
+                print(f"[PredictionScheduler] Pre-pass failed (non-fatal): {e}")
+
             result = generate_chapter_predictions(db, latest)
             if result["skipped"]:
                 print(f"[PredictionScheduler] Ch.{latest} predictions already generated")

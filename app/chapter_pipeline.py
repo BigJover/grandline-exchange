@@ -723,11 +723,17 @@ _RANK_PCT      = [7.0, 5.0, 3.5, 3.5, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dict:
+def detect_chapter_drop(
+    db: Session,
+    force_chapter: Optional[int] = None,
+    announce: bool = True,
+) -> dict:
     """
     Multi-source chapter drop detection and price proposal generation.
 
     force_chapter: skip detection entirely and run for this chapter number.
+    announce: when False (delayed re-scrape), skip the Discord announcement
+              and transmission publish — they already fired on first detection.
     Returns {"detected": bool, "chapter": int|None, "proposals": int,
              "message": str, "sources": list}
     """
@@ -975,7 +981,9 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
     # ── 9. Mark chapter as processed + detect break week ─────────────────────
     chapter_row.processed = True
     try:
-        chapter_row.next_is_break = _detect_break_week(chapter_num)
+        # Never downgrade True→False: a manual mark or earlier detection wins.
+        # Break announcements often land on Reddit hours after the chapter does.
+        chapter_row.next_is_break = bool(chapter_row.next_is_break) or _detect_break_week(chapter_num)
         if chapter_row.next_is_break:
             print(f"[ChapterPipeline] Ch.{chapter_num}: break week next — predictions will be extended")
     except Exception as e:
@@ -984,12 +992,70 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
 
     # ── 10. Discord announcement ──────────────────────────────────────────────
     top_chars = [c["name"] for c in combined[:10]]
-    try:
-        announce_chapter_drop(chapter_num, top_chars, proposals_created)
-    except Exception as e:
-        print(f"[ChapterPipeline] Discord notify failed (non-fatal): {e}")
+    if announce:
+        try:
+            announce_chapter_drop(chapter_num, top_chars, proposals_created)
+        except Exception as e:
+            print(f"[ChapterPipeline] Discord notify failed (non-fatal): {e}")
 
     # ── 10b. Auto-publish transmission ───────────────────────────────────────
+    if announce:
+        _publish_chapter_transmission(db, chapter_num, top, best_url)
+
+    # ── 10c. Propose new characters found in wiki Char Box but not in DB ─────
+    try:
+        new_names = _wiki_chapter_new_names(chapter_num, char_index)
+        if new_names:
+            existing_proposals = {
+                r[0] for r in db.query(models.ProposedNewCharacter.name).filter(
+                    models.ProposedNewCharacter.chapter_number == chapter_num,
+                    models.ProposedNewCharacter.status == "pending",
+                ).all()
+            }
+            for raw_name in new_names:
+                if raw_name in existing_proposals:
+                    continue
+                db.add(models.ProposedNewCharacter(
+                    chapter_number=chapter_num,
+                    name=raw_name,
+                    proposed_beri=500_000_000,   # conservative default — admin sets real value
+                    reason=f"Ch.{chapter_num} — wiki Char Box debut, not in roster",
+                ))
+            db.commit()
+            print(f"[ChapterPipeline] {len(new_names)} potential new character(s) proposed for Ch.{chapter_num}: {new_names}")
+    except Exception as e:
+        print(f"[ChapterPipeline] New character proposal failed (non-fatal): {e}")
+
+    # ── 11. Auto-resolve predictions that targeted this chapter ─────────────
+    try:
+        from app.prediction_pipeline import auto_resolve_predictions
+        resolve_result = auto_resolve_predictions(db, chapter_num, wiki_chars)
+        if resolve_result["resolved"] or resolve_result["needs_review"]:
+            print(
+                f"[ChapterPipeline] Predictions for Ch.{chapter_num}: "
+                f"{resolve_result['resolved']} resolved, "
+                f"{resolve_result['needs_review']} flagged for review"
+            )
+    except Exception as e:
+        print(f"[ChapterPipeline] Prediction auto-resolve failed (non-fatal): {e}")
+
+    # Beri drop intentionally NOT fired here — it runs on the fixed weekly
+    # cron (scheduler.py) so user income stays consistent regardless of
+    # chapter timing, breaks, or detection hiccups.
+
+    sources_str = ", ".join(sources_used) if sources_used else "manual"
+    print(f"[ChapterPipeline] Ch.{chapter_num} — {proposals_created} proposals | sources: {sources_str}")
+    return {
+        "detected": True,
+        "chapter": chapter_num,
+        "proposals": proposals_created,
+        "sources": sources_used,
+        "message": f"Ch.{chapter_num}: {proposals_created} proposals generated (sources: {sources_str})",
+    }
+
+
+def _publish_chapter_transmission(db: Session, chapter_num: int, top: list, best_url: str):
+    """Auto-publish the chapter transmission (Vegapunk voice summary + movers)."""
     try:
         raw_movers = [
             {"name": e["name"], "direction": "up" if e["scores"]["site_net"] >= 0 else "down"}
@@ -1052,54 +1118,3 @@ def detect_chapter_drop(db: Session, force_chapter: Optional[int] = None) -> dic
         print(f"[ChapterPipeline] Transmission auto-published for Ch.{chapter_num}")
     except Exception as e:
         print(f"[ChapterPipeline] Transmission publish failed (non-fatal): {e}")
-
-    # ── 10c. Propose new characters found in wiki Char Box but not in DB ─────
-    try:
-        new_names = _wiki_chapter_new_names(chapter_num, char_index)
-        if new_names:
-            existing_proposals = {
-                r[0] for r in db.query(models.ProposedNewCharacter.name).filter(
-                    models.ProposedNewCharacter.chapter_number == chapter_num,
-                    models.ProposedNewCharacter.status == "pending",
-                ).all()
-            }
-            for raw_name in new_names:
-                if raw_name in existing_proposals:
-                    continue
-                db.add(models.ProposedNewCharacter(
-                    chapter_number=chapter_num,
-                    name=raw_name,
-                    proposed_beri=500_000_000,   # conservative default — admin sets real value
-                    reason=f"Ch.{chapter_num} — wiki Char Box debut, not in roster",
-                ))
-            db.commit()
-            print(f"[ChapterPipeline] {len(new_names)} potential new character(s) proposed for Ch.{chapter_num}: {new_names}")
-    except Exception as e:
-        print(f"[ChapterPipeline] New character proposal failed (non-fatal): {e}")
-
-    # ── 11. Auto-resolve predictions that targeted this chapter ─────────────
-    try:
-        from app.prediction_pipeline import auto_resolve_predictions
-        resolve_result = auto_resolve_predictions(db, chapter_num, wiki_chars)
-        if resolve_result["resolved"] or resolve_result["needs_review"]:
-            print(
-                f"[ChapterPipeline] Predictions for Ch.{chapter_num}: "
-                f"{resolve_result['resolved']} resolved, "
-                f"{resolve_result['needs_review']} flagged for review"
-            )
-    except Exception as e:
-        print(f"[ChapterPipeline] Prediction auto-resolve failed (non-fatal): {e}")
-
-    # Beri drop intentionally NOT fired here — it runs on the fixed weekly
-    # cron (scheduler.py) so user income stays consistent regardless of
-    # chapter timing, breaks, or detection hiccups.
-
-    sources_str = ", ".join(sources_used) if sources_used else "manual"
-    print(f"[ChapterPipeline] Ch.{chapter_num} — {proposals_created} proposals | sources: {sources_str}")
-    return {
-        "detected": True,
-        "chapter": chapter_num,
-        "proposals": proposals_created,
-        "sources": sources_used,
-        "message": f"Ch.{chapter_num}: {proposals_created} proposals generated (sources: {sources_str})",
-    }
