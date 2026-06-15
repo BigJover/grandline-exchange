@@ -244,10 +244,38 @@ def _wiki_latest_chapter(db: Session) -> Optional[int]:
     return latest
 
 
+def _wiki_characters_section_names(wikitext: str) -> list:
+    """Extract character names from a wiki chapter page's ==Characters== section.
+
+    The wiki dropped the old {{Char Box|Name}} templates; the section is now a
+    CharTable wikitable in which the actual characters are the '*[[Name]]'
+    bulleted links. Group/organization sub-headers (';[[Five Elders]]') and
+    table-header cells ('![[World Government]]') are NOT characters, so only
+    lines starting with '*' are taken. Returns the wiki page-target names in
+    order of appearance, de-duplicated case-insensitively."""
+    m = re.search(r'==\s*Characters\s*==(.*?)(?:\n==[^=]|\Z)', wikitext, re.S | re.I)
+    if not m:
+        return []
+    names, seen = [], set()
+    for line in m.group(1).splitlines():
+        s = line.strip()
+        if not s.startswith("*"):
+            continue
+        lm = re.search(r'\[\[([^\]|]+)(?:\|[^\]]+)?\]\]', s)
+        if not lm:
+            continue
+        raw = lm.group(1).strip()
+        key = raw.lower()
+        if raw and key not in seen:
+            seen.add(key)
+            names.append(raw)
+    return names
+
+
 def _wiki_chapter_new_names(chapter_num: int, char_index: dict) -> list:
     """
-    Return Char Box names from the wiki chapter page that don't match any known character.
-    Used to propose new characters for admin review.
+    Return character names from the wiki chapter's ==Characters== section that
+    don't match any known character. Used to propose new characters for review.
     """
     url = (f"{_WIKI_API}?action=parse&page=Chapter_{chapter_num}"
            f"&prop=wikitext&format=json")
@@ -259,13 +287,12 @@ def _wiki_chapter_new_names(chapter_num: int, char_index: dict) -> list:
         return []
 
     unknown = []
-    for m in re.finditer(r'\{\{Char Box\|([^|}\n]{2,50})', wikitext, re.IGNORECASE):
-        raw = m.group(1).strip()
-        if not raw or len(raw) < 3:
+    for raw in _wiki_characters_section_names(wikitext):
+        if len(raw) < 3:
             continue
-        # Skip if any known character matches this raw name
-        matched = bool(_extract_chars(raw, char_index))
-        if not matched and raw not in unknown:
+        # Skip if any known character matches this name (word-boundary aware, so
+        # e.g. "Nerona Imu" → Imu and "Marcus Mars" → Mars are recognized as known)
+        if not _extract_chars(raw, char_index) and raw not in unknown:
             unknown.append(raw)
     return unknown
 
@@ -288,9 +315,9 @@ def _wiki_chapter_chars(chapter_num: int, char_index: dict) -> dict:
 
     counts: dict = {}
 
-    # Pattern 1 — {{Char Box|Name|...}} — explicit character appearance template
-    for m in re.finditer(r'\{\{Char Box\|([^|}\n]{2,50})', wikitext, re.IGNORECASE):
-        raw = m.group(1).strip()
+    # Pattern 1 — ==Characters== section bullets — the authoritative appearance
+    # list (replaces the wiki's removed {{Char Box}} templates)
+    for raw in _wiki_characters_section_names(wikitext):
         for name in _extract_chars(raw, char_index):
             counts[name] = counts.get(name, 0) + 5   # high weight: authoritative list
 
@@ -1002,7 +1029,7 @@ def detect_chapter_drop(
     if announce:
         _publish_chapter_transmission(db, chapter_num, top, best_url)
 
-    # ── 10c. Propose new characters found in wiki Char Box but not in DB ─────
+    # ── 10c. Propose new characters from the wiki Characters section, not in DB ─
     try:
         new_names = _wiki_chapter_new_names(chapter_num, char_index)
         if new_names:
@@ -1019,7 +1046,7 @@ def detect_chapter_drop(
                     chapter_number=chapter_num,
                     name=raw_name,
                     proposed_beri=500_000_000,   # conservative default — admin sets real value
-                    reason=f"Ch.{chapter_num} — wiki Char Box debut, not in roster",
+                    reason=f"Ch.{chapter_num} — wiki Characters-section debut, not in roster",
                 ))
             db.commit()
             print(f"[ChapterPipeline] {len(new_names)} potential new character(s) proposed for Ch.{chapter_num}: {new_names}")
