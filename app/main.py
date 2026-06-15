@@ -10,6 +10,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
+import fcntl
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -357,16 +358,61 @@ def seed_new_characters():
         db.close()
 
 
-run_column_migrations()
-Base.metadata.create_all(bind=engine)
-run_index_migrations()
-backfill_base_beri()
-patch_character_meta()
-backfill_referral_codes()
-seed_new_characters()
+_startup_fd = None
 
-from app.bots import seed_bots
-seed_bots()
+
+def _claim_startup_role() -> bool:
+    """Decide whether THIS uvicorn worker runs the one-shot startup tasks
+    (schema migrations + seeds). The exclusive flock is held for the entire
+    run via the module-level _startup_fd, so a second worker blocks here until
+    the first finishes — guaranteeing the schema exists — then sees the 'done'
+    marker and skips. On any lock error we fall back to running them directly."""
+    global _startup_fd
+    try:
+        _startup_fd = os.open("/tmp/glx_startup.lock", os.O_CREAT | os.O_RDWR)
+        fcntl.flock(_startup_fd, fcntl.LOCK_EX)
+        if os.read(_startup_fd, 16).decode().strip() == "done":
+            fcntl.flock(_startup_fd, fcntl.LOCK_UN)
+            os.close(_startup_fd)
+            _startup_fd = None
+            print("[Startup] Another worker already ran migrations/seeds — skipping")
+            return False
+        return True
+    except Exception as e:
+        print(f"[Startup] Lock unavailable ({e}) — running startup tasks directly")
+        _startup_fd = None
+        return True
+
+
+def _release_startup_role():
+    """Mark startup complete and release the lock so the waiting worker skips."""
+    global _startup_fd
+    if _startup_fd is None:
+        return
+    try:
+        os.lseek(_startup_fd, 0, os.SEEK_SET)
+        os.ftruncate(_startup_fd, 0)
+        os.write(_startup_fd, b"done")
+        fcntl.flock(_startup_fd, fcntl.LOCK_UN)
+        os.close(_startup_fd)
+    except Exception:
+        pass
+    _startup_fd = None
+
+
+_IS_PRIMARY_WORKER = _claim_startup_role()
+
+if _IS_PRIMARY_WORKER:
+    run_column_migrations()
+    Base.metadata.create_all(bind=engine)
+    run_index_migrations()
+    backfill_base_beri()
+    patch_character_meta()
+    backfill_referral_codes()
+    seed_new_characters()
+
+    from app.bots import seed_bots
+    seed_bots()
 
 
 def seed_trivia_questions():
@@ -404,7 +450,8 @@ def seed_trivia_questions():
         db.close()
 
 
-seed_trivia_questions()
+if _IS_PRIMARY_WORKER:
+    seed_trivia_questions()
 
 
 def seed_character_drop_proposals():
@@ -455,7 +502,8 @@ def seed_character_drop_proposals():
         db.close()
 
 
-seed_character_drop_proposals()
+if _IS_PRIMARY_WORKER:
+    seed_character_drop_proposals()
 
 
 def correct_beri_outliers():
@@ -503,7 +551,8 @@ def correct_beri_outliers():
                 print(f"[Correction] {name}: {e}")
 
 
-correct_beri_outliers()
+if _IS_PRIMARY_WORKER:
+    correct_beri_outliers()
 
 
 def patch_ch1181_price_history():
@@ -539,7 +588,12 @@ def patch_ch1181_price_history():
         db.close()
 
 
-patch_ch1181_price_history()
+if _IS_PRIMARY_WORKER:
+    patch_ch1181_price_history()
+
+# All one-shot DB startup tasks are done — release the lock so the second
+# worker (blocked in _claim_startup_role) unblocks, sees "done", and skips them.
+_release_startup_role()
 
 # Cache HTML pages in memory at startup — avoids disk read on every request
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
