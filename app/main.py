@@ -322,9 +322,6 @@ def seed_new_characters():
         return
     db = SessionLocal()
     try:
-        existing = {r[0] for r in db.execute(models.Character.__table__.select()).fetchall()
-                    if hasattr(r, '__iter__')}
-        # Use name-based lookup to be safe
         existing_names = {c.name for c in db.query(models.Character.name).all()}
         added = 0
         for c in chars:

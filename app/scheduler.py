@@ -228,9 +228,24 @@ def run_beri_drop():
               f"citizens:{len(citizens)} revs:{len(revolutionaries)} "
               f"pirates:{len(pirates)} creatures:{len(creatures)} none:{len(unfactioned)}")
 
+        return {
+            "users_paid": len(users),
+            "net_distributed": sum(e.amount for e in events),
+            "by_faction": {
+                "marine": len(marines),
+                "royalty": len(royalty_users),
+                "citizen": len(citizens),
+                "revolutionary": len(revolutionaries),
+                "pirate": len(pirates),
+                "creature": len(creatures),
+                "unfactioned": len(unfactioned),
+            },
+        }
+
     except Exception as e:
         db.rollback()
         print(f"[Beri Drop] Error: {e}")
+        return None
     finally:
         db.close()
 

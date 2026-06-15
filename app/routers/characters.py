@@ -9,7 +9,7 @@ from app import models, schemas
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
-_CACHE_300  = {"Cache-Control": "private, max-age=30"}
+_CACHE_HEADERS = {"Cache-Control": "private, max-age=30"}
 _CHAR_CACHE_TTL = 30  # 30s — keeps browser cache short so price updates land quickly
 _char_cache: dict        = {"data": None, "ts": 0.0}
 _ticker_cache: dict      = {"data": None, "ts": 0.0}
@@ -58,7 +58,7 @@ def ticker_data(db: Session = Depends(get_db)):
             })
         _ticker_cache["data"] = result
         _ticker_cache["ts"]   = now
-    return JSONResponse(content=_ticker_cache["data"], headers=_CACHE_300)
+    return JSONResponse(content=_ticker_cache["data"], headers=_CACHE_HEADERS)
 
 
 @router.get("/", response_model=List[schemas.CharacterListOut])
@@ -68,7 +68,7 @@ def list_characters(db: Session = Depends(get_db)):
         chars = db.query(models.Character).order_by(models.Character.beri.desc()).all()
         _char_cache["data"] = [schemas.CharacterListOut.model_validate(c).model_dump() for c in chars]
         _char_cache["ts"] = now
-    return JSONResponse(content=_char_cache["data"], headers=_CACHE_300)
+    return JSONResponse(content=_char_cache["data"], headers=_CACHE_HEADERS)
 
 
 @router.get("/{character_id}", response_model=schemas.CharacterOut)

@@ -65,8 +65,15 @@ def resolve_proposition(
 
     winners, losers, total_paid = 0, 0, 0.0
 
+    # Batch-load every bettor up front instead of one query per bet
+    user_ids = {b.user_id for b in bets}
+    users_by_id = {
+        u.id: u
+        for u in db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+    } if user_ids else {}
+
     for bet in bets:
-        user = db.query(models.User).filter(models.User.id == bet.user_id).first()
+        user = users_by_id.get(bet.user_id)
         if not user:
             continue
 

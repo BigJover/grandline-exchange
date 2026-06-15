@@ -4,7 +4,7 @@ SALE_WINDOW_HOURS = 12   # hours after chapter drop where sale is active
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app import models, schemas, auth
@@ -109,7 +109,11 @@ def list_propositions(
     current_user: Optional[models.User] = Depends(auth.get_optional_user),
 ):
     """List propositions. Optionally filter by status: open | closed | resolved."""
-    q = db.query(models.Proposition).order_by(models.Proposition.created_at.desc())
+    q = (
+        db.query(models.Proposition)
+        .options(selectinload(models.Proposition.bets))
+        .order_by(models.Proposition.created_at.desc())
+    )
     if status:
         q = q.filter(models.Proposition.status == status)
     props = q.limit(50).all()

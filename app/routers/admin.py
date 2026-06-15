@@ -11,7 +11,7 @@ from typing import List, Optional
 
 from app.database import get_db
 from app import models, schemas
-from app.scheduler import run_beri_drop, WEEKLY_DROP
+from app.scheduler import run_beri_drop
 from app.bots import run_bot_tick
 from app.routers.characters import invalidate_char_cache
 from app.websocket_manager import manager
@@ -174,14 +174,12 @@ def add_user_beri(username: str, amount: int, x_admin_secret: Optional[str] = He
 def trigger_beri_drop(x_admin_secret: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """Manually trigger a beri drop. Protected by X-Admin-Secret header."""
     _check_secret(x_admin_secret)
-    run_beri_drop()
-    count = db.query(models.User).filter(models.User.is_bot == False).count()
-    return {
-        "status": "ok",
-        "beri_per_user": WEEKLY_DROP,
-        "users_paid": count,
-        "total_distributed": WEEKLY_DROP * count,
-    }
+    summary = run_beri_drop()
+    if summary is None:
+        # Lock guard skipped it (another worker already ran this cycle) or it errored
+        return {"status": "skipped",
+                "detail": "beri drop already ran this cycle or hit an error — check logs"}
+    return {"status": "ok", **summary}
 
 
 @router.post("/bot-tick")
@@ -1255,14 +1253,10 @@ def _load_char_index(db: Session) -> "tuple[dict, dict, dict]":
 
 
 def _extract_chars(text: str, char_index: dict) -> list:
-    """Return list of canonical character names mentioned in text (word-boundary match)."""
-    text_lower = text.lower()
-    found: list = []
-    for name_lower, canonical in char_index.items():
-        if _re.search(r'\b' + _re.escape(name_lower) + r'\b', text_lower):
-            if canonical not in found:
-                found.append(canonical)
-    return found
+    """Canonical character-mention extraction lives in chapter_pipeline; delegate to it
+    so the two call sites can never drift apart."""
+    from app.chapter_pipeline import _extract_chars as _impl
+    return _impl(text, char_index)
 
 
 # ── Chapter Pulse ─────────────────────────────────────────────────────────────
