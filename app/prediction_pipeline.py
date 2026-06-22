@@ -88,6 +88,10 @@ def _create_prop(
         is_break_week=is_break_week,
     )
     db.add(prop)
+    # Flush so a subsequent _exists() query can see this row — the session uses
+    # autoflush=False, so without this the dedup guard misses props added earlier
+    # in the same generation run (caused triplicate Ch.1186 predictions).
+    db.flush()
     return prop
 
 
