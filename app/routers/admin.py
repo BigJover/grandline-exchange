@@ -635,10 +635,14 @@ async def casino_create(
 def casino_update(
     prop_id: int,
     question: Optional[str] = Body(None),
+    is_break_week: Optional[bool] = Body(None),
+    clear_closes_at: bool = Body(False),
     x_admin_secret: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
-    """Update editable fields on a proposition (currently: question text)."""
+    """Update editable fields on a proposition: question text, break-week flag,
+    and (via clear_closes_at) removing a close date so an arc prop stays open
+    until the arc ends."""
     _check_secret(x_admin_secret)
     prop = db.query(models.Proposition).filter(models.Proposition.id == prop_id).first()
     if not prop:
@@ -650,8 +654,18 @@ def casino_update(
         if not question:
             raise HTTPException(status_code=400, detail="Question cannot be empty")
         prop.question = question
+    if is_break_week is not None:
+        prop.is_break_week = is_break_week
+    if clear_closes_at:
+        prop.closes_at = None
     db.commit()
-    return {"status": "ok", "prop_id": prop_id, "question": prop.question}
+    return {
+        "status": "ok",
+        "prop_id": prop_id,
+        "question": prop.question,
+        "is_break_week": bool(prop.is_break_week),
+        "closes_at": prop.closes_at.isoformat() if prop.closes_at else None,
+    }
 
 
 @router.post("/casino/close/{prop_id}")
@@ -1051,8 +1065,12 @@ def mark_break_week(
     _check_secret(x_admin_secret)
     from datetime import timedelta
 
+    # Only chapter/spoiler predictions are affected by a break week. Arc-long
+    # props (is_chapter_prediction=False) must stay open until the arc ends —
+    # they previously got wrongly stamped with closes_at + is_break_week here.
     props = db.query(models.Proposition).filter(
         models.Proposition.source_chapter == chapter,
+        models.Proposition.is_chapter_prediction == True,
         models.Proposition.status != "resolved",
     ).all()
 
