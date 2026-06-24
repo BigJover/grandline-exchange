@@ -12,6 +12,7 @@ _BOT_LOCK        = "/tmp/bot_tick.lock"
 _CHAPTER_LOCK    = "/tmp/chapter_detect.lock"
 _PREDICTION_LOCK = "/tmp/prediction_gen.lock"
 _YOUTUBE_LOCK    = "/tmp/youtube_enrich.lock"
+_VOLATILITY_LOCK = "/tmp/volatility_digest.lock"
 _MIN_INTERVAL    = 23 * 3600  # must be at least 23h since last run
 
 
@@ -379,6 +380,108 @@ def _run_youtube_enrich_guarded():
         print(f"[YouTubeEnrich] Error: {e}")
 
 
+_VOLATILITY_SNAPSHOT_KEY = "volatility_snapshot"
+
+
+def compute_volatility_digest(db, post: bool = True, demo: bool = False) -> dict:
+    """Rank characters by absolute price move since the last weekly snapshot and
+    (optionally) post the top 5 to the price-alert Discord channel.
+
+    Week-over-week: compares current beri to a snapshot stored in BotKV, then
+    refreshes that snapshot for next week. The first ever run only seeds the
+    snapshot (nothing to compare against) and posts nothing.
+
+    demo=True compares against each character's previous price_history entry
+    instead of the snapshot — lets an admin fire a populated test post on demand
+    without disturbing the weekly snapshot.
+    """
+    import json as _json
+    from app import models
+    from app.discord_notify import announce_weekly_volatility
+
+    chars = db.query(models.Character).all()
+    cur   = {str(c.id): c.beri for c in chars}
+    names = {str(c.id): c.name for c in chars}
+
+    if demo:
+        prev = {}
+        for c in chars:
+            hist = c.price_history or []
+            if hist and isinstance(hist[-1], dict) and hist[-1].get("beri"):
+                prev[str(c.id)] = float(hist[-1]["beri"])
+        seeded = False
+    else:
+        row = db.query(models.BotKV).filter(
+            models.BotKV.key == _VOLATILITY_SNAPSHOT_KEY
+        ).first()
+        prev = {}
+        if row and row.value:
+            try:
+                prev = _json.loads(row.value)
+            except Exception:
+                prev = {}
+        seeded = not prev
+        # Refresh the snapshot for next week (only the real, non-demo path)
+        new_val = _json.dumps(cur)
+        if row:
+            row.value = new_val
+        else:
+            db.add(models.BotKV(key=_VOLATILITY_SNAPSHOT_KEY, value=new_val))
+        db.commit()
+
+    moves = []
+    for cid, beri in cur.items():
+        old = prev.get(cid)
+        if old and old > 0:
+            pct = (beri - old) / old * 100.0
+            if abs(pct) >= 0.1:           # ignore essentially-flat coefficients
+                moves.append({"name": names[cid], "pct": pct, "new_beri": beri})
+    moves.sort(key=lambda m: abs(m["pct"]), reverse=True)
+    top5 = moves[:5]
+
+    iso = datetime.now(timezone.utc).isocalendar()
+    week_label = f"{iso[0]}-W{iso[1]:02d}"
+
+    posted = False
+    if post and top5 and (not seeded or demo):
+        try:
+            posted = announce_weekly_volatility(top5, week_label)
+        except Exception as e:
+            print(f"[VolatilityDigest] Discord post failed (non-fatal): {e}")
+
+    return {
+        "seeded": seeded and not demo,
+        "demo": demo,
+        "posted": posted,
+        "week": week_label,
+        "movers": [
+            {"name": m["name"], "pct": round(m["pct"], 2), "new_beri": m["new_beri"]}
+            for m in top5
+        ],
+    }
+
+
+def run_volatility_digest():
+    """Weekly job — post the five most volatile characters of the week.
+    Lock-guarded so only one worker fires it; ~weekly cooldown."""
+    if not _should_run(_VOLATILITY_LOCK, min_seconds=5 * 24 * 3600):
+        return
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        result = compute_volatility_digest(db, post=True)
+        if result["seeded"]:
+            print("[VolatilityDigest] Snapshot seeded (first run) — no post")
+        else:
+            print(f"[VolatilityDigest] {result['week']}: posted={result['posted']} "
+                  f"top={[m['name'] for m in result['movers']]}")
+    except Exception as e:
+        db.rollback()
+        print(f"[VolatilityDigest] Error: {e}")
+    finally:
+        db.close()
+
+
 def _run_chapter_detect_guarded():
     """Run chapter drop detection. Called Thu 03:00 UTC (chapter drop + leak window)
     and Sun 03:00 UTC (episode release / second-wave discussion).
@@ -438,6 +541,12 @@ scheduler.add_job(
     _run_youtube_enrich_guarded,
     CronTrigger(day_of_week="sun", hour=14, minute=0, second=0),  # ~48h after Friday chapter drop
     id="youtube_enrich_sun",
+    replace_existing=True,
+)
+scheduler.add_job(
+    run_volatility_digest,
+    CronTrigger(day_of_week="sun", hour=20, minute=0, second=0),  # end-of-week market wrap
+    id="weekly_volatility_digest",
     replace_existing=True,
 )
 # Comment purge disabled until there's a surplus of comments

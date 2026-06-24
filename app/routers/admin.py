@@ -15,7 +15,7 @@ from app.scheduler import run_beri_drop
 from app.bots import run_bot_tick
 from app.routers.characters import invalidate_char_cache
 from app.websocket_manager import manager
-from app.discord_notify import announce_price_alert, announce_chapter_price_analysis
+from app.discord_notify import announce_chapter_price_analysis
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -188,6 +188,28 @@ def trigger_bot_tick(x_admin_secret: Optional[str] = Header(None)):
     _check_secret(x_admin_secret)
     run_bot_tick()
     return {"status": "ok", "message": "Bot tick fired"}
+
+
+@router.post("/volatility-digest")
+def trigger_volatility_digest(
+    post: bool = True,
+    demo: bool = False,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Fire the weekly Top-5 volatility digest on demand.
+
+    ?post=false   → compute and return the movers without posting to Discord.
+    ?demo=true    → compare against each character's previous price_history entry
+                    (instead of the weekly snapshot) so a populated test post can
+                    be sent immediately, without touching the weekly snapshot.
+
+    Note: the real weekly path seeds an empty snapshot on its first run and posts
+    nothing; run it once to seed, then again next week — or use ?demo=true to test.
+    """
+    _check_secret(x_admin_secret)
+    from app.scheduler import compute_volatility_digest
+    return compute_volatility_digest(db, post=post, demo=demo)
 
 
 @router.post("/bot-reseed")
@@ -1625,12 +1647,8 @@ def approve_proposed_price(
 
     invalidate_char_cache()
 
-    # Fire Discord price alert for significant moves (±10%+)
-    if abs(proposal.pct_change) >= 10:
-        try:
-            announce_price_alert(char.name, proposal.pct_change if proposal.direction == "up" else -proposal.pct_change, char.beri)
-        except Exception:
-            pass
+    # Per-move pings retired — weekly volatility digest (Sun 20:00 UTC) now
+    # reports the top movers instead. See scheduler.run_volatility_digest.
 
     return {
         "status": "approved",
@@ -1681,7 +1699,6 @@ def approve_all_proposed_prices(
     ).all()}
 
     applied = 0
-    big_movers = []
     all_moves  = []
     chapter_num = chapter  # may be None if no filter
     for proposal in proposals:
@@ -1690,7 +1707,6 @@ def approve_all_proposed_prices(
             char.beri = max(100_000, proposal.proposed_beri)
             proposal.status = "approved"
             applied += 1
-            signed = proposal.pct_change if proposal.direction == "up" else -proposal.pct_change
             all_moves.append({
                 "name":      char.name,
                 "pct":       proposal.pct_change,
@@ -1698,8 +1714,6 @@ def approve_all_proposed_prices(
                 "direction": proposal.direction,
                 "reason":    proposal.reason or "",
             })
-            if abs(proposal.pct_change) >= 10:
-                big_movers.append((char.name, signed, char.beri))
             if not chapter_num:
                 chapter_num = proposal.chapter_number
             # Append chapter event to Cognitive Analysis
@@ -1713,13 +1727,7 @@ def approve_all_proposed_prices(
     db.commit()
     invalidate_char_cache()
 
-    # Fire individual big-mover alerts
-    for name, pct, beri in big_movers:
-        try:
-            announce_price_alert(name, pct, beri)
-        except Exception:
-            pass
-
+    # Per-move pings retired — the weekly volatility digest reports top movers.
     # Fire full Vegapunk analysis to #chapter-intel
     if all_moves:
         try:

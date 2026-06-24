@@ -300,47 +300,71 @@ def notify_character_request(
     return _post_webhook(REQUEST_WEBHOOK, payload)
 
 
-# ── Price alert (big mover) ───────────────────────────────────────────────────
+# ── Weekly volatility digest (top 5 movers) ───────────────────────────────────
 
 _PRICE_ALERT_WEBHOOK = os.getenv("DISCORD_PRICE_ALERT_WEBHOOK", "")
 
-_BIG_GAIN_LINES = [
-    "Punk Records credibility coefficient spike detected.",
-    "The index does not lie. Something happened.",
-    "Punk Records is logging an anomaly. A good one.",
-    "Significant upward movement. Punk Records is intrigued.",
+_VOLATILITY_OPENERS = [
+    "Punk Records has compiled the week's credibility turbulence.",
+    "Satellite Pythagoras reports the most unstable coefficients of the week.",
+    "The index never sleeps. These five moved the most.",
+    "Punk Records — weekly volatility readout. The market churned here.",
+    "Seven days of data. These coefficients refused to sit still.",
 ]
 
-_BIG_LOSS_LINES = [
-    "Credibility collapse in progress. Punk Records is watching.",
-    "The coefficient does not recover on its own. Someone should tell them that.",
-    "Punk Records has seen this before. It did not end well then either.",
-    "Significant decline logged. This has been noted. Multiple times.",
+_VOLATILITY_CLOSERS = [
+    "Volatility is information. Punk Records logs it without judgement.",
+    "The unstable reveal themselves. Punk Records has filed the record.",
+    "Movement is the only honest signal. These five spoke loudest.",
+    "Punk Records will recompute next week. The index always shifts.",
+]
+
+_VOLATILITY_DARK = [
+    "*...The original Vegapunk found turbulence fascinating. So, it seems, do I.*",
+    "*...Five coefficients in motion. The rest merely drift. The story continues.*",
+    "*...Volatility, like memory, fades by next week. I record it before it does.*",
 ]
 
 
-def announce_price_alert(character_name: str, pct_change: float, new_beri: float) -> bool:
-    """Fire a price alert for a major single-character move (±10%+)."""
-    if not _PRICE_ALERT_WEBHOOK:
+def announce_weekly_volatility(moves: list[dict], week_label: str = "") -> bool:
+    """
+    Post the week's five most volatile characters to the price-alert channel.
+    Distinct from the #announcements chapter post (lore / teasers).
+
+    moves — pre-ranked list (most volatile first) of
+            {"name": str, "pct": float (signed), "new_beri": float}
+    """
+    if not _PRICE_ALERT_WEBHOOK or not moves:
         return False
 
-    sign = "+" if pct_change >= 0 else ""
-    direction = "▲" if pct_change >= 0 else "▼"
-    line = random.choice(_BIG_GAIN_LINES if pct_change >= 0 else _BIG_LOSS_LINES)
+    wl = f" · {week_label}" if week_label else ""
+    lines = [
+        f"📊 **PUNK RECORDS — WEEKLY VOLATILITY INDEX**{wl}\n",
+        f"🔢 **[SATELLITE PYTHAGORAS — TURBULENCE READOUT]**\n",
+        f"{random.choice(_VOLATILITY_OPENERS)}\n",
+    ]
 
-    content = (
-        f"📡 **PUNK RECORDS — INDEX ALERT**\n\n"
-        f"**{character_name}** {direction} {sign}{pct_change:.1f}%\n"
-        f"**New Credibility Index:** {new_beri:,.0f}฿\n\n"
-        f"{line}\n\n"
-        f"*— Punk Records, Egghead Island*"
-    )
+    medals = ["①", "②", "③", "④", "⑤"]
+    for i, m in enumerate(moves[:5]):
+        pct = m["pct"]
+        arrow = "▲" if pct >= 0 else "▼"
+        sign  = "+" if pct >= 0 else ""
+        medal = medals[i] if i < len(medals) else f"{i+1}."
+        lines.append(
+            f"{medal} **{m['name']}** {arrow} {sign}{pct:.1f}% → {m['new_beri']:,.0f}฿"
+        )
+    lines.append("")
 
-    payload = {
-        "content": content,
+    dark = random.choice(_VOLATILITY_DARK) if random.random() < 0.40 else ""
+    lines.append(random.choice(_VOLATILITY_CLOSERS))
+    if dark:
+        lines.append(dark)
+    lines.append("\n*— Punk Records Intelligence Division*")
+
+    return _post_webhook(_PRICE_ALERT_WEBHOOK, {
+        "content": "\n".join(lines),
         "username": "Vegapunk — Punk Records",
-    }
-    return _post_webhook(_PRICE_ALERT_WEBHOOK, payload)
+    })
 
 
 # ── Prediction open notification ──────────────────────────────────────────────
