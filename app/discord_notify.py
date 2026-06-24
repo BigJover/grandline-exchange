@@ -34,9 +34,71 @@ def _post_webhook(url: str, payload: dict) -> bool:
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status in (200, 204)
+    except urllib.error.HTTPError as e:
+        # 404 = webhook deleted/regenerated on Discord's side; 401 = bad token.
+        print(f"[DiscordNotify] Webhook HTTP {e.code} ({e.reason}) — URL likely invalid")
+        return False
     except Exception as e:
         print(f"[DiscordNotify] Webhook failed: {e}")
         return False
+
+
+# ── Diagnostics ───────────────────────────────────────────────────────────────
+
+# (env var name → current URL value), evaluated at import time
+_WEBHOOKS = {
+    "DISCORD_ANNOUNCEMENTS_WEBHOOK":     ANNOUNCEMENTS_WEBHOOK,
+    "DISCORD_CHAPTER_WEBHOOK":           CHAPTER_WEBHOOK,
+    "DISCORD_PREDICTIONS_WEBHOOK":       PREDICTIONS_WEBHOOK,
+    "DISCORD_CHARACTER_REQUEST_WEBHOOK": REQUEST_WEBHOOK,
+    "DISCORD_PRICE_ALERT_WEBHOOK":       os.getenv("DISCORD_PRICE_ALERT_WEBHOOK", ""),
+}
+
+
+def webhook_diagnostics(send_test: bool = False) -> dict:
+    """
+    Report the configured state of every Discord webhook and, if send_test is
+    True, fire a harmless test message to each so the real HTTP status surfaces.
+
+    Never returns the webhook URLs themselves — only whether they are set and
+    what Discord answers. Read the `result` field:
+      - "ok"          → Discord accepted (204), webhook is live
+      - "http_404"    → webhook was deleted/regenerated; the URL is stale
+      - "http_401"    → bad token in the URL
+      - "not_set"     → the env var is empty/missing on this host
+      - "error: ..."  → network/other failure
+    """
+    out = {"site_url_set": bool(SITE_URL), "webhooks": {}}
+    for env_name, url in _WEBHOOKS.items():
+        entry = {"configured": bool(url)}
+        if send_test and url:
+            entry["result"] = _ping_webhook(url)
+        elif send_test:
+            entry["result"] = "not_set"
+        out["webhooks"][env_name] = entry
+    return out
+
+
+def _ping_webhook(url: str) -> str:
+    """Fire a single test message; return a short status string (never the URL)."""
+    payload = {
+        "content": "🛰️ Punk Records webhook test — if you can read this, this channel's webhook is live.",
+        "username": "Vegapunk — Punk Records (diagnostic)",
+    }
+    try:
+        data = json.dumps(payload).encode()
+        req  = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json", "User-Agent": "GrandLineExchange/1.0"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return "ok" if resp.status in (200, 204) else f"http_{resp.status}"
+    except urllib.error.HTTPError as e:
+        return f"http_{e.code}"
+    except Exception as e:
+        return f"error: {e}"
 
 
 # ── Chapter drop announcement ─────────────────────────────────────────────────

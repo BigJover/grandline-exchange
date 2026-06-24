@@ -1434,6 +1434,23 @@ def community_signal(
 
 # ── Discord bridge ────────────────────────────────────────────────────────────
 
+@router.get("/discord-webhook-check")
+def discord_webhook_check(
+    send_test: bool = False,
+    x_admin_secret: Optional[str] = Header(None),
+):
+    """Diagnose Discord webhook delivery.
+
+    GET /admin/discord-webhook-check               → which webhook env vars are set
+    GET /admin/discord-webhook-check?send_test=true → also fire a test post to each
+        and report Discord's real HTTP status (http_404 = webhook deleted/stale,
+        ok = live, not_set = env var missing). URLs are never returned.
+    """
+    _check_secret(x_admin_secret)
+    from app.discord_notify import webhook_diagnostics
+    return webhook_diagnostics(send_test=send_test)
+
+
 @router.post("/discord-ingest")
 def discord_ingest(
     event: schemas.DiscordEventIn,
