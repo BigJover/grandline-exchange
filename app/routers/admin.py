@@ -1745,7 +1745,11 @@ def list_proposed_characters(
     x_admin_secret: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
-    """List all pending proposed new characters."""
+    """List all pending proposed new characters.
+
+    Self-healing: any pending proposal whose name now matches a roster character
+    (e.g. an admin entered the character manually instead of clicking approve)
+    is auto-dismissed, so stale duplicates never linger in Character Drops."""
     _check_secret(x_admin_secret)
     rows = (
         db.query(models.ProposedNewCharacter)
@@ -1753,6 +1757,24 @@ def list_proposed_characters(
         .order_by(models.ProposedNewCharacter.chapter_number.desc(), models.ProposedNewCharacter.created_at)
         .all()
     )
+
+    # Drop proposals already represented in the roster. Use the pipeline's own
+    # fresh char index + matcher so this stays consistent with how proposals are
+    # generated (word-boundary aware: "Marcus Mars" matches roster "Mars").
+    from app.chapter_pipeline import _char_index_from_db
+    char_index = _char_index_from_db(db)
+    fresh, dismissed = [], 0
+    for r in rows:
+        if _extract_chars(r.name, char_index):
+            r.status = "dismissed"
+            dismissed += 1
+        else:
+            fresh.append(r)
+    if dismissed:
+        db.commit()
+        print(f"[ProposedChars] Auto-dismissed {dismissed} proposal(s) already in roster")
+    rows = fresh
+
     return [
         {
             "id": r.id,
