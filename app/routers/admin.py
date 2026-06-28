@@ -1608,6 +1608,33 @@ def chapter_synopsis_trigger(
     return {"chapter": chapter, "synopsis_queued": ok}
 
 
+@router.get("/source-check")
+def source_check(x_admin_secret: Optional[str] = Header(None)):
+    """Diagnose chapter-detection data sources so we can see why a detection
+    pulled thin signal. Reddit drives the discussion/sentiment layer; if it's
+    unreachable, proposals collapse to wiki appearance counts only. Never
+    returns secrets — only whether they're set and whether fetches work."""
+    _check_secret(x_admin_secret)
+    from app.chapter_pipeline import _get_oauth_token, _fetch_reddit
+    out = {
+        "reddit_client_id_set":     bool(os.getenv("REDDIT_CLIENT_ID", "").strip()),
+        "reddit_client_secret_set": bool(os.getenv("REDDIT_CLIENT_SECRET", "").strip()),
+        "youtube_api_key_set":      bool(os.getenv("YOUTUBE_API_KEY", "").strip()),
+    }
+    token = _get_oauth_token()
+    out["reddit_oauth_token"] = (
+        "ok" if token else ("no_creds" if not out["reddit_client_id_set"] else "failed")
+    )
+    sample = _fetch_reddit("https://www.reddit.com/r/OnePiece/hot.json?limit=5")
+    try:
+        n = len((sample or {}).get("data", {}).get("children", []))
+    except Exception:
+        n = 0
+    out["reddit_sample_posts"] = n
+    out["reddit_reachable"] = n > 0
+    return out
+
+
 @router.get("/proposed-prices")
 def list_proposed_prices(
     x_admin_secret: Optional[str] = Header(None),
