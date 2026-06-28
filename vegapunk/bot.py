@@ -180,13 +180,15 @@ class VegapunkBot(discord.Client):
         )
         message = personality.transmission_response(movers)
 
-        # Build target set: BotKV announcements channel (set by /setup-server) + env var fallback
+        # The weekly credibility digest lives in #market-uplink (its themed
+        # channel). #announcements is reserved for the chapter synopsis, and we
+        # no longer fan out to VEGAPUNK_TRANSMISSION_CHANNELS — that env var was
+        # leaking this post into #general. Falls back to announcements only if
+        # market-uplink isn't configured.
         target_ids: set[int] = set()
-        kv_ch = await api.get_kv("announcements_channel_id")
+        kv_ch = await api.get_kv("market_uplink_channel_id") or await api.get_kv("announcements_channel_id")
         if kv_ch:
             target_ids.add(int(kv_ch))
-        for ch_id in TRANSMISSION_CHS:
-            target_ids.add(ch_id)
 
         sent = False
         for ch_id in target_ids:
