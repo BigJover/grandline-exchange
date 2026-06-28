@@ -1571,6 +1571,27 @@ def chapter_detect(
     return result
 
 
+@router.post("/chapter-synopsis")
+def chapter_synopsis_trigger(
+    chapter: Optional[int] = None,
+    x_admin_secret: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Publish the matured chapter synopsis (Wave 2) and signal the Vegapunk bot
+    to post it to #announcements. This is the exact code path the Saturday cron
+    uses — provided so an admin can fire the synopsis on demand to verify it.
+    Defaults to the latest chapter. The bot posts within one poll cycle (≤20m)."""
+    _check_secret(x_admin_secret)
+    from sqlalchemy import func as sqlfunc
+    from app.chapter_pipeline import publish_chapter_synopsis
+    if chapter is None:
+        chapter = db.query(sqlfunc.max(models.Chapter.number)).scalar()
+    if not chapter:
+        raise HTTPException(400, "No chapters in DB — run chapter detection first")
+    ok = publish_chapter_synopsis(db, chapter)
+    return {"chapter": chapter, "synopsis_queued": ok}
+
+
 @router.get("/proposed-prices")
 def list_proposed_prices(
     x_admin_secret: Optional[str] = Header(None),
