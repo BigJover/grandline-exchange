@@ -1,4 +1,5 @@
 import os
+import fcntl
 import re as _re
 import json as _json
 import time as _time
@@ -1567,8 +1568,23 @@ def chapter_detect(
     and run the pipeline for that specific chapter number."""
     _check_secret(x_admin_secret)
     from app.chapter_pipeline import detect_chapter_drop
-    result = detect_chapter_drop(db, force_chapter=chapter)
-    return result
+    # Non-blocking mutex: detection wipes + regenerates proposals, so two
+    # overlapping runs (double-click / both uvicorn workers) race and produce
+    # exact-duplicate proposals. Serialize them; reject the second cleanly.
+    fd = os.open("/tmp/admin_chapter_detect.lock", os.O_CREAT | os.O_RDWR)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise HTTPException(409, "Chapter detection already running — try again in a moment")
+        result = detect_chapter_drop(db, force_chapter=chapter)
+        return result
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        os.close(fd)
 
 
 @router.post("/chapter-synopsis")

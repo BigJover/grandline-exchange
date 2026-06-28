@@ -185,6 +185,13 @@ def _char_index_from_db(db: Session) -> dict:
     index = {}
     for name, aliases in chars:
         index[name.lower()] = name
+        # Also index the final word of multi-word names so a roster entry stored
+        # with a title (e.g. "King Reuven", "Queen Candelle") is still recognized
+        # when the wiki/comments use the bare name ("Reuven"). setdefault keeps
+        # full names/aliases authoritative; >=4 chars avoids matching short tokens.
+        parts = name.split()
+        if len(parts) > 1 and len(parts[-1]) >= 4:
+            index.setdefault(parts[-1].lower(), name)
         if aliases:
             for alias in (aliases if isinstance(aliases, list) else []):
                 if alias and len(alias) >= 3:
@@ -1062,15 +1069,18 @@ def detect_chapter_drop(
     # ── 10c. Propose new characters from the wiki Characters section, not in DB ─
     try:
         if new_names:
+            # Dedup against ALL pending proposals, not just this chapter's — a
+            # debut character mentioned across consecutive chapters must not be
+            # proposed twice (e.g. Reuven for both Ch.1185 and Ch.1186).
             existing_proposals = {
-                r[0] for r in db.query(models.ProposedNewCharacter.name).filter(
-                    models.ProposedNewCharacter.chapter_number == chapter_num,
+                r[0].lower() for r in db.query(models.ProposedNewCharacter.name).filter(
                     models.ProposedNewCharacter.status == "pending",
                 ).all()
             }
             for raw_name in new_names:
-                if raw_name in existing_proposals:
+                if raw_name.lower() in existing_proposals:
                     continue
+                existing_proposals.add(raw_name.lower())
                 db.add(models.ProposedNewCharacter(
                     chapter_number=chapter_num,
                     name=raw_name,
