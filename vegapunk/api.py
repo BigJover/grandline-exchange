@@ -3,8 +3,23 @@ import os
 import aiohttp
 from typing import Optional
 
-SITE_URL     = os.getenv("SITE_URL", "https://grandline-exchange.up.railway.app").rstrip("/")
+SITE_URL     = os.getenv("SITE_URL", "https://grandline-exchange-production.up.railway.app").rstrip("/")
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
+
+
+async def fetch_transmission() -> Optional[dict]:
+    """Fetch the latest published chapter transmission (synopsis + movers)."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{SITE_URL}/transmission",
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.json(content_type=None)
+    except Exception:
+        pass
+    return None
 
 
 async def fetch_all_characters() -> list[dict]:

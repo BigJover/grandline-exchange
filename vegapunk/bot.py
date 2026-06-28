@@ -10,6 +10,7 @@ Environment variables:
   ADMIN_SECRET                — Site admin secret for discord-ingest endpoint
 """
 import os
+import json
 import random
 import logging
 import threading
@@ -40,6 +41,18 @@ _TRIGGER_PHRASES    = {"vegapunk", "punk records", "are you a bot", "are you rea
 
 # ── In-memory channel ID cache (populated from BotKV on ready) ────────────────
 _CH: dict[str, int] = {}   # key → channel id
+
+async def _safe_send(channel, content, **kwargs) -> bool:
+    """Send a message, logging (not raising) on failure so a single permission
+    error can't permanently kill a @tasks.loop. Returns True on success."""
+    try:
+        await channel.send(content, **kwargs)
+        return True
+    except Exception as e:
+        name = getattr(channel, "name", getattr(channel, "id", channel))
+        log.warning("Send to #%s failed: %s", name, e)
+        return False
+
 
 async def _load_ch_cache():
     keys = [
@@ -76,6 +89,7 @@ class VegapunkBot(discord.Client):
         self.lore_post.start()
         self.market_uplink_post.start()
         self.price_analysis_post.start()
+        self.chapter_announce.start()
         log.info("Punk Records systems online.")
 
     async def on_ready(self):
@@ -177,8 +191,7 @@ class VegapunkBot(discord.Client):
         sent = False
         for ch_id in target_ids:
             ch = self.get_channel(ch_id)
-            if ch:
-                await ch.send(message)
+            if ch and await _safe_send(ch, message):
                 sent = True
         if sent:
             await api.set_kv("last_tx_week", current_week)
@@ -206,7 +219,7 @@ class VegapunkBot(discord.Client):
         for ch_id in target_ids:
             ch = self.get_channel(ch_id)
             if ch:
-                await ch.send(message)
+                await _safe_send(ch, message)
 
     @tasks.loop(hours=10)
     async def lore_post(self):
@@ -217,7 +230,7 @@ class VegapunkBot(discord.Client):
             return
         ch = self.get_channel(ch_id)
         if ch:
-            await ch.send(personality.lore_hot_take())
+            await _safe_send(ch, personality.lore_hot_take())
 
     @tasks.loop(hours=8)
     async def market_uplink_post(self):
@@ -236,7 +249,7 @@ class VegapunkBot(discord.Client):
         candidates = [c for c in chars if abs(api.recent_change_pct(c)) > 1.0]
         char = random.choice(candidates[:30]) if candidates else random.choice(chars[:30])
         pct = api.recent_change_pct(char)
-        await ch.send(personality.market_uplink_alert(char["name"], pct, char.get("faction", "other")))
+        await _safe_send(ch, personality.market_uplink_alert(char["name"], pct, char.get("faction", "other")))
 
     @tasks.loop(hours=16)
     async def price_analysis_post(self):
@@ -253,13 +266,69 @@ class VegapunkBot(discord.Client):
             return
         char = random.choice(chars[:40])
         pct = api.recent_change_pct(char)
-        await ch.send(personality.price_analysis_response(char, pct))
+        await _safe_send(ch, personality.price_analysis_response(char, pct))
+
+    @tasks.loop(minutes=20)
+    async def chapter_announce(self):
+        """Bridge the chapter pipeline's two-wave handshake to Discord.
+
+        Wave 1 (alert)    — pipeline sets BotKV `chapter_alert` on first detection
+                            (Thu); post a preliminary breakdown to #chapter-intel.
+        Wave 2 (synopsis) — pipeline sets BotKV `chapter_synopsis_ready` on the
+                            Saturday maturation pass; post the matured synopsis to
+                            #announcements. Dedup via last_alerted / last_synopsis.
+        """
+        # ── Wave 1: chapter alert → #chapter-intel ────────────────────────────
+        try:
+            raw = await api.get_kv("chapter_alert")
+            if raw:
+                data = json.loads(raw)
+                ch_num = data.get("chapter")
+                last = await api.get_kv("last_alerted_chapter")
+                if ch_num and str(ch_num) != str(last):
+                    ch_id = await api.get_kv("chapter_intel_channel_id")
+                    channel = self.get_channel(int(ch_id)) if ch_id else None
+                    if channel:
+                        msg = personality.chapter_alert(
+                            ch_num, data.get("detected", []), data.get("debuts", []))
+                        if await _safe_send(channel, msg):
+                            await api.set_kv("last_alerted_chapter", str(ch_num))
+                            log.info("Chapter alert posted for Ch.%s", ch_num)
+                    else:
+                        log.warning("chapter_announce: chapter-intel channel (%s) unresolved", ch_id)
+        except Exception as e:
+            log.warning("chapter_announce alert step failed: %s", e)
+
+        # ── Wave 2: chapter synopsis → #announcements ─────────────────────────
+        try:
+            syn = await api.get_kv("chapter_synopsis_ready")
+            if syn:
+                last_syn = await api.get_kv("last_synopsis_chapter")
+                if str(syn) != str(last_syn):
+                    tx = await api.fetch_transmission()
+                    if tx and str(tx.get("chapter_number")) == str(syn):
+                        ch_id = await api.get_kv("announcements_channel_id")
+                        channel = self.get_channel(int(ch_id)) if ch_id else None
+                        if channel:
+                            msg = personality.chapter_synopsis(
+                                int(syn), tx.get("summary", ""), tx.get("movers", []), api.SITE_URL)
+                            ok = await _safe_send(
+                                channel, "@everyone\n" + msg,
+                                allowed_mentions=discord.AllowedMentions(everyone=True))
+                            if ok:
+                                await api.set_kv("last_synopsis_chapter", str(syn))
+                                log.info("Chapter synopsis posted for Ch.%s", syn)
+                        else:
+                            log.warning("chapter_announce: announcements channel (%s) unresolved", ch_id)
+        except Exception as e:
+            log.warning("chapter_announce synopsis step failed: %s", e)
 
     @weekly_transmission.before_loop
     @random_hot_take.before_loop
     @lore_post.before_loop
     @market_uplink_post.before_loop
     @price_analysis_post.before_loop
+    @chapter_announce.before_loop
     async def _wait_ready(self):
         await self.wait_until_ready()
 

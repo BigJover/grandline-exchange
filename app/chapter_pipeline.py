@@ -53,7 +53,22 @@ from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import Session
 
 from app import models
-from app.discord_notify import announce_chapter_drop
+
+# Discord announcements are no longer fired here via webhooks. Chapter alerts and
+# synopses are handed off to the Vegapunk bot through the BotKV handshake below
+# (chapter_alert / chapter_synopsis_ready), so every announcement comes from the
+# bot in its own voice — System B.
+
+
+def _set_kv(db: Session, key: str, value: str) -> None:
+    """Write a key into the BotKV store the Vegapunk bot polls."""
+    row = db.query(models.BotKV).filter(models.BotKV.key == key).first()
+    if row:
+        row.value = value
+    else:
+        db.add(models.BotKV(key=key, value=value))
+    db.commit()
+
 
 # ── Shared fetch helpers ──────────────────────────────────────────────────────
 
@@ -1017,21 +1032,35 @@ def detect_chapter_drop(
         print(f"[ChapterPipeline] Break week detection failed (non-fatal): {e}")
     db.commit()
 
-    # ── 10. Discord announcement ──────────────────────────────────────────────
+    # ── 10. New-character debuts from the wiki Characters section ──────────────
+    # Computed once here; reused by both the chapter alert and the proposal step.
+    new_names: list = []
+    try:
+        new_names = _wiki_chapter_new_names(chapter_num, char_index)
+    except Exception as e:
+        print(f"[ChapterPipeline] New-character wiki scan failed (non-fatal): {e}")
+
+    # ── 10a. Chapter ALERT handshake → Vegapunk posts to #chapter-intel ───────
+    # Wave 1 (first notice). The bot polls this BotKV key and posts a
+    # preliminary breakdown. The matured synopsis follows on Saturday.
     top_chars = [c["name"] for c in combined[:10]]
     if announce:
         try:
-            announce_chapter_drop(chapter_num, top_chars, proposals_created)
+            _set_kv(db, "chapter_alert", json.dumps({
+                "chapter": chapter_num,
+                "detected": top_chars[:8],
+                "debuts": new_names[:8],
+            }))
+            print(f"[ChapterPipeline] Ch.{chapter_num} alert queued for Vegapunk (chapter-intel)")
         except Exception as e:
-            print(f"[ChapterPipeline] Discord notify failed (non-fatal): {e}")
+            print(f"[ChapterPipeline] Alert handshake failed (non-fatal): {e}")
 
-    # ── 10b. Auto-publish transmission ───────────────────────────────────────
+    # ── 10b. Auto-publish transmission (on-site uplink) ──────────────────────
     if announce:
         _publish_chapter_transmission(db, chapter_num, top, best_url)
 
     # ── 10c. Propose new characters from the wiki Characters section, not in DB ─
     try:
-        new_names = _wiki_chapter_new_names(chapter_num, char_index)
         if new_names:
             existing_proposals = {
                 r[0] for r in db.query(models.ProposedNewCharacter.name).filter(
@@ -1145,3 +1174,31 @@ def _publish_chapter_transmission(db: Session, chapter_num: int, top: list, best
         print(f"[ChapterPipeline] Transmission auto-published for Ch.{chapter_num}")
     except Exception as e:
         print(f"[ChapterPipeline] Transmission publish failed (non-fatal): {e}")
+
+
+def publish_chapter_synopsis(db: Session, chapter_num: int) -> bool:
+    """Wave 2 (Saturday): rebuild the chapter transmission from the matured
+    proposals, then signal the Vegapunk bot to post the synopsis to
+    #announcements via the BotKV handshake. Returns True if a synopsis was
+    queued. Idempotent at the bot layer (it dedups on last_synopsis_chapter)."""
+    try:
+        ppc_rows = db.query(models.ProposedPriceChange).filter(
+            models.ProposedPriceChange.chapter_number == chapter_num
+        ).all()
+        # Reconstruct the `top` shape _publish_chapter_transmission expects from
+        # the (now matured) proposals — direction drives the up/down split.
+        top = [
+            {"name": r.character_name,
+             "scores": {"site_net": 1 if r.direction == "up" else -1}}
+            for r in ppc_rows
+        ]
+        ch = db.query(models.Chapter).filter(models.Chapter.number == chapter_num).first()
+        best_url = (ch.reddit_url if ch else "") or ""
+        # Regenerate the transmission so /transmission serves the matured summary.
+        _publish_chapter_transmission(db, chapter_num, top, best_url)
+        _set_kv(db, "chapter_synopsis_ready", str(chapter_num))
+        print(f"[ChapterPipeline] Ch.{chapter_num} synopsis queued for Vegapunk (announcements)")
+        return True
+    except Exception as e:
+        print(f"[ChapterPipeline] Synopsis publish failed (non-fatal): {e}")
+        return False

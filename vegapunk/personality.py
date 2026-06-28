@@ -465,6 +465,55 @@ SATELLITE_RESPONSES = {
 }
 
 
+_CHAPTER_ALERT_OPENERS = [
+    "A new transmission has reached Punk Records. The chapter is live.",
+    "Punk Records has detected fresh narrative data. A new chapter is in.",
+    "Signal confirmed. A new chapter has entered the record.",
+    "New chapter detected. My satellites are already parsing the appearance data.",
+    "Punk Records — chapter signal acquired. Logging appearances now.",
+]
+
+
+def chapter_alert(chapter_num: int, detected: list = None, debuts: list = None) -> str:
+    """First-notice alert for #chapter-intel — fast, preliminary, low-confidence.
+    Posted the moment a new chapter is detected, before discussion matures."""
+    detected = detected or []
+    debuts = debuts or []
+    lines = [
+        sat("pythagoras"),
+        f"📡 **CHAPTER {chapter_num} — DETECTED**",
+        "",
+        random.choice(_CHAPTER_ALERT_OPENERS),
+    ]
+    if detected:
+        shown = ", ".join(f"**{n}**" for n in detected[:8])
+        lines += ["", f"**Characters logged:** {shown}"]
+    if debuts:
+        d = ", ".join(f"**{n}**" for n in debuts[:6])
+        lines += ["", f"🆕 **Possible debuts (review queue):** {d}"]
+    lines += [
+        "",
+        "*Data is still maturing — credibility coefficients will be recalibrated once the "
+        "discussion settles. Full synopsis to follow this weekend.*",
+        "",
+        "*— Punk Records, Egghead Island*",
+    ]
+    return "\n".join(lines)
+
+
+def chapter_synopsis(chapter_num: int, summary: str, movers: list = None, site_url: str = "") -> str:
+    """Second-wave synopsis for #announcements — the matured credibility readout.
+    Wraps the pipeline's transmission summary with a chapter banner and site link."""
+    parts = [
+        f"📖 **CHAPTER {chapter_num} — PUNK RECORDS SYNOPSIS**",
+        "",
+        (summary or "").strip(),
+    ]
+    if site_url:
+        parts += ["", f"🔗 Full credibility index: {site_url}"]
+    return "\n".join(p for p in parts if p is not None)
+
+
 def satellite_response(satellite: str, subject: str) -> str:
     pool = SATELLITE_RESPONSES.get(satellite, ["Punk Records has no record of that satellite. Which is impossible. I know all of my satellites."])
     body = f"{sat(satellite)}\n**Re: {subject}**\n\n{random.choice(pool)}"

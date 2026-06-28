@@ -341,6 +341,15 @@ def _run_prediction_generate_guarded():
                 print(f"[PredictionScheduler] Ch.{latest} predictions already generated")
             else:
                 print(f"[PredictionScheduler] Ch.{latest}: {result['created']} live, {result['drafts']} drafts")
+
+            # Wave 2 — publish the matured synopsis for the Vegapunk bot to
+            # announce. Runs regardless of the re-scrape gate above: the gate
+            # only protects proposal re-creation, not the synopsis readout.
+            try:
+                from app.chapter_pipeline import publish_chapter_synopsis
+                publish_chapter_synopsis(db, latest)
+            except Exception as e:
+                print(f"[PredictionScheduler] Synopsis publish failed (non-fatal): {e}")
         finally:
             db.close()
     except Exception as e:
