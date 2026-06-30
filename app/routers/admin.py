@@ -1895,10 +1895,14 @@ def create_proposed_character(
 @router.post("/proposed-characters/{proposal_id}/approve")
 def approve_proposed_character(
     proposal_id: int,
+    payload: Optional[dict] = Body(None),
     x_admin_secret: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
-    """Approve a proposed new character — creates the Character row and marks the proposal approved."""
+    """Approve a proposed new character — creates the Character row and marks the
+    proposal approved. Optional JSON body lets the admin override the starting
+    price/faction/etc. at approve time (so a Holy Knight isn't pushed at the flat
+    default): {beri, faction, category, canon_bounty}."""
     _check_secret(x_admin_secret)
     proposal = db.query(models.ProposedNewCharacter).filter(
         models.ProposedNewCharacter.id == proposal_id
@@ -1914,15 +1918,19 @@ def approve_proposed_character(
         db.commit()
         raise HTTPException(status_code=409, detail=f"Character '{proposal.name}' already exists (id={existing.id})")
 
-    beri = max(100_000, proposal.proposed_beri)
+    o = payload or {}
+    beri = max(100_000, float(o.get("beri") or o.get("proposed_beri") or proposal.proposed_beri))
+    faction = (o["faction"] if "faction" in o else proposal.faction) or ""
+    category = (o["category"] if "category" in o else proposal.category) or ""
+    canon_bounty = o["canon_bounty"] if "canon_bounty" in o else proposal.canon_bounty
     char = models.Character(
         name=proposal.name,
         aliases=proposal.aliases or [],
-        faction=proposal.faction or "",
-        category=proposal.category or "",
+        faction=faction,
+        category=category,
         beri=beri,
-        base_beri=proposal.base_beri or beri,
-        canon_bounty=proposal.canon_bounty,
+        base_beri=float(o.get("base_beri") or beri),
+        canon_bounty=canon_bounty,
         status="active",
         price_history=[],
         img="",
