@@ -452,6 +452,37 @@ def _wiki_chapter_chars(chapter_num: int, char_index: dict) -> dict:
     return counts
 
 
+def _wiki_chapter_summary(chapter_num: int) -> str:
+    """Return the chapter's Long/Short Summary prose from the wiki, lightly
+    de-marked-up. This is the grounding context for LLM sentiment scoring — the
+    model judges stock polarity ONLY from these events. Returns '' if the page
+    has no readable summary yet (pre-release stub), which makes the caller skip
+    LLM sentiment and fall back to mention-volume ranking."""
+    url = (f"{_WIKI_API}?action=parse&page=Chapter_{chapter_num}"
+           f"&prop=wikitext&format=json")
+    data = _fetch_json(url)
+    wikitext = (data or {}).get("parse", {}).get("wikitext", {}).get("*", "")
+    if not wikitext:
+        return ""
+
+    chunks = []
+    for header in ("Long Summary", "Short Summary"):
+        m = re.search(rf'==\s*{header}\s*==(.*?)(?:\n==[^=]|\Z)', wikitext, re.S | re.I)
+        if m:
+            chunks.append(m.group(1))
+    if not chunks:
+        return ""
+
+    text = "\n".join(chunks)
+    # Strip the common wiki markup so the model reads clean prose.
+    text = re.sub(r'\[\[(?:[^\]|]+\|)?([^\]]+)\]\]', r'\1', text)   # [[A|B]] / [[A]] → label
+    text = re.sub(r"'{2,}", "", text)                               # bold/italic quotes
+    text = re.sub(r'\{\{[^}]*\}\}', '', text)                        # templates
+    text = re.sub(r'<[^>]+>', '', text)                             # html/ref tags
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text
+
+
 # ── Source: Reddit ────────────────────────────────────────────────────────────
 
 def _reddit_find_chapter(min_chapter: int) -> tuple[Optional[int], Optional[str], str, str, bool]:
@@ -868,6 +899,10 @@ _MENTION_FLOOR = 1
 _MIN_PCT       = 1.0
 _BERI_FLOOR    = 100_000
 _RANK_PCT      = [7.0, 5.0, 3.5, 3.5, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+# LLM sentiment magnitude (1-5) → % move. Downs get real teeth so a decisive
+# defeat (5) falls much harder than a character who merely took a hit (1-2).
+_SENTIMENT_DOWN_PCT = {1: 1.5, 2: 2.5, 3: 4.0, 4: 6.0, 5: 8.0}
+_SENTIMENT_UP_PCT   = {1: 1.5, 2: 2.5, 3: 4.0, 4: 6.0, 5: 8.0}
 
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
@@ -1084,7 +1119,40 @@ def detect_chapter_drop(
         ).all()
     }
 
-    # ── 8. Generate price proposals ──────────────────────────────────────────
+    # ── 8. Generate price proposals (upsert — idempotent across re-runs) ──────
+    # Load this chapter's existing pending proposals keyed by character so a
+    # re-run UPDATES them in place instead of stacking duplicate rows. Anything
+    # left over (a char that dropped out of `top` on this run) is stale → deleted.
+    existing_pending = {
+        p.character_id: p
+        for p in db.query(models.ProposedPriceChange).filter(
+            models.ProposedPriceChange.chapter_number == chapter_num,
+            models.ProposedPriceChange.status == "pending",
+        ).all()
+    }
+
+    # ── 8a. LLM story-sentiment polarity ─────────────────────────────────────
+    # Mention volume alone can't tell "Imu is scary and everywhere" from "Imu
+    # took a hit and is sweating" — both look like heavy signal. Ask Claude to
+    # judge each candidate's stock direction + magnitude from the chapter's
+    # actual events (wiki summary). Degrades to {} if the LLM is unavailable or
+    # the summary is a pre-release stub, leaving the mention ranking untouched.
+    sentiment: dict = {}
+    try:
+        summary = _wiki_chapter_summary(chapter_num)
+        if summary:
+            from app.vegapunk_llm import score_chapter_sentiment
+            sentiment = score_chapter_sentiment(
+                chapter_num, summary, [e["name"] for e in top]
+            )
+            if sentiment:
+                downs = [n for n, v in sentiment.items() if v["direction"] == "down"]
+                sources_used.append("llm-sentiment")
+                print(f"[ChapterPipeline] LLM sentiment: {len(sentiment)} verdicts, "
+                      f"{len(downs)} downs ({', '.join(downs[:6])})")
+    except Exception as e:
+        print(f"[ChapterPipeline] LLM sentiment failed (non-fatal): {e}")
+
     proposals_created = 0
     for rank, entry in enumerate(top):
         char = char_rows.get(entry["name"])
@@ -1095,14 +1163,23 @@ def detect_chapter_drop(
         current_beri = char.beri
         base_beri = char.base_beri or current_beri
         net_buy = scores["site_net"]
+        verdict = sentiment.get(entry["name"])
 
-        if net_buy < -10:
+        if verdict and verdict["direction"] == "down":
+            # Story beat overrides mention-volume: a defeated/humiliated character
+            # drops even though they were mentioned heavily this chapter.
+            direction = "down"
+            pct = _SENTIMENT_DOWN_PCT[verdict["magnitude"]]
+        elif net_buy < -10:
             direction, pct = "down", 4.0
         elif net_buy < -5:
             direction, pct = "down", 2.5
         else:
             direction = "up"
             pct = _RANK_PCT[min(rank, len(_RANK_PCT) - 1)]
+            # A strong positive story beat lifts the floor above bare rank order.
+            if verdict and verdict["direction"] == "up":
+                pct = max(pct, _SENTIMENT_UP_PCT[verdict["magnitude"]])
             if base_beri > 0 and current_beri > base_beri * 3:
                 pct = min(pct, 0.5)
 
@@ -1113,19 +1190,35 @@ def detect_chapter_drop(
             current_beri * (1 + pct / 100) if direction == "up"
             else max(_BERI_FLOOR, current_beri * (1 - pct / 100))
         )
+        reason = _build_reason(chapter_num, scores)
+        if verdict and verdict.get("why"):
+            reason += f" · {verdict['why']}"
 
-        db.add(models.ProposedPriceChange(
-            chapter_number=chapter_num,
-            character_id=char.id,
-            character_name=entry["name"],
-            current_beri=current_beri,
-            proposed_beri=proposed_beri,
-            direction=direction,
-            pct_change=round(pct, 2),
-            reason=_build_reason(chapter_num, scores),
-            signal_scores=scores,
-        ))
+        prop = existing_pending.pop(char.id, None)
+        if prop:
+            prop.current_beri = current_beri
+            prop.proposed_beri = proposed_beri
+            prop.direction = direction
+            prop.pct_change = round(pct, 2)
+            prop.reason = reason
+            prop.signal_scores = scores
+        else:
+            db.add(models.ProposedPriceChange(
+                chapter_number=chapter_num,
+                character_id=char.id,
+                character_name=entry["name"],
+                current_beri=current_beri,
+                proposed_beri=proposed_beri,
+                direction=direction,
+                pct_change=round(pct, 2),
+                reason=reason,
+                signal_scores=scores,
+            ))
         proposals_created += 1
+
+    # Remove pending proposals that no longer have a signal this run (stale).
+    for leftover in existing_pending.values():
+        db.delete(leftover)
 
     # ── 9. Mark chapter as processed + detect break week ─────────────────────
     chapter_row.processed = True

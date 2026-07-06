@@ -23,6 +23,7 @@ log = logging.getLogger("vegapunk_llm")
 _MODELS = {
     "haiku":  "claude-haiku-4-5-20251001",
     "sonnet": "claude-sonnet-4-6",
+    "opus":   "claude-opus-4-8",
 }
 
 # Default system prompt — Vegapunk voice, structured-output aware
@@ -109,6 +110,70 @@ def ask_vegapunk_json(
     except _json.JSONDecodeError as e:
         log.error("[VegapunkLLM] JSON parse failed: %s\nRaw output: %.300s", e, raw)
         return None
+
+
+_SENTIMENT_SYSTEM = (
+    "You are Vegapunk's market-sentiment engine for a One Piece character stock exchange. "
+    "Given ONE chapter's summary and a list of characters, judge how THIS chapter's events move "
+    "each character's stock price. Critically: a character can be mentioned constantly yet still "
+    "DROP. Being defeated, outsmarted, humiliated, injured, captured, shown fearful/sweating, or "
+    "having a hyped-up threat deflated all push a stock DOWN. Winning a fight, a hype power or haki "
+    "reveal, major plot importance, or landing a real blow on a stronger opponent push it UP. "
+    "Judge severity on a 1-5 scale (5 = a decisive, stock-defining moment such as a clean defeat or a "
+    "massive hype reveal; 1 = a minor nudge). Base every judgment ONLY on the events in the summary "
+    "provided — never on outside knowledge or fan reputation. "
+    "Respond with valid JSON ONLY — a single array, no markdown, no preamble, no reasoning text."
+)
+
+
+def score_chapter_sentiment(chapter_num: int, summary_text: str, names: list) -> dict:
+    """Ask Claude to judge per-character stock polarity for a chapter's events.
+
+    Returns {canonical_name: {"direction": "up"|"down"|"neutral", "magnitude": 1-5,
+    "why": str}} — only for characters whose stock actually moves. Returns {} when the
+    LLM is unavailable or the summary is too thin to judge, so callers degrade to the
+    mention-volume ranking. Uses claude-opus-4-8 (nuanced judgment: e.g. a defeated
+    character must rank a larger drop than one who merely took a hit)."""
+    if not summary_text or not summary_text.strip() or not names:
+        return {}
+
+    prompt = (
+        f"One Piece Chapter {chapter_num} — summary:\n"
+        f'"""\n{summary_text[:6000]}\n"""\n\n'
+        f"Characters to judge: {', '.join(names)}\n\n"
+        "Return a JSON array. Include ONLY characters whose stock actually moves this "
+        "chapter (omit ones the summary doesn't meaningfully touch). Each element:\n"
+        '{"name": "<exact name from the list>", "direction": "up"|"down"|"neutral", '
+        '"magnitude": 1-5, "why": "<one sentence grounded in the summary>"}\n'
+        "Output the JSON array and nothing else."
+    )
+
+    data = ask_vegapunk_json(prompt, model="opus", system=_SENTIMENT_SYSTEM, max_tokens=3000)
+    if not isinstance(data, list):
+        # Tolerate a {"verdicts": [...]} wrapper if the model adds one
+        if isinstance(data, dict) and isinstance(data.get("verdicts"), list):
+            data = data["verdicts"]
+        else:
+            return {}
+
+    out: dict = {}
+    for v in data:
+        if not isinstance(v, dict):
+            continue
+        name = (v.get("name") or "").strip()
+        direction = (v.get("direction") or "neutral").strip().lower()
+        if not name or direction not in ("up", "down", "neutral"):
+            continue
+        try:
+            magnitude = int(v.get("magnitude", 1) or 1)
+        except (TypeError, ValueError):
+            magnitude = 1
+        out[name] = {
+            "direction": direction,
+            "magnitude": max(1, min(5, magnitude)),
+            "why": (v.get("why") or "").strip(),
+        }
+    return out
 
 
 def is_available() -> bool:
