@@ -40,12 +40,15 @@ Price proposal tiers (by combined-signal rank):
 
 import os
 import re
+import html
 import json
 import math
 import time
 import base64
 import urllib.request
 import urllib.parse
+import urllib.error
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -124,8 +127,18 @@ def _get_oauth_token() -> Optional[str]:
         return None
 
 
-def _fetch_reddit(url: str, timeout: int = 8) -> Optional[dict]:
-    """Fetch a Reddit JSON endpoint. Uses OAuth when creds are set, falls back to public."""
+def _fetch_reddit(url: str, timeout: int = 8):
+    """Fetch a Reddit listing/comments endpoint, normalized to the JSON API shape.
+
+    Two paths, transparent to callers:
+      1. OAuth JSON (oauth.reddit.com) when REDDIT_CLIENT_ID/SECRET are set — the
+         richer feed (exposes score + distinguished). This path is dormant today
+         because Reddit disabled self-serve app creation (Responsible Builder
+         Policy); it re-activates automatically if valid creds ever land on Railway.
+      2. Public RSS (.rss) fallback — no app/OAuth needed, and unlike the public
+         JSON API (which 403s from datacenter IPs like Railway) the RSS feeds are
+         reachable. Parsed back into the same {"data": {"children": [...]}} shape.
+    """
     token = _get_oauth_token()
     if token:
         oauth_url = url.replace("https://www.reddit.com/", "https://oauth.reddit.com/")
@@ -139,13 +152,100 @@ def _fetch_reddit(url: str, timeout: int = 8) -> Optional[dict]:
         except Exception as e:
             print(f"[ChapterPipeline] Reddit OAuth fetch failed ({oauth_url}): {e}")
 
+    # No OAuth (or it failed): read the equivalent public RSS feed.
+    return _fetch_reddit_rss(url, timeout)
+
+
+# ── Reddit RSS fallback (no API/OAuth) ────────────────────────────────────────
+# Reddit rate-limits RSS aggressively per IP (a burst of ~5 requests trips a 429),
+# so space requests ~1/sec and back off on 429. The pipeline's Reddit calls are a
+# short weekly burst, so a global min-gap is enough — no cache needed.
+_RSS_MIN_GAP = 1.3          # seconds enforced between successive RSS requests
+_rss_last = {"t": 0.0}
+
+
+def _throttle_rss() -> None:
+    wait = _RSS_MIN_GAP - (time.time() - _rss_last["t"])
+    if wait > 0:
+        time.sleep(wait)
+    _rss_last["t"] = time.time()
+
+
+def _strip_html(s: str) -> str:
+    """Reddit RSS wraps titles/bodies in escaped HTML — strip tags, unescape entities."""
+    return html.unescape(re.sub(r"<[^>]+>", " ", s or "")).strip()
+
+
+def _parse_reddit_rss(url: str, xml_text: str):
+    """Parse a Reddit Atom feed into the JSON API shape the callers expect.
+
+    Listing feeds (new/hot/search) → {"data": {"children": [{"data": {...}}]}}
+    Per-post comments feed (/comments/<id>.rss) → [{}, {"data": {"children":[...]}}]
+    (matches the 2-element array the JSON comments endpoint returns).
+
+    RSS omits score and distinguished, so those degrade to 0 / None: Reddit won't
+    self-advance the chapter or solo-confirm a break week via RSS, but character
+    mention sentiment (the primary value) is fully preserved.
+    """
     try:
-        req = urllib.request.Request(url, headers=_REDDIT_HEADERS)
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read())
+        root = ET.fromstring(xml_text)
     except Exception as e:
-        print(f"[ChapterPipeline] Reddit fetch failed ({url}): {e}")
+        print(f"[ChapterPipeline] Reddit RSS parse failed ({url}): {e}")
         return None
+
+    ns = "{http://www.w3.org/2005/Atom}"
+    is_comments = bool(re.search(r"/comments/[a-z0-9]+\.rss", url))
+    children = []
+    for entry in root.findall(f"{ns}entry"):
+        def _txt(tag: str) -> str:
+            el = entry.find(f"{ns}{tag}")
+            return el.text if el is not None and el.text else ""
+
+        title = _strip_html(_txt("title"))
+        content = _strip_html(_txt("content"))
+        if is_comments:
+            children.append({"data": {"body": content or title}})
+            continue
+
+        raw_id = _txt("id")                              # e.g. "t3_abc123"
+        base_id = raw_id.split("_", 1)[1] if "_" in raw_id else raw_id
+        link_el = entry.find(f"{ns}link")
+        link = link_el.get("href") if link_el is not None else ""
+        path = urllib.parse.urlparse(link).path if link else ""
+        children.append({"data": {
+            "id": base_id,
+            "title": title,
+            "permalink": path,          # callers prefix "https://reddit.com"
+            "selftext": content,
+            "score": 0,
+            "distinguished": None,
+        }})
+
+    if is_comments:
+        return [{}, {"data": {"children": children}}]
+    return {"data": {"children": children}}
+
+
+def _fetch_reddit_rss(url: str, timeout: int = 8):
+    """Fetch a Reddit .rss feed (translated from the .json API URL) with 429 backoff."""
+    rss_url = url.replace(".json", ".rss")
+    for attempt in range(3):
+        _throttle_rss()
+        try:
+            req = urllib.request.Request(rss_url, headers=_REDDIT_HEADERS)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                xml_text = resp.read().decode("utf-8", "replace")
+            return _parse_reddit_rss(rss_url, xml_text)
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 2:
+                time.sleep(2.0 * (attempt + 1))         # 2s, then 4s
+                continue
+            print(f"[ChapterPipeline] Reddit RSS fetch failed ({rss_url}): {e}")
+            return None
+        except Exception as e:
+            print(f"[ChapterPipeline] Reddit RSS fetch failed ({rss_url}): {e}")
+            return None
+    return None
 
 
 def _fetch_json(url: str, headers: Optional[dict] = None, timeout: int = 8) -> Optional[dict]:
