@@ -351,19 +351,32 @@ def _run_prediction_generate_guarded():
             except Exception as e:
                 print(f"[PredictionScheduler] Synopsis publish failed (non-fatal): {e}")
 
-            # Resolution retry — first detection (Thu 03:00) can hit a TBA wiki
-            # page, which defers auto-resolve (or historically left props stuck
-            # in needs_review). The wiki has matured by Saturday: re-fetch the
-            # character list and give every unresolved prop targeting this
-            # chapter another shot. auto_resolve defers again if still empty.
+            # Resolution retry — first detection can hit a TBA wiki page, which
+            # defers auto-resolve (or historically left props stuck in
+            # needs_review). The wiki has matured by Saturday: re-fetch the
+            # character list and give every unresolved chapter prop another
+            # shot. Covers ALL recent chapters with unresolved props, not just
+            # the latest — a new chapter detected between a deferral and this
+            # retry must not strand the previous chapter's predictions.
             try:
                 from app.chapter_pipeline import _wiki_chapter_chars, _char_index_from_db
                 from app.prediction_pipeline import auto_resolve_predictions
-                wiki_chars = _wiki_chapter_chars(latest, _char_index_from_db(db))
-                rr = auto_resolve_predictions(db, latest, wiki_chars)
-                if rr["resolved"] or rr["deferred"]:
-                    print(f"[PredictionScheduler] Ch.{latest} resolution retry: "
-                          f"{rr['resolved']} resolved, deferred={rr['deferred']}")
+                stuck_chapters = [
+                    row[0] for row in db.query(_m.Proposition.source_chapter).filter(
+                        _m.Proposition.is_chapter_prediction == True,
+                        _m.Proposition.status.in_(["open", "closed", "needs_review"]),
+                        _m.Proposition.source_chapter != None,
+                        _m.Proposition.source_chapter <= latest,      # never resolve future targets
+                        _m.Proposition.source_chapter >= latest - 3,  # bounded lookback
+                    ).distinct().all()
+                ]
+                char_index = _char_index_from_db(db) if stuck_chapters else None
+                for ch_num in sorted(stuck_chapters):
+                    wiki_chars = _wiki_chapter_chars(ch_num, char_index)
+                    rr = auto_resolve_predictions(db, ch_num, wiki_chars)
+                    if rr["resolved"] or rr["deferred"]:
+                        print(f"[PredictionScheduler] Ch.{ch_num} resolution retry: "
+                              f"{rr['resolved']} resolved, deferred={rr['deferred']}")
             except Exception as e:
                 print(f"[PredictionScheduler] Resolution retry failed (non-fatal): {e}")
         finally:
