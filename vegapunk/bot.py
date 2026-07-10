@@ -69,6 +69,25 @@ async def _safe_send(channel, content, **kwargs) -> bool:
         return False
 
 
+async def _already_posted(client, channel, marker: str, within_hours: int = 144) -> bool:
+    """True if THIS bot already posted a message containing `marker` in the
+    channel within the window. Discord history is the dedup source of truth:
+    in-memory sets die on every redeploy and KV writes silently fail without
+    ADMIN_SECRET — which is exactly how the Ch.1187 alert got posted 4× in one
+    night of restarts. Fails open (False) so a history hiccup can't mute posts;
+    the KV/in-memory layers still catch the common case then."""
+    try:
+        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=within_hours)
+        async for m in channel.history(limit=40):
+            if m.created_at < cutoff:
+                break
+            if m.author.id == client.user.id and marker in (m.content or ""):
+                return True
+    except Exception as e:
+        log.warning("History dedup check failed in #%s: %s", getattr(channel, "name", "?"), e)
+    return False
+
+
 async def _load_ch_cache():
     for k in _CH_NAMES:
         v = await api.get_kv(k)
@@ -242,13 +261,35 @@ class VegapunkBot(discord.Client):
         # market-uplink isn't configured.
         ch = await _resolve_channel(self, "market_uplink_channel_id") \
             or await _resolve_channel(self, "announcements_channel_id")
-        if ch and await _safe_send(ch, message):
+        if not ch:
+            return
+        if await _already_posted(self, ch, "WEEKLY TRANSMISSION", within_hours=120):
+            # Posted by a previous process this week — heal the markers.
+            self._tx_weeks.add(current_week)
+            await api.set_kv("last_tx_week", current_week)
+            return
+        if await _safe_send(ch, message):
             self._tx_weeks.add(current_week)
             await api.set_kv("last_tx_week", current_week)
             log.info("Weekly transmission sent for %s", current_week)
 
+    def _skip_boot_tick(self, name: str) -> bool:
+        """The random flavor loops fire their first iteration the moment the
+        bot starts — so every redeploy rolled fresh dice and the channels got
+        spammed on a night of restarts. Skip each loop's boot tick; they only
+        post on their natural cadence while the process stays up."""
+        booted = getattr(self, "_boot_ticks", None)
+        if booted is None:
+            booted = self._boot_ticks = set()
+        if name in booted:
+            return False
+        booted.add(name)
+        return True
+
     @tasks.loop(hours=6)
     async def random_hot_take(self):
+        if self._skip_boot_tick("hot_take"):
+            return
         if random.random() > 0.40:   # ~40 % chance each 6-hour tick
             return
         chars = await api.fetch_all_characters()
@@ -270,6 +311,8 @@ class VegapunkBot(discord.Client):
 
     @tasks.loop(hours=10)
     async def lore_post(self):
+        if self._skip_boot_tick("lore"):
+            return
         if random.random() > 0.35:   # ~35% chance each 10h tick
             return
         ch = await _resolve_channel(self, "one_piece_discussion_channel_id")
@@ -278,6 +321,8 @@ class VegapunkBot(discord.Client):
 
     @tasks.loop(hours=8)
     async def market_uplink_post(self):
+        if self._skip_boot_tick("market_uplink"):
+            return
         if random.random() > 0.50:   # ~50% chance each 8h tick
             return
         ch = await _resolve_channel(self, "market_uplink_channel_id")
@@ -294,6 +339,8 @@ class VegapunkBot(discord.Client):
 
     @tasks.loop(hours=16)
     async def price_analysis_post(self):
+        if self._skip_boot_tick("price_analysis"):
+            return
         if random.random() > 0.60:   # ~60% chance each 16h tick
             return
         ch = await _resolve_channel(self, "price_analysis_channel_id")
@@ -342,15 +389,19 @@ class VegapunkBot(discord.Client):
                 last = await api.get_kv("last_alerted_chapter")
                 if ch_num and str(ch_num) != str(last) and ch_num not in self._alerted:
                     channel = await _resolve_channel(self, "chapter_intel_channel_id")
-                    if channel:
+                    if not channel:
+                        log.warning("chapter_announce: no #chapter-intel channel found (KV empty and name lookup failed)")
+                    elif await _already_posted(self, channel, f"CHAPTER {ch_num} — DETECTED"):
+                        # A previous process posted it — heal the local + KV markers.
+                        self._alerted.add(ch_num)
+                        await api.set_kv("last_alerted_chapter", str(ch_num))
+                    else:
                         msg = personality.chapter_alert(
                             ch_num, data.get("detected", []), data.get("debuts", []))
                         if await _safe_send(channel, msg):
                             self._alerted.add(ch_num)
                             await api.set_kv("last_alerted_chapter", str(ch_num))
                             log.info("Chapter alert posted for Ch.%s", ch_num)
-                    else:
-                        log.warning("chapter_announce: no #chapter-intel channel found (KV empty and name lookup failed)")
         except Exception as e:
             log.warning("chapter_announce alert step failed: %s", e)
 
@@ -364,7 +415,12 @@ class VegapunkBot(discord.Client):
                     tx = await api.fetch_transmission()
                     if tx and str(tx.get("chapter_number")) == str(syn):
                         channel = await _resolve_channel(self, "announcements_channel_id")
-                        if channel:
+                        if not channel:
+                            log.warning("chapter_announce: no #announcements channel found (KV empty and name lookup failed)")
+                        elif await _already_posted(self, channel, f"CHAPTER {syn} — PUNK RECORDS SYNOPSIS"):
+                            self._synopsed.add(syn)
+                            await api.set_kv("last_synopsis_chapter", str(syn))
+                        else:
                             msg = personality.chapter_synopsis(
                                 syn, tx.get("summary", ""), tx.get("movers", []), api.SITE_URL)
                             ok = await _safe_send(
@@ -374,8 +430,6 @@ class VegapunkBot(discord.Client):
                                 self._synopsed.add(syn)
                                 await api.set_kv("last_synopsis_chapter", str(syn))
                                 log.info("Chapter synopsis posted for Ch.%s", syn)
-                        else:
-                            log.warning("chapter_announce: no #announcements channel found (KV empty and name lookup failed)")
         except Exception as e:
             log.warning("chapter_announce synopsis step failed: %s", e)
 
@@ -390,12 +444,17 @@ class VegapunkBot(discord.Client):
                 if key != last and key not in self._buzzed:
                     channel = await _resolve_channel(self, "market_uplink_channel_id")
                     if channel:
-                        msg = personality.buzz_chatter(
-                            buzz["name"], int(buzz.get("new_posts", 0)), int(buzz.get("week_total", 0)))
-                        if await _safe_send(channel, msg):
+                        marker = f"UNUSUAL CHATTER — {buzz['name'].upper()}"
+                        if await _already_posted(self, channel, marker):
                             self._buzzed.add(key)
                             await api.set_kv("last_buzz_posted", key)
-                            log.info("Buzz chatter posted for %s", key)
+                        else:
+                            msg = personality.buzz_chatter(
+                                buzz["name"], int(buzz.get("new_posts", 0)), int(buzz.get("week_total", 0)))
+                            if await _safe_send(channel, msg):
+                                self._buzzed.add(key)
+                                await api.set_kv("last_buzz_posted", key)
+                                log.info("Buzz chatter posted for %s", key)
         except Exception as e:
             log.warning("chapter_announce buzz step failed: %s", e)
 

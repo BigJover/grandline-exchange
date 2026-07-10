@@ -14,6 +14,7 @@ _PREDICTION_LOCK = "/tmp/prediction_gen.lock"
 _YOUTUBE_LOCK    = "/tmp/youtube_enrich.lock"
 _VOLATILITY_LOCK = "/tmp/volatility_digest.lock"
 _BUZZ_LOCK       = "/tmp/buzz_sweep.lock"
+_DRIFT_LOCK      = "/tmp/market_drift.lock"
 _MIN_INTERVAL    = 23 * 3600  # must be at least 23h since last run
 
 
@@ -521,6 +522,53 @@ def run_volatility_digest():
         db.close()
 
 
+def run_market_drift():
+    """Ambient market noise — small random price nudges through the week so the
+    market feels alive between chapters. DELIBERATELY intel-free: direction is
+    random (softly mean-reverting at the extremes), magnitude a fraction of a
+    percent, and the weekly buzz signal plays no part — spoiler-informed players
+    keep their edge, and chapter proposals (1-8%) remain the real movers.
+
+    Not recorded in price_history (charts stay chapter-based) or char.events;
+    the drift is visible in the live price only."""
+    if not _should_run(_DRIFT_LOCK, min_seconds=8 * 3600):
+        return
+    from app.database import SessionLocal
+    from app import models
+
+    db = SessionLocal()
+    try:
+        chars = db.query(models.Character).all()
+        moved = 0
+        for c in chars:
+            if random.random() > 0.40:          # ~40% of the roster moves per tick
+                continue
+            base = c.base_beri or c.beri
+            # Soft mean reversion: runaway names lean down, beaten-down lean up.
+            if base > 0 and c.beri > base * 2:
+                p_up = 0.40
+            elif base > 0 and c.beri < base * 0.6:
+                p_up = 0.60
+            else:
+                p_up = 0.50
+            pct = random.uniform(0.0005, 0.0035)  # 0.05% – 0.35%
+            factor = (1 + pct) if random.random() < p_up else (1 - pct)
+            c.beri = max(100_000, c.beri * factor)
+            moved += 1
+        db.commit()
+        try:
+            from app.routers.characters import invalidate_char_cache
+            invalidate_char_cache()
+        except Exception:
+            pass
+        print(f"[MarketDrift] nudged {moved}/{len(chars)} characters (±0.05-0.35%)")
+    except Exception as e:
+        db.rollback()
+        print(f"[MarketDrift] Error: {e}")
+    finally:
+        db.close()
+
+
 def _run_buzz_sweep_guarded():
     """Accumulate mid-week spoiler/meme chatter into the weekly buzz counter.
     Intel only — feeds the next chapter's proposals + Vegapunk market chatter;
@@ -594,6 +642,13 @@ scheduler.add_job(
     _run_buzz_sweep_guarded,
     CronTrigger(hour="0,8,16", minute=0, second=0),
     id="weekly_buzz_sweep",
+    replace_existing=True,
+)
+# Ambient drift twice daily — intel-free micro-movement between chapters.
+scheduler.add_job(
+    run_market_drift,
+    CronTrigger(hour="6,18", minute=30, second=0),
+    id="market_drift",
     replace_existing=True,
 )
 scheduler.add_job(
