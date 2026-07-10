@@ -544,16 +544,16 @@ scheduler.add_job(
     id="bot_market_tick",
     replace_existing=True,
 )
+# Chapter detection sweeps every 6 hours. It used to run only Thu+Sun 03:00,
+# which meant a chapter released Thursday evening sat undetected until Sunday.
+# The sweep is cheap (wiki API + a few RSS calls), idempotent on processed
+# chapters, and the wiki stub-gate stops premature advances — so the only
+# effect of running often is that the alert lands the same day the wiki
+# fills in, instead of days later.
 scheduler.add_job(
     _run_chapter_detect_guarded,
-    CronTrigger(day_of_week="thu", hour=3, minute=0, second=0),  # chapter drop + leak window
-    id="chapter_detect_thu",
-    replace_existing=True,
-)
-scheduler.add_job(
-    _run_chapter_detect_guarded,
-    CronTrigger(day_of_week="sun", hour=3, minute=0, second=0),  # episode release / second-wave discussion
-    id="chapter_detect_sun",
+    CronTrigger(hour="3,9,15,21", minute=0, second=0),
+    id="chapter_detect",
     replace_existing=True,
 )
 scheduler.add_job(
