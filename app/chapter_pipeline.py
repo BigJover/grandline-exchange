@@ -806,16 +806,10 @@ def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
         base_beri = char.base_beri or current_beri
         net_buy = scores.get("site_net", 0)
 
-        # Tier assignment — same logic as detect_chapter_drop
-        if net_buy < -10:
-            direction, pct = "down", 4.0
-        elif net_buy < -5:
-            direction, pct = "down", 2.5
-        else:
-            direction = "up"
-            pct = _RANK_PCT[min(rank, len(_RANK_PCT) - 1)]
-            if base_beri > 0 and current_beri > base_beri * 3:
-                pct = min(pct, 0.5)
+        # Tier assignment — the SAME shared logic as detect_chapter_drop,
+        # including the persisted LLM sentiment override (a defeated character
+        # must stay "down" through this re-rank, whatever YouTube volume says).
+        direction, pct = _proposal_tier(rank, scores, current_beri, base_beri)
 
         if pct < _MIN_PCT and net_buy >= 0:
             continue
@@ -890,7 +884,58 @@ def _build_reason(chapter_num: int, scores: dict) -> str:
     net = scores.get("site_net", 0)
     if net:
         parts.append(f"net {'buy' if net > 0 else 'sell'} {abs(int(net))}")
-    return f"Ch.{chapter_num} — " + (", ".join(parts) if parts else "signal detected")
+    reason = f"Ch.{chapter_num} — " + (", ".join(parts) if parts else "signal detected")
+    # The LLM story verdict travels inside signal_scores so every path that
+    # rebuilds the reason (detect, YouTube enrich) keeps the one-line why.
+    verdict = scores.get("sentiment")
+    if isinstance(verdict, dict) and verdict.get("why"):
+        reason += f" · {verdict['why']}"
+    return reason
+
+
+def _sentiment_verdict(scores: dict) -> Optional[dict]:
+    """Return the persisted LLM sentiment verdict from a signal_scores dict,
+    normalized (magnitude clamped 1-5), or None."""
+    v = scores.get("sentiment")
+    if not isinstance(v, dict) or v.get("direction") not in ("up", "down", "neutral"):
+        return None
+    try:
+        mag = int(v.get("magnitude", 1) or 1)
+    except (TypeError, ValueError):
+        mag = 1
+    return {"direction": v["direction"], "magnitude": max(1, min(5, mag)),
+            "why": (v.get("why") or "").strip()}
+
+
+def _proposal_tier(rank: int, scores: dict, current_beri: float, base_beri: float) -> tuple:
+    """Single source of truth for a proposal's (direction, pct).
+
+    Order of precedence:
+      1. LLM story verdict "down" — a defeated/humiliated character drops no
+         matter how loud the mentions are (magnitude sets the size).
+      2. Site sell pressure overrides.
+      3. Rank-tier upward move; an LLM "up" verdict lifts the floor; mean
+         reversion caps runaway prices.
+
+    Used by BOTH detect_chapter_drop and enrich_chapter_with_youtube so a
+    re-rank can never silently drop the sentiment override again.
+    """
+    net_buy = scores.get("site_net", 0)
+    verdict = _sentiment_verdict(scores)
+
+    if verdict and verdict["direction"] == "down":
+        return "down", _SENTIMENT_DOWN_PCT[verdict["magnitude"]]
+    if net_buy < -10:
+        return "down", 4.0
+    if net_buy < -5:
+        return "down", 2.5
+
+    pct = _RANK_PCT[min(rank, len(_RANK_PCT) - 1)]
+    if verdict and verdict["direction"] == "up":
+        pct = max(pct, _SENTIMENT_UP_PCT[verdict["magnitude"]])
+    if base_beri > 0 and current_beri > base_beri * 3:
+        pct = min(pct, 0.5)
+    return "up", pct
 
 
 # ── Pipeline constants ────────────────────────────────────────────────────────
@@ -1159,29 +1204,18 @@ def detect_chapter_drop(
         if not char:
             continue
 
-        scores = entry["scores"]
+        scores = dict(entry["scores"])
         current_beri = char.beri
         base_beri = char.base_beri or current_beri
-        net_buy = scores["site_net"]
-        verdict = sentiment.get(entry["name"])
 
-        if verdict and verdict["direction"] == "down":
-            # Story beat overrides mention-volume: a defeated/humiliated character
-            # drops even though they were mentioned heavily this chapter.
-            direction = "down"
-            pct = _SENTIMENT_DOWN_PCT[verdict["magnitude"]]
-        elif net_buy < -10:
-            direction, pct = "down", 4.0
-        elif net_buy < -5:
-            direction, pct = "down", 2.5
-        else:
-            direction = "up"
-            pct = _RANK_PCT[min(rank, len(_RANK_PCT) - 1)]
-            # A strong positive story beat lifts the floor above bare rank order.
-            if verdict and verdict["direction"] == "up":
-                pct = max(pct, _SENTIMENT_UP_PCT[verdict["magnitude"]])
-            if base_beri > 0 and current_beri > base_beri * 3:
-                pct = min(pct, 0.5)
+        # Persist the LLM verdict INSIDE signal_scores so later re-ranks
+        # (Sunday YouTube enrichment) keep honoring the story beat instead of
+        # silently reverting a defeated character to an upward mention-rank move.
+        verdict = sentiment.get(entry["name"])
+        if verdict:
+            scores["sentiment"] = verdict
+
+        direction, pct = _proposal_tier(rank, scores, current_beri, base_beri)
 
         if pct < _MIN_PCT:
             continue
@@ -1191,8 +1225,6 @@ def detect_chapter_drop(
             else max(_BERI_FLOOR, current_beri * (1 - pct / 100))
         )
         reason = _build_reason(chapter_num, scores)
-        if verdict and verdict.get("why"):
-            reason += f" · {verdict['why']}"
 
         prop = existing_pending.pop(char.id, None)
         if prop:

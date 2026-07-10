@@ -1682,6 +1682,38 @@ def list_proposed_prices(
     }
 
 
+def _apply_price_proposal(char: models.Character, proposal: models.ProposedPriceChange):
+    """Apply an approved proposal to a character — the ONE place price
+    approvals mutate state, so single-approve and approve-all stay identical:
+      - sets beri (floored)
+      - appends the chapter event line to Cognitive Analysis
+      - upserts a price_history chart point for this chapter
+    Caller owns the commit."""
+    char.beri = max(100_000, proposal.proposed_beri)
+    proposal.status = "approved"
+
+    arrow = "▲" if proposal.direction == "up" else "▼"
+    ch_label = f"Ch.{proposal.chapter_number}" if proposal.chapter_number else "Latest chapter"
+    event_line = f"{ch_label} — {arrow} {proposal.pct_change:.1f}% | {proposal.reason or 'chapter signal'}"
+    char.events = (char.events + "\n" + event_line).strip() if char.events else event_line
+
+    # Chart point. Label = the LLM story one-liner when present (reason format:
+    # "Ch.N — signals · why"), else a plain direction tag. Same-chapter entry is
+    # replaced, not duplicated (re-approvals after a YouTube re-rank).
+    if proposal.chapter_number:
+        why = (proposal.reason or "").split("·")[-1].strip() if "·" in (proposal.reason or "") else ""
+        entry = {
+            "chapter": proposal.chapter_number,
+            "label": why or f"{arrow} {proposal.pct_change:.1f}% — chapter signal",
+            "beri": char.beri,
+        }
+        history = [
+            e for e in (char.price_history or [])
+            if not (isinstance(e, dict) and e.get("chapter") == proposal.chapter_number)
+        ]
+        char.price_history = history + [entry]
+
+
 @router.post("/proposed-prices/{proposal_id}/approve")
 def approve_proposed_price(
     proposal_id: int,
@@ -1705,8 +1737,7 @@ def approve_proposed_price(
         raise HTTPException(status_code=404, detail="Character not found")
 
     old_beri = char.beri
-    char.beri = max(100_000, proposal.proposed_beri)
-    proposal.status = "approved"
+    _apply_price_proposal(char, proposal)
     db.commit()
 
     invalidate_char_cache()
@@ -1768,8 +1799,7 @@ def approve_all_proposed_prices(
     for proposal in proposals:
         char = chars.get(proposal.character_id)
         if char:
-            char.beri = max(100_000, proposal.proposed_beri)
-            proposal.status = "approved"
+            _apply_price_proposal(char, proposal)
             applied += 1
             all_moves.append({
                 "name":      char.name,
@@ -1780,11 +1810,6 @@ def approve_all_proposed_prices(
             })
             if not chapter_num:
                 chapter_num = proposal.chapter_number
-            # Append chapter event to Cognitive Analysis
-            arrow = "▲" if proposal.direction == "up" else "▼"
-            ch_label = f"Ch.{proposal.chapter_number}" if proposal.chapter_number else "Latest chapter"
-            event_line = f"{ch_label} — {arrow} {proposal.pct_change:.1f}% | {proposal.reason or 'chapter signal'}"
-            char.events = (char.events + "\n" + event_line).strip() if char.events else event_line
         else:
             proposal.status = "dismissed"
 

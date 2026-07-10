@@ -350,6 +350,22 @@ def _run_prediction_generate_guarded():
                 publish_chapter_synopsis(db, latest)
             except Exception as e:
                 print(f"[PredictionScheduler] Synopsis publish failed (non-fatal): {e}")
+
+            # Resolution retry — first detection (Thu 03:00) can hit a TBA wiki
+            # page, which defers auto-resolve (or historically left props stuck
+            # in needs_review). The wiki has matured by Saturday: re-fetch the
+            # character list and give every unresolved prop targeting this
+            # chapter another shot. auto_resolve defers again if still empty.
+            try:
+                from app.chapter_pipeline import _wiki_chapter_chars, _char_index_from_db
+                from app.prediction_pipeline import auto_resolve_predictions
+                wiki_chars = _wiki_chapter_chars(latest, _char_index_from_db(db))
+                rr = auto_resolve_predictions(db, latest, wiki_chars)
+                if rr["resolved"] or rr["deferred"]:
+                    print(f"[PredictionScheduler] Ch.{latest} resolution retry: "
+                          f"{rr['resolved']} resolved, deferred={rr['deferred']}")
+            except Exception as e:
+                print(f"[PredictionScheduler] Resolution retry failed (non-fatal): {e}")
         finally:
             db.close()
     except Exception as e:

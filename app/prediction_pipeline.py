@@ -100,19 +100,26 @@ def _create_prop(
 def _wiki_chars_for_chapter(db: Session, chapter_num: int) -> list:
     """
     Return characters that appeared in chapter_num according to already-stored
-    ProposedPriceChange data (those rows carry wiki_count > 0).
+    ProposedPriceChange data (rows whose signal_scores carry wiki > 0).
+
+    Filters on the structured signal_scores JSON, NOT the human-readable reason
+    string — a reason-format change once broke a `LIKE '%wiki appearances%'`
+    filter here and silently stopped all appearance predictions.
     """
     rows = (
         db.query(models.ProposedPriceChange)
-        .filter(
-            models.ProposedPriceChange.chapter_number == chapter_num,
-            models.ProposedPriceChange.reason.like("%wiki appearances%"),
-        )
+        .filter(models.ProposedPriceChange.chapter_number == chapter_num)
         .order_by(models.ProposedPriceChange.pct_change.desc())
-        .limit(8)
         .all()
     )
-    return [r.character_name for r in rows]
+    out = []
+    for r in rows:
+        scores = r.signal_scores or {}
+        if isinstance(scores, dict) and scores.get("wiki", 0) > 0:
+            out.append(r.character_name)
+        if len(out) >= 8:
+            break
+    return out
 
 
 def _top_movers(db: Session, chapter_num: int, n: int = 3) -> list:
@@ -236,15 +243,18 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
     """
     Called when chapter_num is detected. Attempts to resolve all open/closed
     propositions targeting this chapter (source_chapter == chapter_num).
+    Also retries needs_review props — data that was missing at first detection
+    (e.g. a TBA wiki Characters section on Thursday) often exists by the
+    Saturday matured pass, so those self-heal instead of waiting on the admin.
 
     wiki_chars: canonical_name → count dict from _wiki_chapter_chars()
-    Returns {"resolved": int, "needs_review": int, "skipped": int}
+    Returns {"resolved": int, "needs_review": int, "skipped": int, "deferred": bool}
     """
     from sqlalchemy import or_, and_
     props = (
         db.query(models.Proposition)
         .filter(
-            models.Proposition.status.in_(["open", "closed"]),
+            models.Proposition.status.in_(["open", "closed", "needs_review"]),
             models.Proposition.is_chapter_prediction == True,  # never auto-resolve endgame props
             or_(
                 models.Proposition.source_chapter == chapter_num,
@@ -260,7 +270,17 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
     )
 
     if not props:
-        return {"resolved": 0, "needs_review": 0, "skipped": 0}
+        return {"resolved": 0, "needs_review": 0, "skipped": 0, "deferred": False}
+
+    # ── Immature-data guard ───────────────────────────────────────────────────
+    # No wiki character data means the chapter page is still a stub/TBA (common
+    # at the Thursday 03:00 first detection). Resolving now would mark every
+    # appearance question "No" and pay out wrong — irreversibly. Defer entirely;
+    # the Saturday prediction job retries with matured data.
+    if not wiki_chars:
+        print(f"[PredictionPipeline] Auto-resolve Ch.{chapter_num}: wiki character "
+              f"data empty — deferring resolution of {len(props)} prop(s)")
+        return {"resolved": 0, "needs_review": 0, "skipped": len(props), "deferred": True}
 
     # Build upward mover set for this chapter
     up_chars = {
@@ -297,26 +317,22 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
         m = _RE_BERI_UP.match(q)
         if m:
             char_name = m.group(1)
-            if wiki_chars:
-                # We have wiki data — can make a reliable call
-                went_up = char_name in up_chars
-                correct_option = 0 if went_up else 1
-                reasoning = (
-                    f"Ch.{chapter_num}: {char_name} price proposal is upward."
-                    if went_up
-                    else f"Ch.{chapter_num}: {char_name} has no upward price proposal."
-                )
-                _do_resolve(db, prop, correct_option, _PRICE_RESOLVE_CONFIDENCE, reasoning)
-                resolved += 1
-            else:
-                # No wiki data — can't auto-resolve price question reliably
-                prop.status = "needs_review"
-                prop.llm_confidence = 0.5
-                prop.llm_reasoning = f"Ch.{chapter_num}: no wiki data available to auto-resolve price question."
-                needs_review += 1
+            # Wiki data is guaranteed non-empty here (deferred above otherwise)
+            went_up = char_name in up_chars
+            correct_option = 0 if went_up else 1
+            reasoning = (
+                f"Ch.{chapter_num}: {char_name} price proposal is upward."
+                if went_up
+                else f"Ch.{chapter_num}: {char_name} has no upward price proposal."
+            )
+            _do_resolve(db, prop, correct_option, _PRICE_RESOLVE_CONFIDENCE, reasoning)
+            resolved += 1
             continue
 
         # ── Unknown pattern — flag for manual review ──────────────────────────
+        if prop.status == "needs_review":
+            skipped += 1        # already flagged on an earlier pass — leave as-is
+            continue
         prop.status = "needs_review"
         prop.llm_confidence = 0.0
         prop.llm_reasoning = f"Ch.{chapter_num}: auto-resolve pattern not recognised — admin review needed."
@@ -327,7 +343,7 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
         f"[PredictionPipeline] Auto-resolve Ch.{chapter_num}: "
         f"{resolved} resolved, {needs_review} needs review, {skipped} skipped"
     )
-    return {"resolved": resolved, "needs_review": needs_review, "skipped": skipped}
+    return {"resolved": resolved, "needs_review": needs_review, "skipped": skipped, "deferred": False}
 
 
 def _do_resolve(
