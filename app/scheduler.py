@@ -11,7 +11,6 @@ _PURGE_LOCK      = "/tmp/comment_purge.lock"
 _BOT_LOCK        = "/tmp/bot_tick.lock"
 _CHAPTER_LOCK    = "/tmp/chapter_detect.lock"
 _PREDICTION_LOCK = "/tmp/prediction_gen.lock"
-_YOUTUBE_LOCK    = "/tmp/youtube_enrich.lock"
 _VOLATILITY_LOCK = "/tmp/volatility_digest.lock"
 _BUZZ_LOCK       = "/tmp/buzz_sweep.lock"
 _DRIFT_LOCK      = "/tmp/market_drift.lock"
@@ -290,9 +289,11 @@ def _run_bot_tick_guarded():
 
 
 def _run_prediction_generate_guarded():
-    """Generate predictions for the most recently detected chapter.
-    Fires Saturday 14:00 UTC — ~24h after typical Friday chapter drop.
-    Idempotent: skips if already ran for the same chapter.
+    """The matured weekly pass — fires early Monday (09:00 UTC), when the
+    official Sunday release is out and weekend discussion has settled.
+    Order: re-scrape (matured wiki/Reddit + LLM sentiment) → YouTube
+    enrichment → prediction generation → synopsis publish → resolution
+    retries. Idempotent: skips generation if already ran for the chapter.
 
     Pre-pass before generating: the initial scrape at detection time often
     runs before discussion (and break-week announcements) have accumulated,
@@ -338,6 +339,19 @@ def _run_prediction_generate_guarded():
             except Exception as e:
                 print(f"[PredictionScheduler] Pre-pass failed (non-fatal): {e}")
 
+            # YouTube enrichment — AFTER the re-scrape (a re-scrape rebuilds
+            # proposals and would wipe the YouTube signal if it ran second),
+            # BEFORE prediction generation so predictions see enriched ranks.
+            # No-ops gracefully without YOUTUBE_API_KEY.
+            try:
+                from app.chapter_pipeline import enrich_chapter_with_youtube
+                yt = enrich_chapter_with_youtube(db, latest)
+                if yt["yt_chars_found"]:
+                    print(f"[PredictionScheduler] Ch.{latest} YouTube: "
+                          f"{yt['proposals_updated']} re-ranked, {yt['proposals_added']} added")
+            except Exception as e:
+                print(f"[PredictionScheduler] YouTube enrich failed (non-fatal): {e}")
+
             result = generate_chapter_predictions(db, latest)
             if result["skipped"]:
                 print(f"[PredictionScheduler] Ch.{latest} predictions already generated")
@@ -355,7 +369,7 @@ def _run_prediction_generate_guarded():
 
             # Resolution retry — first detection can hit a TBA wiki page, which
             # defers auto-resolve (or historically left props stuck in
-            # needs_review). The wiki has matured by Saturday: re-fetch the
+            # needs_review). The wiki has matured by Monday: re-fetch the
             # character list and give every unresolved chapter prop another
             # shot. Covers ALL recent chapters with unresolved props, not just
             # the latest — a new chapter detected between a deferral and this
@@ -387,37 +401,9 @@ def _run_prediction_generate_guarded():
         print(f"[PredictionScheduler] Error: {e}")
 
 
-def _run_youtube_enrich_guarded():
-    """Enrich latest chapter proposals with YouTube reaction video sentiment.
-    Fires Sunday 14:00 UTC — ~48h after Friday chapter drop, when reaction
-    videos have meaningful view counts and comment activity.
-    Idempotent: proposals already tagged with YouTube signal are skipped."""
-    if not _should_run(_YOUTUBE_LOCK, min_seconds=20 * 3600):
-        return
-    api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
-    if not api_key:
-        print("[YouTubeEnrich] YOUTUBE_API_KEY not set — skipping")
-        return
-    try:
-        from app.database import SessionLocal
-        from app import models as _m
-        from sqlalchemy import func as sqlfunc
-        from app.chapter_pipeline import enrich_chapter_with_youtube
-        db = SessionLocal()
-        try:
-            latest = db.query(sqlfunc.max(_m.Chapter.number)).scalar()
-            if not latest:
-                print("[YouTubeEnrich] No chapters in DB yet — skipping")
-                return
-            result = enrich_chapter_with_youtube(db, latest)
-            print(
-                f"[YouTubeEnrich] Ch.{latest}: {result['yt_chars_found']} chars found, "
-                f"{result['proposals_updated']} updated, {result['proposals_added']} added"
-            )
-        finally:
-            db.close()
-    except Exception as e:
-        print(f"[YouTubeEnrich] Error: {e}")
+# (The standalone Sunday YouTube-enrich job was folded into the Monday matured
+# pass — see _run_prediction_generate_guarded. The admin endpoint
+# POST /admin/chapters/{n}/enrich-youtube still triggers it on demand.)
 
 
 _VOLATILITY_SNAPSHOT_KEY = "volatility_snapshot"
@@ -624,16 +610,23 @@ scheduler.add_job(
     id="bot_market_tick",
     replace_existing=True,
 )
-# Chapter detection sweeps every 6 hours. It used to run only Thu+Sun 03:00,
-# which meant a chapter released Thursday evening sat undetected until Sunday.
-# The sweep is cheap (wiki API + a few RSS calls), idempotent on processed
-# chapters, and the wiki stub-gate stops premature advances — so the only
-# effect of running often is that the alert lands the same day the wiki
-# fills in, instead of days later.
+# Chapter detection sweeps Friday→Monday (09/15/21 UTC). Deliberately NOT on
+# release day itself (chapters leak Thursday): waiting until early Friday lets
+# the wiki page mature before the first proposals/alert are built from it —
+# the user chose data quality over same-evening detection. Fri-Mon coverage
+# still catches late fills and the official Sunday release.
 scheduler.add_job(
     _run_chapter_detect_guarded,
-    CronTrigger(hour="3,9,15,21", minute=0, second=0),
+    CronTrigger(day_of_week="fri,sat,sun,mon", hour="9,15,21", minute=0, second=0),
     id="chapter_detect",
+    replace_existing=True,
+)
+# Safety net for a wiki page that only fills in mid-week (rare): one catch-up
+# sweep per day Tue-Thu so a straggler chapter never waits until Friday.
+scheduler.add_job(
+    _run_chapter_detect_guarded,
+    CronTrigger(day_of_week="tue,wed,thu", hour=15, minute=0, second=0),
+    id="chapter_detect_catchup",
     replace_existing=True,
 )
 # Buzz sweeps offset from detection so a Thursday chapter run reads a counter
@@ -651,16 +644,16 @@ scheduler.add_job(
     id="market_drift",
     replace_existing=True,
 )
+# The matured weekly pass runs EARLY MONDAY: by then the official Sunday
+# release is out, weekend discussion has flowed, and YouTube reactions have
+# real view counts — so the re-scrape, enrichment, predictions and synopsis
+# all work from settled data. (Was Saturday 14:00; user moved it back to give
+# the info time to mature. YouTube enrichment is folded into this job now —
+# ordered AFTER the re-scrape so the re-scrape can't wipe its signal.)
 scheduler.add_job(
     _run_prediction_generate_guarded,
-    CronTrigger(day_of_week="sat", hour=14, minute=0, second=0),  # ~24h after Friday chapter drop
-    id="prediction_generate_sat",
-    replace_existing=True,
-)
-scheduler.add_job(
-    _run_youtube_enrich_guarded,
-    CronTrigger(day_of_week="sun", hour=14, minute=0, second=0),  # ~48h after Friday chapter drop
-    id="youtube_enrich_sun",
+    CronTrigger(day_of_week="mon", hour=9, minute=0, second=0),
+    id="prediction_generate_mon",
     replace_existing=True,
 )
 scheduler.add_job(

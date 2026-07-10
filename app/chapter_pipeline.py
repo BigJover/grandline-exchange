@@ -1397,7 +1397,7 @@ def detect_chapter_drop(
 
     # ── 10a. Chapter ALERT handshake → Vegapunk posts to #chapter-intel ───────
     # Wave 1 (first notice). The bot polls this BotKV key and posts a
-    # preliminary breakdown. The matured synopsis follows on Saturday.
+    # preliminary breakdown. The matured synopsis follows on Monday.
     top_chars = [c["name"] for c in combined[:10]]
     if announce:
         try:
@@ -1535,7 +1535,7 @@ def _publish_chapter_transmission(db: Session, chapter_num: int, top: list, best
 
 
 def publish_chapter_synopsis(db: Session, chapter_num: int) -> bool:
-    """Wave 2 (Saturday): rebuild the chapter transmission from the matured
+    """Wave 2 (Monday matured pass): rebuild the chapter transmission from the
     proposals, then signal the Vegapunk bot to post the synopsis to
     #announcements via the BotKV handshake. Returns True if a synopsis was
     queued. Idempotent at the bot layer (it dedups on last_synopsis_chapter)."""
