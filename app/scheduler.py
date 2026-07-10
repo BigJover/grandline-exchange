@@ -14,6 +14,7 @@ _PREDICTION_LOCK = "/tmp/prediction_gen.lock"
 _VOLATILITY_LOCK = "/tmp/volatility_digest.lock"
 _BUZZ_LOCK       = "/tmp/buzz_sweep.lock"
 _DRIFT_LOCK      = "/tmp/market_drift.lock"
+_IMPLICATIONS_LOCK = "/tmp/implications_pass.lock"
 _MIN_INTERVAL    = 23 * 3600  # must be at least 23h since last run
 
 
@@ -288,9 +289,36 @@ def _run_bot_tick_guarded():
     run_bot_tick()
 
 
+def _run_implications_guarded():
+    """Monday implications pass — the second wave of the weekly cycle:
+    weekend speculation, theories, and historic connections that move a
+    character's outlook beyond the chapter's direct events (which the admin
+    already priced on Saturday). Generates small pending proposals."""
+    if not _should_run(_IMPLICATIONS_LOCK, min_seconds=20 * 3600):
+        return
+    try:
+        from app.database import SessionLocal
+        from app import models as _m
+        from sqlalchemy import func as sqlfunc
+        from app.chapter_pipeline import run_implications_pass
+        db = SessionLocal()
+        try:
+            latest = db.query(sqlfunc.max(_m.Chapter.number)).scalar()
+            if not latest:
+                print("[Implications] No chapters in DB yet — skipping")
+                return
+            r = run_implications_pass(db, latest)
+            print(f"[Implications] Ch.{latest}: {r['proposals']} proposals "
+                  f"({'skipped — ' + r['skipped_reason'] if r.get('skipped_reason') else 'ok'})")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[Implications] Error: {e}")
+
+
 def _run_prediction_generate_guarded():
-    """The matured weekly pass — fires early Monday (09:00 UTC), when the
-    official Sunday release is out and weekend discussion has settled.
+    """The matured weekly pass — fires Saturday 14:00 UTC, the cycle's
+    "chapter changes" moment (the admin approves right after).
     Order: re-scrape (matured wiki/Reddit + LLM sentiment) → YouTube
     enrichment → prediction generation → synopsis publish → resolution
     retries. Idempotent: skips generation if already ran for the chapter.
@@ -369,7 +397,7 @@ def _run_prediction_generate_guarded():
 
             # Resolution retry — first detection can hit a TBA wiki page, which
             # defers auto-resolve (or historically left props stuck in
-            # needs_review). The wiki has matured by Monday: re-fetch the
+            # needs_review). The wiki has matured by Saturday: re-fetch the
             # character list and give every unresolved chapter prop another
             # shot. Covers ALL recent chapters with unresolved props, not just
             # the latest — a new chapter detected between a deferral and this
@@ -621,14 +649,9 @@ scheduler.add_job(
     id="chapter_detect",
     replace_existing=True,
 )
-# Safety net for a wiki page that only fills in mid-week (rare): one catch-up
-# sweep per day Tue-Thu so a straggler chapter never waits until Friday.
-scheduler.add_job(
-    _run_chapter_detect_guarded,
-    CronTrigger(day_of_week="tue,wed,thu", hour=15, minute=0, second=0),
-    id="chapter_detect_catchup",
-    replace_existing=True,
-)
+# (No Tue-Thu detection scans — that window belongs to the spoiler/meme buzz
+# phase per the weekly cycle: chapter changes (Sat) → implication changes
+# (Sat-Mon) → spoilers/memes (Mon-Thu) → repeat.)
 # Buzz sweeps offset from detection so a Thursday chapter run reads a counter
 # that already includes that morning's chatter.
 scheduler.add_job(
@@ -644,16 +667,27 @@ scheduler.add_job(
     id="market_drift",
     replace_existing=True,
 )
-# The matured weekly pass runs EARLY MONDAY: by then the official Sunday
-# release is out, weekend discussion has flowed, and YouTube reactions have
-# real view counts — so the re-scrape, enrichment, predictions and synopsis
-# all work from settled data. (Was Saturday 14:00; user moved it back to give
-# the info time to mature. YouTube enrichment is folded into this job now —
-# ordered AFTER the re-scrape so the re-scrape can't wipe its signal.)
+# The matured pass runs SATURDAY 14:00 — the "chapter changes" moment of the
+# weekly cycle. Detection (Fri) built the initial proposals; by Saturday the
+# wiki + discussion have matured, so: re-scrape → YouTube enrichment (ordered
+# AFTER the re-scrape so it can't be wiped, BEFORE prediction generation so
+# predictions see enriched ranks) → predictions → synopsis → resolution
+# retries. The admin approves Saturday for the initial chapter-drop movement;
+# second-order moves come from Monday's implications pass.
 scheduler.add_job(
     _run_prediction_generate_guarded,
-    CronTrigger(day_of_week="mon", hour=9, minute=0, second=0),
-    id="prediction_generate_mon",
+    CronTrigger(day_of_week="sat", hour=14, minute=0, second=0),
+    id="prediction_generate_sat",
+    replace_existing=True,
+)
+# Implications pass — MONDAY 14:00, the "chapter implication changes" moment:
+# weekend speculation, historic connections, and late discoveries that affect
+# characters beyond the chapter's direct content. Produces a SECOND, smaller
+# wave of pending proposals for admin review.
+scheduler.add_job(
+    _run_implications_guarded,
+    CronTrigger(day_of_week="mon", hour=14, minute=0, second=0),
+    id="implications_pass_mon",
     replace_existing=True,
 )
 scheduler.add_job(

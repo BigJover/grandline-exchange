@@ -2,7 +2,7 @@
 Prediction generation pipeline — free-tier (rule-based, no LLM).
 
 generate_chapter_predictions(db, chapter_num, force=False)
-    - Fires on the matured Monday pass (scheduler, Mon 09:00 UTC)
+    - Fires on the matured Saturday pass (scheduler, Sat 14:00 UTC)
     - Uses wiki character appearance data already stored in ProposedPriceChange
     - Creates live Propositions (status="open") for simple appearance/price questions
     - Creates draft Propositions (status="draft") from the standalone PREDICTION_TEMPLATES pool
@@ -245,7 +245,7 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
     propositions targeting this chapter (source_chapter == chapter_num).
     Also retries needs_review props — data that was missing at first detection
     (e.g. a TBA wiki Characters section on Thursday) often exists by the
-    Monday matured pass, so those self-heal instead of waiting on the admin.
+    Saturday matured pass, so those self-heal instead of waiting on the admin.
 
     wiki_chars: canonical_name → count dict from _wiki_chapter_chars()
     Returns {"resolved": int, "needs_review": int, "skipped": int, "deferred": bool}
@@ -276,7 +276,7 @@ def auto_resolve_predictions(db: Session, chapter_num: int, wiki_chars: dict) ->
     # No wiki character data means the chapter page is still a stub/TBA (common
     # at the Thursday 03:00 first detection). Resolving now would mark every
     # appearance question "No" and pay out wrong — irreversibly. Defer entirely;
-    # the Monday matured pass retries with settled data.
+    # the Saturday matured pass retries with settled data.
     if not wiki_chars:
         print(f"[PredictionPipeline] Auto-resolve Ch.{chapter_num}: wiki character "
               f"data empty — deferring resolution of {len(props)} prop(s)")

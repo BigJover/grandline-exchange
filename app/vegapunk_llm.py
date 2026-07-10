@@ -176,6 +176,71 @@ def score_chapter_sentiment(chapter_num: int, summary_text: str, names: list) ->
     return out
 
 
+_IMPLICATIONS_SYSTEM = (
+    "You are Vegapunk's market-implications engine for a One Piece character stock exchange. "
+    "The chapter's DIRECT events have already been priced into the market. Your job is the SECOND "
+    "wave: judge how the community's post-chapter SPECULATION shifts each character's outlook — "
+    "fan theories gaining real traction, newly-noticed historic connections or foreshadowing, "
+    "power-scaling reassessments, setup for future arcs. Do NOT re-price the chapter's own events "
+    "(a character who lost a fight already dropped on Saturday); only price what the DISCUSSION "
+    "adds on top. Be conservative: most characters have NO implication shift — omit them. "
+    "Judge severity 1-5 (5 = a theory/connection so significant it reframes the character's role; "
+    "1 = mild chatter). Ground every judgment in the provided summary and community themes only. "
+    "Respond with valid JSON ONLY — a single array, no markdown, no preamble."
+)
+
+
+def score_chapter_implications(chapter_num: int, summary_text: str, themes: list, names: list) -> dict:
+    """Judge SECOND-ORDER stock implications from post-chapter community
+    speculation (the Monday pass). themes = list of community post titles.
+
+    Returns {name: {"direction": "up"|"down"|"neutral", "magnitude": 1-5,
+    "why": str}} for characters whose OUTLOOK shifted beyond the already-priced
+    chapter events. Returns {} when the LLM is unavailable or inputs are too
+    thin — the pass then simply creates no implication proposals."""
+    if not summary_text or not summary_text.strip() or not names or not themes:
+        return {}
+
+    theme_block = "\n".join(f"- {t}" for t in themes[:25])
+    prompt = (
+        f"One Piece Chapter {chapter_num} — summary (already priced in):\n"
+        f'"""\n{summary_text[:5000]}\n"""\n\n'
+        f"Community discussion themes since the chapter (post titles):\n{theme_block}\n\n"
+        f"Characters to judge: {', '.join(names)}\n\n"
+        "Return a JSON array. Include ONLY characters whose outlook meaningfully shifts "
+        "due to the speculation/connections above (omit everyone else). Each element:\n"
+        '{"name": "<exact name from the list>", "direction": "up"|"down"|"neutral", '
+        '"magnitude": 1-5, "why": "<one sentence citing the theory/connection>"}\n'
+        "Output the JSON array and nothing else."
+    )
+
+    data = ask_vegapunk_json(prompt, model="opus", system=_IMPLICATIONS_SYSTEM, max_tokens=2500)
+    if not isinstance(data, list):
+        if isinstance(data, dict) and isinstance(data.get("verdicts"), list):
+            data = data["verdicts"]
+        else:
+            return {}
+
+    out: dict = {}
+    for v in data:
+        if not isinstance(v, dict):
+            continue
+        name = (v.get("name") or "").strip()
+        direction = (v.get("direction") or "neutral").strip().lower()
+        if not name or direction not in ("up", "down", "neutral"):
+            continue
+        try:
+            magnitude = int(v.get("magnitude", 1) or 1)
+        except (TypeError, ValueError):
+            magnitude = 1
+        out[name] = {
+            "direction": direction,
+            "magnitude": max(1, min(5, magnitude)),
+            "why": (v.get("why") or "").strip(),
+        }
+    return out
+
+
 def is_available() -> bool:
     """Returns True if the Anthropic API key is configured and the package is installed."""
     return _get_client() is not None

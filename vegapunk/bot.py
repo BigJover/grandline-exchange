@@ -361,7 +361,7 @@ class VegapunkBot(discord.Client):
                             served publicly at /public/chapter-alert) on first
                             detection (Thu); post a preliminary breakdown to
                             #chapter-intel.
-        Wave 2 (synopsis) — the matured Monday transmission at /transmission;
+        Wave 2 (synopsis) — the matured Saturday transmission at /transmission;
                             post it to #announcements.
 
         Hardened to work with ZERO env vars beyond the Discord token: alert and

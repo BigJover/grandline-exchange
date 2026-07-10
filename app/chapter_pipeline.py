@@ -688,6 +688,146 @@ def sweep_weekly_buzz(db: Session) -> dict:
     return {"week": data["week"], "new_posts": new_posts, "top": top5, "alert": alert}
 
 
+# ── Implications pass (Monday — second wave of the weekly cycle) ──────────────
+# Saturday priced the chapter's DIRECT events. Over the weekend the community
+# digs: theories gain traction, historic connections surface, power-scaling
+# gets reassessed. This pass reads that speculation and proposes a SECOND,
+# smaller wave of price changes — implications, not chapter content.
+
+_IMPLICATION_PCT = {1: 0.5, 2: 1.0, 3: 1.5, 4: 2.5, 5: 4.0}
+_IMPLICATIONS_KV_KEY = "last_implications_chapter"
+
+
+def _reddit_theory_themes(chapter_num: int, char_index: dict):
+    """Sweep post-chapter discussion for speculation/theory posts.
+    Returns (themes, mention_counts): themes = post titles (the LLM's evidence),
+    mention_counts = {char: posts mentioning them} to pick candidates."""
+    sources = [
+        f"https://www.reddit.com/r/OnePiece/search.json?q=chapter+{chapter_num}&sort=top&t=week&limit=25&restrict_sr=1",
+        f"https://www.reddit.com/r/OnePiece/search.json?q=theory&sort=top&t=week&limit=25&restrict_sr=1",
+        "https://www.reddit.com/r/OnePiece/top.json?t=week&limit=25",
+        f"https://www.reddit.com/r/OnePieceSpoilers/search.json?q={chapter_num}&sort=top&t=week&limit=15&restrict_sr=1",
+    ]
+    themes: list = []
+    seen_titles: set = set()
+    counts: dict = {}
+    for url in sources:
+        feed = _fetch_reddit(url)
+        if not feed:
+            continue
+        for child in feed.get("data", {}).get("children", []):
+            p = child.get("data", {})
+            title = (p.get("title") or "").strip()
+            if not title or title.lower() in seen_titles:
+                continue
+            seen_titles.add(title.lower())
+            text = title + " " + (p.get("selftext", "") or "")[:2000]
+            chars = set(_extract_chars(text, char_index))
+            if chars:
+                themes.append(title)
+                for name in chars:
+                    counts[name] = counts.get(name, 0) + 1
+    return themes, counts
+
+
+def run_implications_pass(db: Session, chapter_num: int) -> dict:
+    """Generate the Monday implication proposals for chapter_num.
+
+    - Re-runs YouTube enrichment first (Monday numbers are the richest; only
+      touches still-pending rows + may add late-discovered characters).
+    - Sweeps weekend theory/speculation posts, asks the LLM which characters'
+      OUTLOOK shifted beyond the already-priced chapter events, and creates
+      small pending proposals (0.5-4%) for admin review.
+    - A character whose Saturday proposal is still PENDING is left alone (the
+      chapter-content row is primary); characters already approved CAN get an
+      implication row — that's the second market move of the cycle.
+    - Idempotent via BotKV last_implications_chapter.
+    """
+    kv = db.query(models.BotKV).filter(models.BotKV.key == _IMPLICATIONS_KV_KEY).first()
+    if kv and kv.value == str(chapter_num):
+        return {"chapter": chapter_num, "proposals": 0, "skipped_reason": "already ran"}
+
+    chapter_row = db.query(models.Chapter).filter(models.Chapter.number == chapter_num).first()
+    if not chapter_row or not chapter_row.processed:
+        return {"chapter": chapter_num, "proposals": 0, "skipped_reason": "chapter not processed yet"}
+
+    # Monday YouTube refresh — best-effort, never blocks the pass.
+    try:
+        enrich_chapter_with_youtube(db, chapter_num)
+    except Exception as e:
+        print(f"[Implications] YouTube refresh failed (non-fatal): {e}")
+
+    char_index = _char_index_from_db(db)
+    themes, counts = _reddit_theory_themes(chapter_num, char_index)
+    if not themes:
+        return {"chapter": chapter_num, "proposals": 0, "skipped_reason": "no community themes found"}
+
+    summary = _wiki_chapter_summary(chapter_num)
+    candidates = [n for n, _ in sorted(counts.items(), key=lambda kv2: kv2[1], reverse=True)[:15]]
+    if not candidates:
+        return {"chapter": chapter_num, "proposals": 0, "skipped_reason": "no character mentions in themes"}
+
+    try:
+        from app.vegapunk_llm import score_chapter_implications
+        verdicts = score_chapter_implications(chapter_num, summary, themes, candidates)
+    except Exception as e:
+        print(f"[Implications] LLM scoring failed: {e}")
+        verdicts = {}
+    if not verdicts:
+        return {"chapter": chapter_num, "proposals": 0, "skipped_reason": "LLM returned no implication shifts"}
+
+    pending_chars = {
+        p.character_name
+        for p in db.query(models.ProposedPriceChange).filter(
+            models.ProposedPriceChange.chapter_number == chapter_num,
+            models.ProposedPriceChange.status == "pending",
+        ).all()
+    }
+    char_rows = {
+        c.name: c for c in db.query(models.Character).filter(
+            models.Character.name.in_(list(verdicts.keys()))
+        ).all()
+    }
+
+    created = 0
+    for name, v in verdicts.items():
+        if v["direction"] == "neutral":
+            continue
+        char = char_rows.get(name)
+        if not char or name in pending_chars:
+            continue    # a pending chapter-content row is primary — don't stack
+        pct = _IMPLICATION_PCT[v["magnitude"]]
+        current_beri = char.beri
+        proposed_beri = (
+            current_beri * (1 + pct / 100) if v["direction"] == "up"
+            else max(_BERI_FLOOR, current_beri * (1 - pct / 100))
+        )
+        reason = f"Ch.{chapter_num} implications — community speculation"
+        if v.get("why"):
+            reason += f" · {v['why']}"
+        db.add(models.ProposedPriceChange(
+            chapter_number=chapter_num,
+            character_id=char.id,
+            character_name=name,
+            current_beri=current_beri,
+            proposed_beri=proposed_beri,
+            direction=v["direction"],
+            pct_change=round(pct, 2),
+            reason=reason,
+            signal_scores={"implications": counts.get(name, 0), "sentiment": v},
+        ))
+        created += 1
+
+    if kv:
+        kv.value = str(chapter_num)
+    else:
+        db.add(models.BotKV(key=_IMPLICATIONS_KV_KEY, value=str(chapter_num)))
+    db.commit()
+    print(f"[Implications] Ch.{chapter_num}: {created} implication proposals "
+          f"({len(themes)} themes, {len(verdicts)} verdicts)")
+    return {"chapter": chapter_num, "proposals": created, "skipped_reason": None}
+
+
 # ── Break week detection ──────────────────────────────────────────────────────
 
 _BREAK_RE = re.compile(
@@ -1397,7 +1537,7 @@ def detect_chapter_drop(
 
     # ── 10a. Chapter ALERT handshake → Vegapunk posts to #chapter-intel ───────
     # Wave 1 (first notice). The bot polls this BotKV key and posts a
-    # preliminary breakdown. The matured synopsis follows on Monday.
+    # preliminary breakdown. The matured synopsis follows on Saturday.
     top_chars = [c["name"] for c in combined[:10]]
     if announce:
         try:
@@ -1535,7 +1675,7 @@ def _publish_chapter_transmission(db: Session, chapter_num: int, top: list, best
 
 
 def publish_chapter_synopsis(db: Session, chapter_num: int) -> bool:
-    """Wave 2 (Monday matured pass): rebuild the chapter transmission from the
+    """Wave 2 (Saturday matured pass): rebuild the chapter transmission from the
     proposals, then signal the Vegapunk bot to post the synopsis to
     #announcements via the BotKV handshake. Returns True if a synopsis was
     queued. Idempotent at the bot layer (it dedups on last_synopsis_chapter)."""
