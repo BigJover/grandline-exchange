@@ -7,6 +7,26 @@ SITE_URL     = os.getenv("SITE_URL", "https://grandline-exchange-production.up.r
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
 
 
+async def fetch_announce_state() -> Optional[dict]:
+    """Fetch the chapter-announcement handshake state (public endpoint — works
+    with no ADMIN_SECRET, so a bare-bones bot deployment can still announce).
+    Returns {"chapter_alert": dict|None, "synopsis_ready": str|None} or None
+    (older web deploys without the endpoint)."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{SITE_URL}/public/announce-state",
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json(content_type=None)
+                    if isinstance(data, dict):
+                        return data
+    except Exception:
+        pass
+    return None
+
+
 async def fetch_transmission() -> Optional[dict]:
     """Fetch the latest published chapter transmission (synopsis + movers)."""
     try:

@@ -777,6 +777,37 @@ def get_latest_chapter(db: Session = Depends(get_db)):
     return {"chapter": max_ch}
 
 
+@app.get("/public/announce-state")
+def get_announce_state(db: Session = Depends(get_db)):
+    """Returns the chapter-announcement handshake state (no auth required).
+
+    The Vegapunk bot polls this to drive its two announcement waves. It used to
+    read the same data through the admin KV endpoint, which made announcements
+    silently dependent on ADMIN_SECRET being configured on the bot service —
+    but the payload is public data (chapter number + character names already
+    shown on the site), so serve it publicly and remove that failure mode.
+
+      chapter_alert  — Wave-1 payload {chapter, detected, debuts} or null
+      synopsis_ready — chapter number whose MATURED Saturday synopsis is
+                       published (gates Wave 2; the /transmission row alone
+                       isn't enough — it also exists in immature Thursday form)
+    """
+    import json as _json
+    out = {"chapter_alert": None, "synopsis_ready": None}
+    rows = db.query(models.BotKV).filter(
+        models.BotKV.key.in_(["chapter_alert", "chapter_synopsis_ready"])
+    ).all()
+    for row in rows:
+        if row.key == "chapter_alert" and row.value:
+            try:
+                out["chapter_alert"] = _json.loads(row.value)
+            except Exception:
+                pass
+        elif row.key == "chapter_synopsis_ready" and row.value:
+            out["synopsis_ready"] = str(row.value)
+    return out
+
+
 @app.get("/panel")
 def admin_panel(request: Request, db: Session = Depends(get_db)):
     """Serve admin panel — only to logged-in admin users."""

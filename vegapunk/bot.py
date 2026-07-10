@@ -42,6 +42,21 @@ _TRIGGER_PHRASES    = {"vegapunk", "punk records", "are you a bot", "are you rea
 # ── In-memory channel ID cache (populated from BotKV on ready) ────────────────
 _CH: dict[str, int] = {}   # key → channel id
 
+# KV key → the actual Discord channel NAME to fall back to when the KV registry
+# is empty (i.e. /setup-server was never run, or ADMIN_SECRET isn't configured
+# on this service so get_kv returns ""). The bot must never be mute just
+# because its channel registry is unreachable — names are stable in this guild.
+_CH_NAMES = {
+    "announcements_channel_id":        "announcements",
+    "market_uplink_channel_id":        "market-uplink",
+    "chapter_intel_channel_id":        "chapter-intel",
+    "general_channel_id":              "general",
+    "one_piece_discussion_channel_id": "one-piece-discussion",
+    "memes_channel_id":                "memes",
+    "introduce_yourself_channel_id":   "introduce-yourself",
+    "price_analysis_channel_id":       "price-analysis",
+}
+
 async def _safe_send(channel, content, **kwargs) -> bool:
     """Send a message, logging (not raising) on failure so a single permission
     error can't permanently kill a @tasks.loop. Returns True on success."""
@@ -55,16 +70,44 @@ async def _safe_send(channel, content, **kwargs) -> bool:
 
 
 async def _load_ch_cache():
-    keys = [
-        "announcements_channel_id", "market_uplink_channel_id",
-        "chapter_intel_channel_id", "general_channel_id",
-        "one_piece_discussion_channel_id", "memes_channel_id",
-        "introduce_yourself_channel_id", "price_analysis_channel_id",
-    ]
-    for k in keys:
+    for k in _CH_NAMES:
         v = await api.get_kv(k)
         if v:
             _CH[k] = int(v)
+
+
+def _channel_by_name(client: discord.Client, name: str):
+    """Find a text channel by exact name across the bot's guilds."""
+    for guild in client.guilds:
+        for ch in guild.text_channels:
+            if ch.name == name:
+                return ch
+    return None
+
+
+async def _resolve_channel(client: discord.Client, kv_key: str):
+    """Resolve a target channel: BotKV registry → cached id → guild lookup by
+    name. Whatever resolves is cached. Returns a channel or None."""
+    ch_id = _CH.get(kv_key)
+    if not ch_id:
+        v = await api.get_kv(kv_key)
+        if v:
+            try:
+                ch_id = int(v)
+                _CH[kv_key] = ch_id
+            except ValueError:
+                ch_id = None
+    if ch_id:
+        ch = client.get_channel(ch_id)
+        if ch:
+            return ch
+    # Registry empty or points at a deleted channel — fall back to the name.
+    name = _CH_NAMES.get(kv_key)
+    ch = _channel_by_name(client, name) if name else None
+    if ch:
+        _CH[kv_key] = ch.id
+        log.info("Channel %s resolved by NAME (#%s → %s) — KV registry empty/stale", kv_key, ch.name, ch.id)
+    return ch
 
 
 # ── Bot client ────────────────────────────────────────────────────────────────
@@ -76,6 +119,13 @@ class VegapunkBot(discord.Client):
         intents.members = True
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
+        # In-memory dedup — the announce/transmission loops persist their dedup
+        # markers to BotKV, but when ADMIN_SECRET isn't configured those writes
+        # silently fail and every tick would re-post. These sets guarantee
+        # at-most-once per process regardless of KV health.
+        self._alerted: set = set()    # chapter numbers Wave-1 posted
+        self._synopsed: set = set()   # chapter numbers Wave-2 posted
+        self._tx_weeks: set = set()   # ISO weeks the weekly transmission posted
 
     async def setup_hook(self):
         if GUILD_ID:
@@ -132,15 +182,19 @@ class VegapunkBot(discord.Client):
                 content=message.content,
             )
 
+        # Reactive channel checks match by KV id OR channel name, so they work
+        # even when the KV registry was never populated.
+        ch_name = getattr(message.channel, "name", "")
+
         # #memes — random emoji reaction (~35% chance)
-        if ch_id == _CH.get("memes_channel_id") and random.random() < 0.35:
+        if (ch_id == _CH.get("memes_channel_id") or ch_name == "memes") and random.random() < 0.35:
             try:
                 await message.add_reaction(personality.meme_reaction())
             except Exception:
                 pass
 
         # #introduce-yourself — Vegapunk welcome comment (~80% chance)
-        if ch_id == _CH.get("introduce_yourself_channel_id") and random.random() < 0.80:
+        if (ch_id == _CH.get("introduce_yourself_channel_id") or ch_name == "introduce-yourself") and random.random() < 0.80:
             try:
                 username = message.author.display_name
                 await message.reply(personality.introduce_yourself_response(username))
@@ -170,7 +224,7 @@ class VegapunkBot(discord.Client):
         current_week = f"{iso[0]}-W{iso[1]:02d}"
 
         last_week = await api.get_kv("last_tx_week")
-        if last_week == current_week:
+        if last_week == current_week or current_week in self._tx_weeks:
             return  # already fired this week — skip
 
         chars = await api.fetch_all_characters()
@@ -185,17 +239,10 @@ class VegapunkBot(discord.Client):
         # no longer fan out to VEGAPUNK_TRANSMISSION_CHANNELS — that env var was
         # leaking this post into #general. Falls back to announcements only if
         # market-uplink isn't configured.
-        target_ids: set[int] = set()
-        kv_ch = await api.get_kv("market_uplink_channel_id") or await api.get_kv("announcements_channel_id")
-        if kv_ch:
-            target_ids.add(int(kv_ch))
-
-        sent = False
-        for ch_id in target_ids:
-            ch = self.get_channel(ch_id)
-            if ch and await _safe_send(ch, message):
-                sent = True
-        if sent:
+        ch = await _resolve_channel(self, "market_uplink_channel_id") \
+            or await _resolve_channel(self, "announcements_channel_id")
+        if ch and await _safe_send(ch, message):
+            self._tx_weeks.add(current_week)
             await api.set_kv("last_tx_week", current_week)
             log.info("Weekly transmission sent for %s", current_week)
 
@@ -210,27 +257,21 @@ class VegapunkBot(discord.Client):
         pct = api.recent_change_pct(char)
         message = personality.hot_take(char["name"], pct, char.get("faction", "other"))
 
-        # Hot takes go to #general (set by /setup-server), fallback to env var
-        target_ids: set[int] = set()
-        kv_ch = await api.get_kv("general_channel_id")
-        if kv_ch:
-            target_ids.add(int(kv_ch))
+        # Hot takes go to #general (KV registry → name lookup), env var fallback
+        ch = await _resolve_channel(self, "general_channel_id")
+        if ch:
+            await _safe_send(ch, message)
         else:
-            target_ids.update(TRANSMISSION_CHS)
-
-        for ch_id in target_ids:
-            ch = self.get_channel(ch_id)
-            if ch:
-                await _safe_send(ch, message)
+            for ch_id in TRANSMISSION_CHS:
+                fallback = self.get_channel(ch_id)
+                if fallback:
+                    await _safe_send(fallback, message)
 
     @tasks.loop(hours=10)
     async def lore_post(self):
         if random.random() > 0.35:   # ~35% chance each 10h tick
             return
-        ch_id = _CH.get("one_piece_discussion_channel_id")
-        if not ch_id:
-            return
-        ch = self.get_channel(ch_id)
+        ch = await _resolve_channel(self, "one_piece_discussion_channel_id")
         if ch:
             await _safe_send(ch, personality.lore_hot_take())
 
@@ -238,10 +279,7 @@ class VegapunkBot(discord.Client):
     async def market_uplink_post(self):
         if random.random() > 0.50:   # ~50% chance each 8h tick
             return
-        ch_id = _CH.get("market_uplink_channel_id")
-        if not ch_id:
-            return
-        ch = self.get_channel(ch_id)
+        ch = await _resolve_channel(self, "market_uplink_channel_id")
         if not ch:
             return
         chars = await api.fetch_all_characters()
@@ -257,10 +295,7 @@ class VegapunkBot(discord.Client):
     async def price_analysis_post(self):
         if random.random() > 0.60:   # ~60% chance each 16h tick
             return
-        ch_id = _CH.get("price_analysis_channel_id")
-        if not ch_id:
-            return
-        ch = self.get_channel(ch_id)
+        ch = await _resolve_channel(self, "price_analysis_channel_id")
         if not ch:
             return
         chars = await api.fetch_all_characters()
@@ -274,54 +309,72 @@ class VegapunkBot(discord.Client):
     async def chapter_announce(self):
         """Bridge the chapter pipeline's two-wave handshake to Discord.
 
-        Wave 1 (alert)    — pipeline sets BotKV `chapter_alert` on first detection
-                            (Thu); post a preliminary breakdown to #chapter-intel.
-        Wave 2 (synopsis) — pipeline sets BotKV `chapter_synopsis_ready` on the
-                            Saturday maturation pass; post the matured synopsis to
-                            #announcements. Dedup via last_alerted / last_synopsis.
+        Wave 1 (alert)    — pipeline publishes the alert (BotKV `chapter_alert`,
+                            served publicly at /public/chapter-alert) on first
+                            detection (Thu); post a preliminary breakdown to
+                            #chapter-intel.
+        Wave 2 (synopsis) — the matured Saturday transmission at /transmission;
+                            post it to #announcements.
+
+        Hardened to work with ZERO env vars beyond the Discord token: alert and
+        synopsis are read from PUBLIC site endpoints (no ADMIN_SECRET needed),
+        channels fall back to name lookup (no /setup-server needed), and dedup
+        is in-memory first with BotKV as best-effort persistence — so a broken
+        KV can no longer mute announcements, and a mute KV can't cause spam.
         """
+        # ── Fetch handshake state (public endpoint; KV fallback for old web) ──
+        state = await api.fetch_announce_state()
+        if state is None:
+            state = {}
+            try:
+                raw = await api.get_kv("chapter_alert")
+                state["chapter_alert"] = json.loads(raw) if raw else None
+                state["synopsis_ready"] = await api.get_kv("chapter_synopsis_ready") or None
+            except Exception:
+                pass
+
         # ── Wave 1: chapter alert → #chapter-intel ────────────────────────────
         try:
-            raw = await api.get_kv("chapter_alert")
-            if raw:
-                data = json.loads(raw)
+            data = state.get("chapter_alert")
+            if data:
                 ch_num = data.get("chapter")
                 last = await api.get_kv("last_alerted_chapter")
-                if ch_num and str(ch_num) != str(last):
-                    ch_id = await api.get_kv("chapter_intel_channel_id")
-                    channel = self.get_channel(int(ch_id)) if ch_id else None
+                if ch_num and str(ch_num) != str(last) and ch_num not in self._alerted:
+                    channel = await _resolve_channel(self, "chapter_intel_channel_id")
                     if channel:
                         msg = personality.chapter_alert(
                             ch_num, data.get("detected", []), data.get("debuts", []))
                         if await _safe_send(channel, msg):
+                            self._alerted.add(ch_num)
                             await api.set_kv("last_alerted_chapter", str(ch_num))
                             log.info("Chapter alert posted for Ch.%s", ch_num)
                     else:
-                        log.warning("chapter_announce: chapter-intel channel (%s) unresolved", ch_id)
+                        log.warning("chapter_announce: no #chapter-intel channel found (KV empty and name lookup failed)")
         except Exception as e:
             log.warning("chapter_announce alert step failed: %s", e)
 
         # ── Wave 2: chapter synopsis → #announcements ─────────────────────────
         try:
-            syn = await api.get_kv("chapter_synopsis_ready")
+            syn = state.get("synopsis_ready")
             if syn:
+                syn = int(syn)
                 last_syn = await api.get_kv("last_synopsis_chapter")
-                if str(syn) != str(last_syn):
+                if str(syn) != str(last_syn) and syn not in self._synopsed:
                     tx = await api.fetch_transmission()
                     if tx and str(tx.get("chapter_number")) == str(syn):
-                        ch_id = await api.get_kv("announcements_channel_id")
-                        channel = self.get_channel(int(ch_id)) if ch_id else None
+                        channel = await _resolve_channel(self, "announcements_channel_id")
                         if channel:
                             msg = personality.chapter_synopsis(
-                                int(syn), tx.get("summary", ""), tx.get("movers", []), api.SITE_URL)
+                                syn, tx.get("summary", ""), tx.get("movers", []), api.SITE_URL)
                             ok = await _safe_send(
                                 channel, "@everyone\n" + msg,
                                 allowed_mentions=discord.AllowedMentions(everyone=True))
                             if ok:
+                                self._synopsed.add(syn)
                                 await api.set_kv("last_synopsis_chapter", str(syn))
                                 log.info("Chapter synopsis posted for Ch.%s", syn)
                         else:
-                            log.warning("chapter_announce: announcements channel (%s) unresolved", ch_id)
+                            log.warning("chapter_announce: no #announcements channel found (KV empty and name lookup failed)")
         except Exception as e:
             log.warning("chapter_announce synopsis step failed: %s", e)
 
