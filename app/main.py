@@ -791,11 +791,13 @@ def get_announce_state(db: Session = Depends(get_db)):
       synopsis_ready — chapter number whose MATURED Saturday synopsis is
                        published (gates Wave 2; the /transmission row alone
                        isn't enough — it also exists in immature Thursday form)
+      buzz_alert     — mid-week spoiler/meme chatter spike
+                       {name, new_posts, week_total, week, ts} or null
     """
     import json as _json
-    out = {"chapter_alert": None, "synopsis_ready": None}
+    out = {"chapter_alert": None, "synopsis_ready": None, "buzz_alert": None}
     rows = db.query(models.BotKV).filter(
-        models.BotKV.key.in_(["chapter_alert", "chapter_synopsis_ready"])
+        models.BotKV.key.in_(["chapter_alert", "chapter_synopsis_ready", "buzz_alert"])
     ).all()
     for row in rows:
         if row.key == "chapter_alert" and row.value:
@@ -805,6 +807,11 @@ def get_announce_state(db: Session = Depends(get_db)):
                 pass
         elif row.key == "chapter_synopsis_ready" and row.value:
             out["synopsis_ready"] = str(row.value)
+        elif row.key == "buzz_alert" and row.value:
+            try:
+                out["buzz_alert"] = _json.loads(row.value)
+            except Exception:
+                pass
     return out
 
 

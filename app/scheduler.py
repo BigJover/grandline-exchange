@@ -13,6 +13,7 @@ _CHAPTER_LOCK    = "/tmp/chapter_detect.lock"
 _PREDICTION_LOCK = "/tmp/prediction_gen.lock"
 _YOUTUBE_LOCK    = "/tmp/youtube_enrich.lock"
 _VOLATILITY_LOCK = "/tmp/volatility_digest.lock"
+_BUZZ_LOCK       = "/tmp/buzz_sweep.lock"
 _MIN_INTERVAL    = 23 * 3600  # must be at least 23h since last run
 
 
@@ -520,6 +521,24 @@ def run_volatility_digest():
         db.close()
 
 
+def _run_buzz_sweep_guarded():
+    """Accumulate mid-week spoiler/meme chatter into the weekly buzz counter.
+    Intel only — feeds the next chapter's proposals + Vegapunk market chatter;
+    never moves prices on its own."""
+    if not _should_run(_BUZZ_LOCK, min_seconds=6 * 3600):
+        return
+    try:
+        from app.database import SessionLocal
+        from app.chapter_pipeline import sweep_weekly_buzz
+        db = SessionLocal()
+        try:
+            sweep_weekly_buzz(db)
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[BuzzSweep] Error: {e}")
+
+
 def _run_chapter_detect_guarded():
     """Run chapter drop detection. Called Thu 03:00 UTC (chapter drop + leak window)
     and Sun 03:00 UTC (episode release / second-wave discussion).
@@ -567,6 +586,14 @@ scheduler.add_job(
     _run_chapter_detect_guarded,
     CronTrigger(hour="3,9,15,21", minute=0, second=0),
     id="chapter_detect",
+    replace_existing=True,
+)
+# Buzz sweeps offset from detection so a Thursday chapter run reads a counter
+# that already includes that morning's chatter.
+scheduler.add_job(
+    _run_buzz_sweep_guarded,
+    CronTrigger(hour="0,8,16", minute=0, second=0),
+    id="weekly_buzz_sweep",
     replace_existing=True,
 )
 scheduler.add_job(

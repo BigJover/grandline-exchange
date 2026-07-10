@@ -157,10 +157,11 @@ def _fetch_reddit(url: str, timeout: int = 8):
 
 
 # ── Reddit RSS fallback (no API/OAuth) ────────────────────────────────────────
-# Reddit rate-limits RSS aggressively per IP (a burst of ~5 requests trips a 429),
-# so space requests ~1/sec and back off on 429. The pipeline's Reddit calls are a
-# short weekly burst, so a global min-gap is enough — no cache needed.
-_RSS_MIN_GAP = 1.3          # seconds enforced between successive RSS requests
+# Reddit rate-limits RSS aggressively per IP (a burst of ~5 requests trips a 429
+# even at ~1.3s spacing — observed live), so space requests generously and back
+# off hard on 429. Every caller is a background job, so latency is free; partial
+# feeds are fine too — the buzz sweep accumulates across runs all week.
+_RSS_MIN_GAP = 3.0          # seconds enforced between successive RSS requests
 _rss_last = {"t": 0.0}
 
 
@@ -238,7 +239,7 @@ def _fetch_reddit_rss(url: str, timeout: int = 8):
             return _parse_reddit_rss(rss_url, xml_text)
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 2:
-                time.sleep(2.0 * (attempt + 1))         # 2s, then 4s
+                time.sleep(6.0 * (attempt + 1))         # 6s, then 12s
                 continue
             print(f"[ChapterPipeline] Reddit RSS fetch failed ({rss_url}): {e}")
             return None
@@ -579,6 +580,114 @@ def _reddit_pulse_chars(chapter_num: int, char_index: dict) -> dict:
     return scores
 
 
+# ── Weekly community buzz (spoilers + memes between chapters) ─────────────────
+# Chapters get processed Thu-Sun, but the community is loudest Mon-Wed when the
+# spoiler leaks drop ("investing in Luffy while he's low"). A scheduled sweep
+# accumulates character mentions from spoiler/meme subreddit listings all week
+# into a BotKV rolling counter, which then feeds the NEXT chapter's proposals
+# as an extra signal — INTEL ONLY, prices never move mid-week (that arbitrage
+# window is the players' game, not the pipeline's).
+
+_BUZZ_KV_KEY          = "weekly_buzz"
+_BUZZ_ALERT_KV_KEY    = "buzz_alert"
+_BUZZ_ALERT_THRESHOLD = 4     # new posts mentioning a char in one sweep → Vegapunk chatter
+_BUZZ_SEEN_CAP        = 600   # post-id dedup memory (a week of listings fits easily)
+
+_BUZZ_SOURCES = [
+    "https://www.reddit.com/r/OnePiece/new.json?limit=25",
+    "https://www.reddit.com/r/OnePiece/hot.json?limit=25",
+    "https://www.reddit.com/r/OnePieceSpoilers/new.json?limit=25",
+    "https://www.reddit.com/r/OnePieceLeaks/hot.json?limit=25",
+    "https://www.reddit.com/r/MemePiece/hot.json?limit=25",
+    "https://www.reddit.com/r/Piratefolk/hot.json?limit=25",
+]
+
+
+def _load_weekly_buzz(db: Session) -> dict:
+    """Read the rolling buzz store; reset it when the ISO week rolls over."""
+    iso = datetime.now(timezone.utc).isocalendar()
+    week = f"{iso[0]}-W{iso[1]:02d}"
+    row = db.query(models.BotKV).filter(models.BotKV.key == _BUZZ_KV_KEY).first()
+    data = {}
+    if row and row.value:
+        try:
+            data = json.loads(row.value)
+        except Exception:
+            data = {}
+    if data.get("week") != week:
+        data = {"week": week, "counts": {}, "seen": []}
+    data.setdefault("counts", {})
+    data.setdefault("seen", [])
+    return data
+
+
+def weekly_buzz_counts(db: Session) -> dict:
+    """Current accumulated buzz counts {char_name: distinct posts this week}.
+    Used by detect_chapter_drop as a proposal signal. Empty dict when the
+    sweep hasn't run (signal degrades gracefully like every other source)."""
+    row = db.query(models.BotKV).filter(models.BotKV.key == _BUZZ_KV_KEY).first()
+    if not row or not row.value:
+        return {}
+    try:
+        return json.loads(row.value).get("counts", {}) or {}
+    except Exception:
+        return {}
+
+
+def sweep_weekly_buzz(db: Session) -> dict:
+    """One buzz sweep: scan spoiler/meme subreddit listings, count NEW posts
+    (deduped by post id across sweeps) mentioning each roster character, and
+    fold them into the weekly rolling counter. A big single-sweep spike also
+    queues a `buzz_alert` for the Vegapunk bot to post market chatter about.
+
+    Returns {"week", "new_posts", "top", "alert"} for logs/admin."""
+    char_index = _char_index_from_db(db)
+    data = _load_weekly_buzz(db)
+    seen = set(data["seen"])
+    counts = data["counts"]
+
+    new_mentions: dict = {}
+    new_posts = 0
+    for url in _BUZZ_SOURCES:
+        feed = _fetch_reddit(url)
+        if not feed:
+            continue
+        for child in feed.get("data", {}).get("children", []):
+            p = child.get("data", {})
+            pid = p.get("id")
+            if not pid or pid in seen:
+                continue
+            seen.add(pid)
+            new_posts += 1
+            text = p.get("title", "") + " " + (p.get("selftext", "") or "")[:3000]
+            for name in set(_extract_chars(text, char_index)):
+                counts[name] = counts.get(name, 0) + 1
+                new_mentions[name] = new_mentions.get(name, 0) + 1
+
+    data["counts"] = counts
+    data["seen"] = list(seen)[-_BUZZ_SEEN_CAP:]
+    _set_kv(db, _BUZZ_KV_KEY, json.dumps(data))
+
+    # Chatter alert — one character spiking hard in a single sweep means the
+    # community found something (leak panel, meme wave). Queue it for the bot.
+    alert = None
+    if new_mentions:
+        top_name, top_new = max(new_mentions.items(), key=lambda kv: kv[1])
+        if top_new >= _BUZZ_ALERT_THRESHOLD:
+            alert = {
+                "name": top_name,
+                "new_posts": top_new,
+                "week_total": counts.get(top_name, top_new),
+                "week": data["week"],
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }
+            _set_kv(db, _BUZZ_ALERT_KV_KEY, json.dumps(alert))
+
+    top5 = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:5]
+    print(f"[BuzzSweep] {data['week']}: +{new_posts} new posts | top: {top5} | alert: {alert and alert['name']}")
+    return {"week": data["week"], "new_posts": new_posts, "top": top5, "alert": alert}
+
+
 # ── Break week detection ──────────────────────────────────────────────────────
 
 _BREAK_RE = re.compile(
@@ -759,7 +868,7 @@ def enrich_chapter_with_youtube(db: Session, chapter_num: int) -> dict:
     for char_name in yt_only_names:
         all_signals[char_name] = {"wiki": 0, "reddit_comments": 0,
                                    "reddit_pulse": 0, "youtube": yt_chars[char_name],
-                                   "site_net": 0}
+                                   "site_net": 0, "weekly_buzz": 0}
 
     if not all_signals:
         return {
@@ -867,6 +976,7 @@ def _combined_total(scores: dict) -> float:
         + scores.get("reddit_pulse", 0)
         + scores.get("youtube", 0) * 150
         + scores.get("site_net", 0) * 100
+        + scores.get("weekly_buzz", 0) * 50   # distinct spoiler/meme posts this week
     )
 
 
@@ -881,6 +991,8 @@ def _build_reason(chapter_num: int, scores: dict) -> str:
         parts.append(f"pulse {int(scores['reddit_pulse'])}")
     if scores.get("youtube"):
         parts.append(f"YouTube {scores['youtube']:.1f}pts")
+    if scores.get("weekly_buzz"):
+        parts.append(f"{int(scores['weekly_buzz'])} buzz posts this week")
     net = scores.get("site_net", 0)
     if net:
         parts.append(f"net {'buy' if net > 0 else 'sell'} {abs(int(net))}")
@@ -1127,11 +1239,21 @@ def detect_chapter_drop(
         if cid in chars_by_id
     }
 
+    # ── 5b. Weekly community buzz (accumulated spoiler/meme chatter) ──────────
+    buzz_chars: dict = {}
+    try:
+        buzz_chars = weekly_buzz_counts(db)
+        if buzz_chars:
+            sources_used.append("weekly-buzz")
+    except Exception as e:
+        print(f"[ChapterPipeline] Weekly buzz load failed (non-fatal): {e}")
+
     # ── 6. Combine signals into ranked list ───────────────────────────────────
     # Weights applied in _combined_total():
     #   wiki × 100  |  reddit_comments × 500  |  reddit_pulse × 1  |
-    #   youtube × 150 (added later by enrich pass)  |  site_net × 100
-    all_names = set(wiki_chars) | set(comment_chars) | set(pulse_chars) | set(site_net)
+    #   youtube × 150 (added later by enrich pass)  |  site_net × 100  |
+    #   weekly_buzz × 50 (accumulated Mon-Wed spoiler/meme chatter)
+    all_names = set(wiki_chars) | set(comment_chars) | set(pulse_chars) | set(site_net) | set(buzz_chars)
     combined = []
     for name in all_names:
         scores = {
@@ -1140,6 +1262,7 @@ def detect_chapter_drop(
             "reddit_pulse":     pulse_chars.get(name, 0),
             "youtube":          0,   # filled by Sunday enrichment pass
             "site_net":         site_net.get(name, 0),
+            "weekly_buzz":      buzz_chars.get(name, 0),
         }
         total = _combined_total(scores)
         if total < _MENTION_FLOOR and scores["site_net"] >= 0:
@@ -1150,7 +1273,7 @@ def detect_chapter_drop(
     for name, net in site_net.items():
         if net < -5 and not any(c["name"] == name for c in combined):
             scores = {"wiki": 0, "reddit_comments": 0, "reddit_pulse": 0,
-                      "youtube": 0, "site_net": net}
+                      "youtube": 0, "site_net": net, "weekly_buzz": 0}
             combined.append({"name": name, "total": net * 100, "scores": scores})
 
     combined.sort(key=lambda x: x["total"], reverse=True)

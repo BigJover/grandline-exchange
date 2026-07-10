@@ -126,6 +126,7 @@ class VegapunkBot(discord.Client):
         self._alerted: set = set()    # chapter numbers Wave-1 posted
         self._synopsed: set = set()   # chapter numbers Wave-2 posted
         self._tx_weeks: set = set()   # ISO weeks the weekly transmission posted
+        self._buzzed: set = set()     # (week, char) buzz chatter posted
 
     async def setup_hook(self):
         if GUILD_ID:
@@ -377,6 +378,26 @@ class VegapunkBot(discord.Client):
                             log.warning("chapter_announce: no #announcements channel found (KV empty and name lookup failed)")
         except Exception as e:
             log.warning("chapter_announce synopsis step failed: %s", e)
+
+        # ── Mid-week buzz chatter → #market-uplink ────────────────────────────
+        # Intel-only: spoiler/meme chatter spiking around one character. Once
+        # per character per ISO week, so a trending arc doesn't become spam.
+        try:
+            buzz = state.get("buzz_alert")
+            if buzz and buzz.get("name"):
+                key = f"{buzz.get('week', '')}:{buzz['name']}"
+                last = await api.get_kv("last_buzz_posted")
+                if key != last and key not in self._buzzed:
+                    channel = await _resolve_channel(self, "market_uplink_channel_id")
+                    if channel:
+                        msg = personality.buzz_chatter(
+                            buzz["name"], int(buzz.get("new_posts", 0)), int(buzz.get("week_total", 0)))
+                        if await _safe_send(channel, msg):
+                            self._buzzed.add(key)
+                            await api.set_kv("last_buzz_posted", key)
+                            log.info("Buzz chatter posted for %s", key)
+        except Exception as e:
+            log.warning("chapter_announce buzz step failed: %s", e)
 
     @weekly_transmission.before_loop
     @random_hot_take.before_loop

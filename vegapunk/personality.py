@@ -501,6 +501,41 @@ def chapter_alert(chapter_num: int, detected: list = None, debuts: list = None) 
     return "\n".join(lines)
 
 
+_BUZZ_OPENERS = [
+    "My satellites register unusual chatter density.",
+    "The community signal is spiking. Punk Records is listening.",
+    "Something is moving in the discussion feeds. It is not subtle.",
+    "Spoiler-season turbulence detected across the boards.",
+]
+
+_BUZZ_CLOSERS = [
+    "Punk Records does not act on rumor — but it records everything.",
+    "The index will not move until the chapter confirms. Position yourselves accordingly.",
+    "Whether this is signal or meme remains to be seen. Historically? Both.",
+    "Speculation is the community's job. Measurement is mine.",
+]
+
+
+def buzz_chatter(name: str, new_posts: int, week_total: int) -> str:
+    """Mid-week market chatter for #market-uplink when spoiler/meme buzz spikes
+    around one character. Intel only — explicitly notes that prices move on
+    chapter data, so the buy-low window stays the players' to exploit."""
+    lines = [
+        sat("pythagoras"),
+        f"👂 **UNUSUAL CHATTER — {name.upper()}**",
+        "",
+        random.choice(_BUZZ_OPENERS),
+        "",
+        f"**{name}** is trending across the spoiler and meme boards — "
+        f"**{new_posts}** new posts this sweep, **{week_total}** logged this week.",
+        "",
+        random.choice(_BUZZ_CLOSERS),
+        "",
+        "*— Punk Records, Egghead Island*",
+    ]
+    return "\n".join(lines)
+
+
 def chapter_synopsis(chapter_num: int, summary: str, movers: list = None, site_url: str = "") -> str:
     """Second-wave synopsis for #announcements — the matured credibility readout.
     Wraps the pipeline's transmission summary with a chapter banner and site link."""
