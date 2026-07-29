@@ -4,3 +4,5 @@ __pycache__/
 *.db
 .venv/
 venv/
+analytics/_chars.ndjson
+tools/
