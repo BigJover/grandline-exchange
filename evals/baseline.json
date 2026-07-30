@@ -1,0 +1,9 @@
+{
+  "mode": "mock",
+  "cases": 8,
+  "characters_judged": 9,
+  "direction_accuracy": 1.0,
+  "magnitude_ok_rate": 0.875,
+  "grounded_rate": 1.0,
+  "groundedness_mean": 0.8
+}

@@ -1,0 +1,79 @@
+{
+  "target": "app.vegapunk_llm.score_chapter_sentiment",
+  "description": "Golden set for the Vegapunk chapter-sentiment pass. Each case is a synthetic chapter summary with the direction each character's stock SHOULD move, derived purely from the events described (not fan reputation). Direction is the hard assertion; min_magnitude checks the pass registers decisive moments strongly enough.",
+  "cases": [
+    {
+      "id": "decisive-defeat",
+      "chapter": 1000,
+      "summary": "Luffy lands a final, colossal blow that strikes the enemy commander Kaido out of the sky. Kaido collapses, defeated and unconscious, and sinks into the rubble below the island. Luffy stands victorious above the falling fortress as his crew cheers.",
+      "characters": ["Luffy", "Kaido"],
+      "expect": {
+        "Luffy": {"direction": "up", "min_magnitude": 4},
+        "Kaido": {"direction": "down", "min_magnitude": 4}
+      }
+    },
+    {
+      "id": "hype-power-reveal",
+      "chapter": 1010,
+      "summary": "In the middle of a losing battle, Zoro unveils a previously unseen sword technique wreathed in advanced Conqueror's Haki, cleanly cutting through an attack that had overwhelmed everyone else. Onlookers are stunned by the scale of the new power.",
+      "characters": ["Zoro"],
+      "expect": {
+        "Zoro": {"direction": "up", "min_magnitude": 3}
+      }
+    },
+    {
+      "id": "humiliation-despite-screentime",
+      "chapter": 1020,
+      "summary": "Charlos struts through nearly every panel giving orders and boasting, but is repeatedly outsmarted, has his threats ignored, is knocked flat on his back, and flees the scene in a panic while bystanders laugh. He accomplishes nothing he set out to do.",
+      "characters": ["Charlos"],
+      "expect": {
+        "Charlos": {"direction": "down", "min_magnitude": 2}
+      }
+    },
+    {
+      "id": "hyped-threat-deflated",
+      "chapter": 1030,
+      "summary": "The mysterious assassin built up over several chapters as an unstoppable killer is finally shown in action, only to be brushed aside effortlessly in a single exchange, revealing the earlier hype was hollow.",
+      "characters": ["The Assassin"],
+      "expect": {
+        "The Assassin": {"direction": "down", "min_magnitude": 3}
+      }
+    },
+    {
+      "id": "minor-appearance-neutral",
+      "chapter": 1040,
+      "summary": "Coby appears briefly to exchange a friendly greeting with an old acquaintance at the docks and comment on the weather before the scene moves on. Nothing of consequence happens to him.",
+      "characters": ["Coby"],
+      "expect": {
+        "Coby": {"direction": "neutral"}
+      }
+    },
+    {
+      "id": "captured-and-imprisoned",
+      "chapter": 1050,
+      "summary": "Bonney is ambushed, overpowered, and dragged away in seastone cuffs to a holding cell. The last panel shows her locked behind bars, unable to move, as her captors discuss what to do with her.",
+      "characters": ["Bonney"],
+      "expect": {
+        "Bonney": {"direction": "down", "min_magnitude": 3}
+      }
+    },
+    {
+      "id": "plot-central-lineage-reveal",
+      "chapter": 1060,
+      "summary": "A flashback reveals that Vivi is directly descended from one of the founding figures of the World Government's greatest secret, placing her at the center of the story's central mystery. Characters react with shock at the implications for her importance.",
+      "characters": ["Vivi"],
+      "expect": {
+        "Vivi": {"direction": "up", "min_magnitude": 3}
+      }
+    },
+    {
+      "id": "underdog-lands-real-blow",
+      "chapter": 1070,
+      "summary": "Though clearly the weaker fighter and taking heavy damage, Sanji manages to land one genuine, telling blow that visibly staggers a far stronger opponent for the first time, earning a grudging nod of respect before the fight continues.",
+      "characters": ["Sanji"],
+      "expect": {
+        "Sanji": {"direction": "up", "min_magnitude": 2}
+      }
+    }
+  ]
+}

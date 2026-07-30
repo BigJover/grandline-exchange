@@ -6,3 +6,4 @@ __pycache__/
 venv/
 analytics/_chars.ndjson
 tools/
+evals/results.json
